@@ -9,11 +9,14 @@
  * 1. `/ws` へ繋ぐ（唯一の WS 入口。`?tool=` を付けない接続はハブとして扱われる。
  *    `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）
  * 2. 受信は `classifyHubFrame`（`hub-frames.ts`）が `HubServerMsgSchema` などで検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
- * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する
+ * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する。
+ *    `room.created` ではルーム名も覚える（#633。次に作るときの候補）
  * 4. 読み込み時、URL の `?room=` に対応する組があれば**名乗らずに復帰する**（R16）
  * 5. 再接続したら、保存済みの組で入り直す
  * 6. 合言葉を求められたら、画面に入力を促す
  * 7. 入室が混雑で弾かれたら、`joinRetryDelayMs` の間隔で自動的に試み直す
+ * 8. 道具の入口から送り返された人（URL の `?from=`）が入れたら、選択画面へ進まず元の道具へ戻す（#638）
+ * 9. ルームの合言葉を設定・解除する（`room.passphrase.set`。#638）。付いているかは名簿の印で映す
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -28,6 +31,7 @@ import {
 } from '@tasuki/sync-client';
 import type { HubCommand, RosterRoom } from '@tasuki/room-core';
 import { readRoomParam } from './room-param.js';
+import { returnPathFor } from './return-to-tool.js';
 import { departureHubPath, redirectTo } from './departure.js';
 import { classifyHubFrame, planHubError } from './hub-frames.js';
 import {
@@ -35,11 +39,13 @@ import {
   createCommand,
   joinCommand,
   lastJoinOf,
+  passphraseCommand,
   resumeCommand,
   retryCommand,
   type LastJoin,
 } from './hub-commands.js';
 import { useDefaultDisplayName } from './use-default-display-name.js';
+import { useRecentRoomNames } from './use-recent-room-names.js';
 import { useJoinRetry } from '@tasuki/web-kit/sync';
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
@@ -70,12 +76,23 @@ export interface HubSync {
   readonly roster: RosterRoom | null;
   /** 名乗るフォームの初期値（前に名乗った名前）。 */
   readonly defaultDisplayName: string;
+  /** 前に作ったルーム名（新しい順・#633）。作成画面の初期値と候補に使う。 */
+  readonly recentRoomNames: readonly string[];
   /** 直前のエラーの文言（無ければ null）。 */
   readonly error: string | null;
   /** 合言葉の入力を求められているか。 */
   readonly needsPassphrase: boolean;
+  /**
+   * このルームに合言葉が付いているか（#638）。名簿の印から映す（名簿が届くまで・古いサーバーは null＝まだ分からない）。
+   * 合言葉そのものは持たない・受け取らない。
+   */
+  readonly passphraseProtected: boolean | null;
+  /** 合言葉の設定の失敗の文言（無ければ null）。 */
+  readonly passphraseError: string | null;
   /** 接続の状態。 */
   readonly connection: 'online' | 'reconnecting';
+  /** ルームの作成を送って、応答を待っているか（#642 のレビュー）。待つ間は次の作成を送らない。 */
+  readonly creating: boolean;
   /**
    * いま映しているルームの参加用 URL（未参加なら null）。
    *
@@ -92,6 +109,10 @@ export interface HubSync {
   readonly topicTitle: string | null;
   createRoom(roomName: string, displayName: string): void;
   joinRoom(displayName: string, passphrase?: string): void;
+  /** 前に作ったルーム名の候補から 1 つを消す（#633）。 */
+  forgetRoomName(roomName: string): void;
+  /** ルームの合言葉を設定・解除する（#638）。空文字で解除。ルームに居る誰でも実行できる。 */
+  setPassphrase(passphrase: string): void;
 }
 
 export function useHubSync(): HubSync {
@@ -105,6 +126,10 @@ export function useHubSync(): HubSync {
    * サーバー側で競合し、選択画面の名簿がちらつく）。
    */
   const initialCode = useMemo(() => readRoomParam(window.location.href), []);
+  /**
+   * ページ読み込みの時点の URL（道具が運んだ `?from=` を、入れたあとに読む・#638）。以後変わらない。
+   */
+  const initialHref = useMemo(() => window.location.href, []);
 
   /**
    * いま映しているルーム。
@@ -141,10 +166,50 @@ export function useHubSync(): HubSync {
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [topicTitle, setTopicTitle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 合言葉の設定の失敗（入ったあとのエラーは、設定の送信でしか起きない）。次の送信か名簿（成功）で消す。 */
+  const [passphraseError, setPassphraseError] = useState<string | null>(null);
+  const joinedRef = useRef(false);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
   /** 名乗るフォームの初期値と端末の片付け（`use-default-display-name.ts`・#284）。 */
   const defaultDisplayName = useDefaultDisplayName();
+  /** 前に作ったルーム名（`use-recent-room-names.ts`・#633）。 */
+  const { names: recentRoomNames, remember: rememberRoomName, forget: forgetRoomName } = useRecentRoomNames();
+  /**
+   * 応答を待っている作成で送ったルーム名（待っていなければ null）。**覚えるのは `room.created` を
+   * 受けてから**である（送っただけでは覚えない —— 弾かれた名前を候補に残さない。#633 EARS 1）。
+   *
+   * **null でない間は次の作成を送らない**（{@link creating}）。応答（`room.created`）は送った名前を
+   * 持たないので、待つ間に別の名前で送り直せると、成功した 1 つ目の応答で 2 つ目の名前を覚えてしまう
+   * （#642 のレビュー。2 つ目はサーバーが弾く）。ハブのエラーも作成のものとは限らないので、送った名前と
+   * 応答を数で対応づけるのではなく、**待つ作成を 1 つに限る**。
+   */
+  const pendingCreateRoomNameRef = useRef<string | null>(null);
+  /**
+   * 接続が開いた回数（初回を含む）。**いま開いている接続の番号**として使う（#642 の再確認と 4 回目のレビュー）。
+   *
+   * `onOpen` が溜めた送信を流す前に数えるので、溜めた送信は「次に開く接続」＝この番号が 1 つ進んだ接続で流れる。
+   */
+  const openCountRef = useRef(0);
+  /**
+   * 待っている作成が流れる（流れた）接続の番号（待っていなければ null）。
+   *
+   * 閉じかけ（CLOSING）や確立前の接続へ送った作成は `SyncConnection` に溜められ、次に開く接続で流れる。
+   * その応答はその接続に届くので、**その接続が開いた繋ぎ直しでは待ちを降ろさない** —— 降ろすと、応答を待つ間に
+   * 別の名前で送り直せて、名前を取り違える。それより前の接続で送った作成は、切れたら応答ごと失われているので降ろす。
+   *
+   * 「溜めたか」の真偽で持たないのは、初回の open（`onReconnected` が呼ばれない）で流れた作成の印を
+   * 下ろし損ね、次の繋ぎ直しで待ちが降りなくなるためである（4 回目のレビュー）。番号なら、何回目の open で
+   * 流れても同じ比べ方で済む。
+   */
+  const pendingCreateConnRef = useRef<number | null>(null);
+  /** 作成の応答待ちか。画面は作るボタンを止める（{@link pendingCreateRoomNameRef} の写し）。 */
+  const [creating, setCreating] = useState(false);
+  const settleCreate = useCallback(() => {
+    pendingCreateRoomNameRef.current = null;
+    pendingCreateConnRef.current = null;
+    setCreating(false);
+  }, []);
 
   const connRef = useRef<SyncConnection | null>(null);
   /**
@@ -166,9 +231,12 @@ export function useHubSync(): HubSync {
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = useJoinRetry(null);
   /** 自動で入り直すときに使う、直近の名乗り。 */
   const lastJoinRef = useRef<LastJoin | null>(null);
-  const send = useCallback((cmd: HubCommand) => {
-    connRef.current?.send(cmd as unknown as Record<string, unknown>);
-  }, []);
+  /** 送る。その場で送ったか・溜めたか・捨てたかを返す（`SyncConnection.send`。接続が無ければ捨てた扱い）。 */
+  const send = useCallback(
+    (cmd: HubCommand): 'sent' | 'queued' | 'dropped' =>
+      connRef.current?.send(cmd as unknown as Record<string, unknown>) ?? 'dropped',
+    [],
+  );
 
   /**
    * 保存済みの組で入り直す（再接続・読み込み時の復帰）。
@@ -211,6 +279,7 @@ export function useHubSync(): HubSync {
 
         if (msg.type === 'roster') {
           setRoster(msg.room);
+          setPassphraseError(null);
           return;
         }
         if (msg.type === 'room.created' || msg.type === 'room.joined') {
@@ -221,6 +290,18 @@ export function useHubSync(): HubSync {
             displayName: lastJoinRef.current?.displayName ?? '',
           });
           saveDefaultDisplayName(lastJoinRef.current?.displayName ?? '');
+          // 道具から送り返された人は、通ったら元の道具へ戻す（#638）。**選択画面へ進めない**
+          // （一瞬映ると、戻る先を持つ人に別の画面を見せる）。復帰の組は置いてあるので、道具が復帰できる。
+          // 作成（`room.created`）は戻る理由を持たない。
+          const returnPath = msg.type === 'room.joined' ? returnPathFor(initialHref, msg.code) : null;
+          if (returnPath !== null) {
+            // 退出の道と同じく、先に閉じてから戻る（道具の復帰の接続と、このハブの接続が重ならないように）。
+            cancelRetry();
+            conn.dispose();
+            redirectTo(returnPath);
+            return;
+          }
+          joinedRef.current = true;
           setJoined(true);
           setResuming(false);
           setGone(false);
@@ -230,6 +311,8 @@ export function useHubSync(): HubSync {
           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
           // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
           if (msg.type === 'room.created') {
+            if (pendingCreateRoomNameRef.current !== null) rememberRoomName(pendingCreateRoomNameRef.current);
+            settleCreate();
             codeRef.current = msg.code;
             setCode(msg.code);
             const url = new URL(window.location.href);
@@ -244,6 +327,9 @@ export function useHubSync(): HubSync {
         // 入れなかった」ことが確定しており、待ち続けると読み込み中の表示から抜けられない
         // （合言葉を求められた・混雑で弾かれた場合も、参加画面で文言を読ませて操作させる）。
         setResuming(false);
+        // **作成の待ちも終わらせる**（#642 のレビュー）。作成を弾かれたら送り直せるようにする。
+        // 作成と無関係のエラーで降りても、覚える名前は捨てるだけなので、弾かれた名前は残らない。
+        settleCreate();
         // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
         const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
           currentCode: codeRef.current,
@@ -290,15 +376,24 @@ export function useHubSync(): HubSync {
           case 'ignore':
             return;
           case 'show':
-            setError(intent.message);
+            // 入ったあとのエラーは合言葉の設定の失敗である。入る前の画面の `error` と混ぜない。
+            if (joinedRef.current) setPassphraseError(intent.message);
+            else setError(intent.message);
             return;
         }
       },
       onOpen: () => {
+        // 溜めた送信が流れる前に数える（`SyncConnection` は onOpen の後に流す）。{@link openCountRef}
+        openCountRef.current += 1;
         setConnection('online');
       },
       onConnectionChange: (state) => setConnection(state),
       onReconnected: () => {
+        // 作成の待ちの扱い（{@link pendingCreateConnRef}・#642 のレビューと再確認）。`SyncConnection` は
+        // 溜めた送信を流してからここを呼ぶ。
+        // - **いま開いた接続で流れた作成**（溜めていた）は、応答がこれから届くので待ちを続ける
+        // - **それより前の接続で送った作成**は、応答が前の接続と一緒に失われた。降ろさないと、作るボタンが止まったまま戻らない
+        if (pendingCreateConnRef.current !== openCountRef.current) settleCreate();
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
@@ -328,18 +423,27 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry]);
+  }, [initialCode, initialHref, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName, settleCreate]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
+      // **待っている作成があれば送らない**（{@link pendingCreateRoomNameRef}・#642 のレビュー）。
+      // 画面のボタンも止めるが、クリック以外の送信経路（requestSubmit・支援技術）はここで止める。
+      if (pendingCreateRoomNameRef.current !== null) return;
       // **利用者が別の道を選んだ。** 仕掛かっていた再試行（照会の可能性がある）は
       // もう意味を持たないので取り消す。
       cancelRetry();
       lastJoinRef.current = { displayName };
+      pendingCreateRoomNameRef.current = roomName;
+      setCreating(true);
       setError(null);
-      send(createCommand(roomName, displayName));
+      const delivery = send(createCommand(roomName, displayName));
+      // どの接続で流れるかを控える（{@link pendingCreateConnRef}）。溜めたなら次に開く接続、その場で送ったならいまの接続。
+      // 捨てたなら応答は来ないので待たない
+      if (delivery === 'dropped') settleCreate();
+      else pendingCreateConnRef.current = openCountRef.current + (delivery === 'queued' ? 1 : 0);
     },
-    [send, cancelRetry],
+    [send, cancelRetry, settleCreate],
   );
 
   const joinRoom = useCallback(
@@ -357,6 +461,14 @@ export function useHubSync(): HubSync {
     [code, send, cancelRetry, resetRetry],
   );
 
+  const setPassphrase = useCallback(
+    (passphrase: string) => {
+      setPassphraseError(null);
+      send(passphraseCommand(passphrase));
+    },
+    [send],
+  );
+
   return {
     code,
     joined,
@@ -366,10 +478,17 @@ export function useHubSync(): HubSync {
     roster,
     topicTitle,
     defaultDisplayName,
+    recentRoomNames,
     error,
     needsPassphrase,
+    // 名簿が届くまで・印の無い名簿（古いサーバー）は null（まだ分からない）。false と取り違えると、付いている合言葉を黙って上書きする。
+    passphraseProtected: roster?.passphraseProtected ?? null,
+    passphraseError,
     connection,
+    creating,
     createRoom,
     joinRoom,
+    forgetRoomName,
+    setPassphrase,
   };
 }

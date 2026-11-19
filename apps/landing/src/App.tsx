@@ -56,9 +56,12 @@ export function App() {
         <CreateRoom
           departure={departure.notice}
           defaultDisplayName={hub.defaultDisplayName}
+          recentRoomNames={hub.recentRoomNames}
           error={hub.error}
           connection={hub.connection}
+          creating={hub.creating}
           onCreate={hub.createRoom}
+          onForgetRoomName={hub.forgetRoomName}
         />
       );
     case 'join':
@@ -90,6 +93,9 @@ export function App() {
           roster={hub.roster}
           connection={hub.connection}
           topicTitle={hub.topicTitle}
+          passphraseProtected={hub.passphraseProtected}
+          passphraseError={hub.passphraseError}
+          onSetPassphrase={hub.setPassphrase}
         />
       );
     case 'gone':

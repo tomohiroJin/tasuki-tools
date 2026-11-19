@@ -1,0 +1,20 @@
+# 変異 2013: 玄関への道が、元の道具（?from=）を運ばない
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/room-route.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2013-*.patch
+# 復元: git apply -R scripts/mutations/m2013-*.patch
+#
+# #638。玄関が元の道具を知れず、合言葉を通った人が選択画面で道具を選び直すことになる。
+diff --git a/packages/room-core/src/room-route.ts b/packages/room-core/src/room-route.ts
+index 46483fd3..31ab0f5c 100644
+--- a/packages/room-core/src/room-route.ts
++++ b/packages/room-core/src/room-route.ts
+@@ -56,6 +56,5 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
+ export function roomHubPath(roomCode: string, departure?: DepartureReason, returnTo?: ToolId): string {
+   const params = new URLSearchParams({ room: roomCode });
+   if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
+-  if (returnTo !== undefined) params.set(RETURN_PARAM, returnTo);
+   return `/?${params.toString()}`;
+ }

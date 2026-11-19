@@ -77,7 +77,6 @@ function baseHandlers() {
     onAddProxy: vi.fn(),
     onDriverAssign: vi.fn(),
     onShuffle: vi.fn(),
-    onSetPassphrase: vi.fn(),
     onRemoveParticipant: vi.fn(),
     onMoveRotation: vi.fn(),
     onJoinRotation: vi.fn(),

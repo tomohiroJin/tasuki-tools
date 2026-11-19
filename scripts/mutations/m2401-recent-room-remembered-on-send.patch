@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index ab64236..cc6954d 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -399,7 +399,7 @@ export function useHubSync(): HubSync {
+       // もう意味を持たないので取り消す。
+       cancelRetry();
+       lastJoinRef.current = { displayName };
+-      pendingCreateRoomNameRef.current = roomName;
++      pendingCreateRoomNameRef.current = roomName; rememberRoomName(roomName);
+       setCreating(true);
+       setError(null);
+       const delivery = send(createCommand(roomName, displayName));

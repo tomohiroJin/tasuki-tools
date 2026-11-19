@@ -1,0 +1,9 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -40,4 +40,4 @@
+   let plainTextStart = 0;
+-  for (const match of line.matchAll(/(?<![a-z0-9])https?:\/\/[^\s\p{Cc}<>"'`\\「」『』（）【】、。！？；：]+/giu)) {
++  for (const match of line.matchAll(/(?<![a-z0-9])https?:\/\/[^\s\p{Cc}<>"'`\\「」『』（）【】！？；：]+/giu)) {
+     const url = urlWithoutTrailingPunctuation(match[0]);
+     if (!URL.canParse(url)) continue;

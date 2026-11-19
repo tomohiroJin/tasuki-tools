@@ -1,0 +1,12 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 27485f1..681af4b 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -181,7 +181,6 @@
+    狭い幅や大きな字で入りきらなければ、ランダムを次の行へ回す（題を 1 字ずつ折らない・#635 の 2 回目の敵対的レビュー 2） */
+ .method-group-head {
+   display: flex;
+-  flex-wrap: wrap;
+   align-items: center;
+   gap: var(--space-2) var(--space-3);
+   padding-block-end: var(--space-1);

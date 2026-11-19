@@ -142,7 +142,6 @@ export default function App() {
           onRemoveParticipant={commands.removeParticipant}
           onMoveRotation={commands.moveMember}
           onShuffle={commands.shuffleMembers}
-          onSetPassphrase={commands.setPassphrase}
           topic={sync.topic}
         />
       );
@@ -176,7 +175,6 @@ export default function App() {
           onRemoveParticipant={commands.removeParticipant}
           onMoveRotation={commands.moveMember}
           onShuffle={commands.shuffleMembers}
-          onSetPassphrase={commands.setPassphrase}
           topic={sync.topic}
         />
       );

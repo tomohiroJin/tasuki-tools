@@ -1,0 +1,22 @@
+# 変異 2002: 名簿の合言葉の印を常に「付いていない」にする
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/timer-ws-broadcaster.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2002-*.patch
+# 復元: git apply -R scripts/mutations/m2002-*.patch
+#
+# #638。玄関が合言葉の付いたルームを「付いていません」と映し、設定した人が付いたか分からない（変更・解除の口も出ない）。
+diff --git a/apps/tasuki-sync/src/application/roster-dto.ts b/apps/tasuki-sync/src/application/roster-dto.ts
+index 842b8d58..1806ccc3 100644
+--- a/apps/tasuki-sync/src/application/roster-dto.ts
++++ b/apps/tasuki-sync/src/application/roster-dto.ts
+@@ -31,7 +31,7 @@ function toolsOf(connections: ReadonlyMap<string, string | null>): string[] {
+ export function buildRoster(membership: MembershipRoom, passphraseProtected: boolean): RosterRoom {
+   return {
+     code: membership.code,
+-    passphraseProtected,
++    passphraseProtected: false,
+     participants: membership.participants.map((p) => ({
+       participantId: p.id,
+       displayName: p.displayName,

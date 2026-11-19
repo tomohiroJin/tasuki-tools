@@ -1,0 +1,22 @@
+# 変異 2096: schema-rejects-unknown-launch
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/schemas.test.ts
+#
+# #640 決めること 5。新しいサーバーの知らない動き出しの名前で、フレームごと捨てて画面が止まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2096-*.patch
+# 復元: git apply -R scripts/mutations/m2096-*.patch
+diff --git a/packages/roulette-core/src/schemas.ts b/packages/roulette-core/src/schemas.ts
+--- a/packages/roulette-core/src/schemas.ts
++++ b/packages/roulette-core/src/schemas.ts
+@@ -75,7 +75,7 @@
+       // 変わった止まり方（#420）。名前は列挙で縛らない（新しいサーバーの知らない名前でフレームごと捨てない）
+       stopStyle: v.optional(v.string()),
+       // 変わった動き（#640）。止まり方と同じく名前は列挙で縛らない（新しいサーバーの知らない名前でフレームごと捨てない）
+-      launchMotion: v.optional(v.string()),
++      launchMotion: v.optional(v.picklist(["shake", "windup", "stumble"])),
+       spinMotion: v.optional(v.string()),
+       spunBy: v.string(),
+       durationMs: v.number(),

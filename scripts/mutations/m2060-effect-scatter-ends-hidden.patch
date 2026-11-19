@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index b077cca7..7fc0fb5c 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -553,7 +553,7 @@
+     transform: scale(0.97);
+   }
+   100% {
+-    opacity: 1;
++    opacity: 0;
+     filter: none;
+     transform: none;
+   }

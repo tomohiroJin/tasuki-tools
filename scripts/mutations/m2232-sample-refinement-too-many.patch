@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/sample-scenarios.ts
++++ b/apps/agenda-web/src/sample-scenarios.ts
+@@ -63,3 +63,3 @@
+         [],
+-        { count: 3, steps: [step('説明', 3), step('質問', 5), step('見積もり', 2)] },
++        { count: 4, steps: [step('説明', 3), step('質問', 5), step('見積もり', 2)] },
+         [step('まとめ', 5)],

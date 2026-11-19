@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/components/SampleMenu.tsx
++++ b/apps/agenda-web/src/components/SampleMenu.tsx
+@@ -76,3 +76,3 @@
+                 <h2 id={`${listId}-${index}`} className="builder-sample-heading">{heading}</h2>
+-                <ul className="builder-sample-list" aria-labelledby={`${listId}-${index}`}>
++                <ul className="builder-sample-list">
+                   {scenarios.map((scenario) => (

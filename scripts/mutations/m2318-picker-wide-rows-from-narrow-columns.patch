@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/components/MethodPicker.tsx b/apps/checkin-web/src/components/MethodPicker.tsx
+index da94ede..7dc2c3c 100644
+--- a/apps/checkin-web/src/components/MethodPicker.tsx
++++ b/apps/checkin-web/src/components/MethodPicker.tsx
+@@ -95,7 +95,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
+   const counts = [...groups.map((g) => METHOD_GROUPS[g].methods.length), 1];
+   const rows = {
+     '--rows-narrow': rowTemplate(counts, COLUMNS.narrow),
+-    '--rows-wide': rowTemplate(counts, COLUMNS.wide),
++    '--rows-wide': rowTemplate(counts, COLUMNS.narrow),
+   } as CSSProperties;
+   return (
+     <section className="method-picker" aria-labelledby="method-picker-heading">

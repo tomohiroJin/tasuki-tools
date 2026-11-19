@@ -12,11 +12,12 @@ diff --git a/packages/room-core/src/room-route.ts b/packages/room-core/src/room-
 index 5333623c..6d67070a 100644
 --- a/packages/room-core/src/room-route.ts
 +++ b/packages/room-core/src/room-route.ts
-@@ -43,6 +43,6 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
+@@ -55,7 +55,7 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): RoomRoute {
   */
- export function roomHubPath(roomCode: string, departure?: DepartureReason): string {
+ export function roomHubPath(roomCode: string, departure?: DepartureReason, returnTo?: ToolId): string {
    const params = new URLSearchParams({ room: roomCode });
 -  if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
 +  if (departure !== undefined) params.set("reason", departure);
+   if (returnTo !== undefined) params.set(RETURN_PARAM, returnTo);
    return `/?${params.toString()}`;
  }

@@ -1,0 +1,22 @@
+# 変異 2116: motion-names-swapped
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 の /code-review。サーバーの回転の長さと画面の止まる時刻が、動き出しと回転を取り違えた長さになる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2116-*.patch
+# 復元: git apply -R scripts/mutations/m2116-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -139,7 +139,7 @@
+ 
+ /** 回転（wire の形でも Spin でもよい）が持つ動きの名前を、長さの表（`pickStopsMs`・`spinDurationMs`）へ渡す形にする */
+ export function motionNamesOf(spin: { launchMotion?: string | undefined; spinMotion?: string | undefined }): MotionNames {
+-  return { launch: spin.launchMotion, spin: spin.spinMotion };
++  return { launch: spin.spinMotion, spin: spin.launchMotion };
+ }
+ 
+ /** 1 人目が止まる時刻の延び（ms）。止まり方・動き出し（詰めた長さ）・回転の動きの合計 */

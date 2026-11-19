@@ -4,7 +4,7 @@
 import { ScenarioInputSchema, roundsOf, type ScenarioInput } from '@tasuki/agenda-core';
 import * as v from 'valibot';
 import { describe, expect, it } from 'vitest';
-import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
+import { SAMPLE_GROUPS } from '../src/sample-scenarios';
 import {
   SAVED_SCENARIOS_KEY,
   deleteSaved,
@@ -245,24 +245,27 @@ describe('シナリオの端末への保存', () => {
 });
 
 describe('同梱のサンプル', () => {
-  it('KPT のふりかえりが検証を通り、合計が 3600 秒', () => {
-    const kpt = SAMPLE_SCENARIOS.find((x) => x.label === 'KPT のふりかえり');
-    expect(kpt).toBeDefined();
-    expect(v.safeParse(ScenarioInputSchema, kpt?.scenario).success).toBe(true);
-    expect(kpt?.scenario.steps.reduce((a, st) => a + st.durationSec, 0)).toBe(3600);
-    expect(kpt?.scenario.steps.map((st) => st.name)).toEqual(['K を出す', 'P を出す', '投票', 'Try の議論', '予備']);
-    expect(kpt?.scenario.steps.every((st) => st.onTimeout === 'wait')).toBe(true);
+  const scenarios = SAMPLE_GROUPS.flatMap((group) => group.scenarios);
+
+  it.each(scenarios)('「$title」は境界スキーマの上限に収まる', ({ title, steps, rounds }) => {
+    expect(v.safeParse(ScenarioInputSchema, { title, steps, rounds }).success).toBe(true);
   });
 
-  it('朝会と LT 会が KPT のあとに並び、回数つきで検証を通る', () => {
-    expect(SAMPLE_SCENARIOS.map((x) => x.label)).toEqual(['KPT のふりかえり', '朝会', 'LT 会']);
-    for (const x of SAMPLE_SCENARIOS) expect(v.safeParse(ScenarioInputSchema, x.scenario).success).toBe(true);
-    expect(SAMPLE_SCENARIOS[1]?.scenario).toEqual({
+  it('KPT のふりかえりが検証を通り、合計が 3600 秒', () => {
+    const kpt = scenarios.find((scenario) => scenario.title === 'KPT のふりかえり');
+    expect(kpt).toBeDefined();
+    expect(kpt?.steps.reduce((a, st) => a + st.durationSec, 0)).toBe(3600);
+    expect(kpt?.steps.map((st) => st.name)).toEqual(['K を出す', 'P を出す', '投票', 'Try の議論', '予備']);
+    expect(kpt?.steps.every((st) => st.onTimeout === 'wait')).toBe(true);
+  });
+
+  it('朝会と LT 会の区切りと回数', () => {
+    expect(scenarios.find((scenario) => scenario.title === '朝会')).toEqual({
       title: '朝会',
       steps: [{ name: '話す', durationSec: 120, onTimeout: 'advance' }],
       rounds: 6,
     });
-    expect(SAMPLE_SCENARIOS[2]?.scenario).toEqual({
+    expect(scenarios.find((scenario) => scenario.title === 'LT 会')).toEqual({
       title: 'LT 会',
       steps: [
         { name: '発表', durationSec: 300, onTimeout: 'advance' },

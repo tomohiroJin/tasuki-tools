@@ -20,8 +20,10 @@ import {
   hasControlChars,
   type AgendaView,
   type ScenarioInput,
+  type StepInput,
   type TimeoutBehavior,
   roundsOf,
+  totalPlannedSec,
 } from '@tasuki/agenda-core';
 import * as v from 'valibot';
 import {
@@ -34,6 +36,7 @@ import {
   stepNameControlText,
   totalTooLongText,
 } from './copy';
+import type { SampleRepeat } from './sample-scenarios';
 
 export interface DraftStep {
   /** React の key（並べ替えで行の入力が入れ替わらないように）。送らない */
@@ -48,6 +51,8 @@ export interface Draft {
   readonly steps: readonly DraftStep[];
   /** くりかえしの回数。分の欄と同じく文字のまま持つ（新しい下書きは '1'） */
   readonly rounds: string;
+  /** 同梱サンプルを選んだ下書きだけが持つ。保存や送信には含めない。 */
+  readonly sampleRepeat?: SampleRepeat | undefined;
 }
 
 export const MIN_MINUTES = STEP_SEC_MIN / 60;
@@ -57,6 +62,8 @@ const NEW_STEP_MINUTES = 5;
 
 let keySeq = 0;
 const nextKey = (): number => ++keySeq;
+const draftStepFromInput = (step: StepInput): DraftStep =>
+  ({ key: nextKey(), name: step.name, minutes: String(step.durationSec / 60), onTimeout: step.onTimeout });
 
 /** 入力の上限で切る（`maxLength` は貼り付けや支援技術の入力を止めきらない） */
 export const clipStepName = (s: string): string => s.slice(0, MAX_STEP_NAME);
@@ -68,7 +75,7 @@ export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.len
 export function draftFromInput(input: ScenarioInput): Draft {
   return {
     title: input.title,
-    steps: input.steps.map((s) => ({ key: nextKey(), name: s.name, minutes: String(s.durationSec / 60), onTimeout: s.onTimeout })),
+    steps: input.steps.map(draftStepFromInput),
     rounds: String(roundsOf(input)),
   };
 }
@@ -208,8 +215,35 @@ export function updateStep(d: Draft, index: number, patch: Partial<Omit<DraftSte
   return { ...d, steps: d.steps.map((s, i) => (i === index ? { ...s, ...patch } : s)) };
 }
 
+export function maxSampleRepeats(d: Draft, repeat: SampleRepeat): number {
+  const rounds = effectiveRounds(d);
+  const otherSteps = d.steps.length - repeat.count * repeat.steps.length;
+  const stepLimit = Math.min(MAX_ITEMS, Math.floor(MAX_PLANNED_STEPS / rounds));
+  const countBySteps = Math.floor((stepLimit - otherSteps) / repeat.steps.length);
+  const remainingSec = MAX_TOTAL_SEC / rounds - perRoundMinutes(d) * 60;
+  const countByTime = repeat.count + Math.floor(remainingSec / totalPlannedSec(repeat.steps));
+  // 他の欄を編集して上限を超えた場合も、現在値を表示し、回数を減らせるようにする。
+  return Math.max(repeat.count, Math.min(countBySteps, countByTime));
+}
+
+/** 増やすときは元のサンプルから新しい組を足し、減らすときは末尾の組から取り除く。 */
+export function changeSampleRepeats(d: Draft, count: number): Draft {
+  const repeat = d.sampleRepeat;
+  if (repeat === undefined || !Number.isInteger(count) || count < 1 || count > maxSampleRepeats(d, repeat) || count === repeat.count) return d;
+
+  const kept = d.steps.slice(0, repeat.start + Math.min(count, repeat.count) * repeat.steps.length);
+  const added = Array.from({ length: Math.max(0, count - repeat.count) }, () => repeat.steps.map(draftStepFromInput)).flat();
+  const tail = d.steps.slice(repeat.start + repeat.count * repeat.steps.length);
+  return { ...d, steps: [...kept, ...added, ...tail], sampleRepeat: { ...repeat, count } };
+}
+
 export function removeStep(d: Draft, index: number): Draft {
-  return { ...d, steps: d.steps.filter((_, i) => i !== index) };
+  const steps = d.steps.filter((_, i) => i !== index);
+  const repeat = d.sampleRepeat;
+  if (repeat === undefined || index < 0 || index >= repeat.start + repeat.count * repeat.steps.length) return { ...d, steps };
+  // 組の途中を削除したら、残りは利用者が独立に編集する区切りとして扱う。
+  const sampleRepeat = index < repeat.start ? { ...repeat, start: repeat.start - 1 } : undefined;
+  return { ...d, steps, sampleRepeat };
 }
 
 /** 隣と入れ替える（delta は −1 か +1）。端を越えるなら変えない */
@@ -220,7 +254,11 @@ export function moveStep(d: Draft, index: number, delta: -1 | 1): Draft {
   const [moved] = steps.splice(index, 1);
   if (moved === undefined) return d;
   steps.splice(to, 0, moved);
-  return { ...d, steps };
+  const repeat = d.sampleRepeat;
+  const touchesRepeat = repeat !== undefined
+    && Math.max(index, to) >= repeat.start
+    && Math.min(index, to) < repeat.start + repeat.count * repeat.steps.length;
+  return touchesRepeat ? { ...d, steps, sampleRepeat: undefined } : { ...d, steps };
 }
 
 /** −／＋ で分を 1 つ動かす。読めない欄は下限から数え直す */

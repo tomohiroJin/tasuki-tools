@@ -73,7 +73,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   const { targetRef, markOwnAction } = useLandingFocus(focusKey);
 
   // 玄関へ送る。**判定は同期フック、適用はここ 1 箇所**。
-  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'checkin', hubPathFor, redirectTo });
 
   // 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する）
   if (sync.gone) return <RoomGoneView />;
@@ -132,6 +132,10 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
             onDraw={own((side) => {
               setPicking(false);
               sync.drawMethod(roundSeq ?? 0, side);
+            })}
+            onDrawGroup={own((group) => {
+              setPicking(false);
+              sync.drawMethodInGroup(roundSeq ?? 0, group);
             })}
             onCancel={round === null ? undefined : own(() => setPicking(false))}
           />

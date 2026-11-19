@@ -21,7 +21,7 @@ import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expec
 import { openAgendaFromHub } from '../support/agenda';
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, turnRecordingOn } from '../support/poker';
-import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
+import { SPIN_WAIT_MS, addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
 
@@ -37,7 +37,7 @@ import { createRoom as createTimerRoom } from '../support/timer';
  * - `.notify-settings-preview`: timer の通知音の「試聴」（設定の行の中の小さな文字の操作で、画面の操作の並びに入らない）
  * - `.hand-card`: Check-in Cards の手札（札の形をした選択肢。poker の `.card` と同じ）
  * - `.seg-button`: Check-in Cards の切り替え（側・公開の仕方。排他の選択肢）
- * - `.method-option`: Check-in Cards のやり方の選択肢（扇の上・題と説明の下の縦の札。8 枚が同じ幅・高さで並ぶ操作）
+ * - `.method-option`: Check-in Cards のやり方の選択肢（扇の上・題と説明の下の縦の札。各側 14 枚が小見出しをまたいで同じ幅・同じ高さで並ぶ操作。小見出しの行のランダムは `.ui-button`）
  * - `.roulette-regulars-pick`: ルーレットの「いつものメンツ」の札（名前と人数を 1 つの帯に載せる、一覧の行の形の操作。大きさと重なりは当たりの測りが見る）
  */
 const BARE_ALLOWED = [
@@ -284,7 +284,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 
     // 回して止まった後（札の表・当たりの席が描かれてから測る）
     await spinButton(page).click();
-    await expect(page.locator('.roulette-card.is-revealed')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('.roulette-card.is-revealed')).toBeVisible({ timeout: SPIN_WAIT_MS });
     await expect(spinButton(page)).toBeEnabled();
     await expectScreen(page, 'ルーレット（止まった後）', ROULETTE_BUTTONS);
 
@@ -296,7 +296,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     //   `click()` は押す前に自分でボタンを見える位置へ寄せてしまい、札も一緒に見えて検査が空振りする。DOM の click で押す
     await spinButton(page).evaluate((el) => (el as HTMLElement).click());
     await expect(spinButton(page)).toBeDisabled();
-    await expect(spinButton(page)).toBeEnabled({ timeout: 8000 });
+    await expect(spinButton(page)).toBeEnabled({ timeout: SPIN_WAIT_MS });
     await expectCardNameNotCovered(page);
 
     // 同じルームで進行タイマー（#429・ルームは足さない）。組む画面 → 進行中 → 映す表示を 4 つの幅で測る
@@ -496,8 +496,8 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await page.locator('summary', { hasText: '詳細設定' }).click();
     await expect(page.locator('.session-config-toggles')).toBeVisible();
     await expectScreen(page, 'timer ロビー（詳細設定を開いた）', 2, { minTargets: LOBBY_TARGETS });
-    // パスフレーズの欄（文字を入れる欄全体を測る。部品の当て忘れも拾う）
-    await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
+    // 合言葉の設定は玄関のルームの画面へ移った（#638）。timer のロビーには無い
+    await expect(page.getByLabel('パスフレーズ', { exact: true })).toHaveCount(0);
     await expectFieldsAtLeast16px(page);
   });
 

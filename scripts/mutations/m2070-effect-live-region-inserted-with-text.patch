@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/components/Results.tsx b/apps/poker-web/src/components/Results.tsx
+index 568db882..3830b99d 100644
+--- a/apps/poker-web/src/components/Results.tsx
++++ b/apps/poker-web/src/components/Results.tsx
+@@ -78,7 +78,7 @@ export function effectAnnounceDelay(seatCount: number, afterFlip: boolean): numb
+ 
+ export function Results({ stats, seatCount, afterFlip, spread, effect = null }: Props) {
+   // 読み上げの知らせは、結果の節と一緒に空で挿入しておき、待ちの後に文言を入れる（中身を持って挿入された live region は読まれないことがある）
+-  const [announced, setAnnounced] = useState<string>('');
++  const [announced, setAnnounced] = useState<string>(effect ? EFFECT_COPY[effect] : '');
+   useEffect(() => {
+     if (!effect) {
+       setAnnounced('');

@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { CheckinRoom } from '../src/screens/CheckinRoom';
+import { redirectTo } from '../src/router';
 import { IDLE_CHECKIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, openCheckin } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -43,10 +44,16 @@ describe('回が無いとき', () => {
     expect(commands()).toEqual([{ command: 'checkin.method.choose', seq: 0, method: 'weather' }]);
   });
 
-  it('Given 回が無い / When ランダムを押す / Then draw に側を載せる', () => {
+  it('Given 回が無い / When ランダムを押す / Then draw-side に側を載せる（古い画面の draw とは別のコマンド・#635）', () => {
     enter(IDLE_CHECKIN);
     fireEvent.click(screen.getByRole('button', { name: 'ランダム' }));
-    expect(commands()).toEqual([{ command: 'checkin.method.draw', seq: 0, side: 'checkin' }]);
+    expect(commands()).toEqual([{ command: 'checkin.method.draw-side', seq: 0, side: 'checkin' }]);
+  });
+
+  it('Given 回が無い / When 小見出しのランダムを押す / Then draw-group にその小見出しを載せる（#635）', () => {
+    enter(IDLE_CHECKIN);
+    fireEvent.click(screen.getByRole('button', { name: '集中と準備からランダム' }));
+    expect(commands()).toEqual([{ command: 'checkin.method.draw-group', seq: 0, group: 'checkin-focus' }]);
   });
 });
 
@@ -179,6 +186,9 @@ describe('切断中（B1・B2）', () => {
     act(() => latestSocket().drop());
     expect(screen.getByRole('button', { name: /今日の天気/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'ランダム' })).toBeDisabled();
+    for (const name of ['気分と元気からランダム', '集中と準備からランダム', '期待と役割からランダム']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
     expect(screen.getByRole('button', { name: '見学する' })).toBeDisabled();
   });
 
@@ -263,9 +273,12 @@ describe('やり方の選択の初期の側と閉じ方（B5・B6）', () => {
     fireEvent.click(screen.getByRole('button', { name: /今日の天気/ }));
     fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
     fireEvent.click(screen.getByRole('button', { name: 'ランダム' }));
+    fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
+    fireEvent.click(screen.getByRole('button', { name: '気分と元気からランダム' }));
     expect(commands()).toEqual([
       { command: 'checkin.method.choose', seq: 3, method: 'weather' },
-      { command: 'checkin.method.draw', seq: 3, side: 'checkin' },
+      { command: 'checkin.method.draw-side', seq: 3, side: 'checkin' },
+      { command: 'checkin.method.draw-group', seq: 3, group: 'checkin-mood' },
     ]);
   });
 
@@ -303,5 +316,16 @@ describe('理由の添え書き（B7・B8）', () => {
   it('Given 回が無い / When 描く / Then ランダムの箱に「引いて決める」が添えられる', () => {
     enter(IDLE_CHECKIN);
     expect(screen.getByRole('button', { name: 'ランダム' })).toHaveAccessibleDescription('引いて決める');
+  });
+});
+
+// #638: 名乗り・合言葉は玄関に 1 つだけある。復帰の組を持たない人は玄関へ送られ、通ったあとに玄関が
+// 元の道具へ戻す。そのために、どの道具から来たかを運ぶ。
+describe('玄関へ送るとき', () => {
+  it('Given 復帰の組が無い / When 開く / Then 繋がずに、元の道具を運んで玄関のそのルームへ送る', () => {
+    render(<CheckinRoom roomCode="R1" />);
+
+    expect(ScriptedWebSocket.instances).toHaveLength(0);
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=checkin');
   });
 });

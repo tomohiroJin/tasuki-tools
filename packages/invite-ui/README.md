@@ -3,9 +3,9 @@
 招待のコピー・QR 生成を行う React フックと、それを組んだ見出しの部品（`RoomHeader`）。
 画面は URL（またはルームコード）を渡し、結果を表示する。ドメインや同期クライアントには依存しない。
 
-- `useCopyText(text)` — `copy()` と `state`（`idle` / `done` / `failed`）。
+- `useCopyText(text, { keepFailure? })` — `copy()` と `state`（`idle` / `done` / `failed`）。
   Clipboard API、従来のコピーの順に試す。`failed` の場合は手動コピーを案内する。
-  **文字列は画面にも常時表示すること。**
+  コピー結果は既定で2秒後に消える。`keepFailure: true` を指定すると、失敗後に文字列を表示して手動で選べる。
 - `useInviteQr(url, enabled)` — `dataUrl` と `failed`。
   `enabled` が真になってから qrcode を読み込む。生成失敗時も URL を残す。
 

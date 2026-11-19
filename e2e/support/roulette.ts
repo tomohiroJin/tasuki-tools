@@ -6,6 +6,26 @@
  */
 import { expect, type Locator, type Page } from '@playwright/test';
 
+/** 回転の長さ（`SPIN_DURATION_MS`）。 */
+export const SPIN_MS = 4000;
+/**
+ * 止まり方（#420）・変わった動き（#640）で延びる長さの最大（`MOTION_EXTRA_CAP_MS`。3 つの合計の上限）。
+ * **サーバーが乱数で引くので、E2E では選べない。** 1 人を選ぶ回転の最長は `SPIN_MS + SPIN_EXTRA_MAX_MS`。
+ * 回転を待つ spec は、この最長に余裕（`SPIN_WAIT_SLACK_MS`）を足した時間で待つ（足さないと確率で待ちの上限を超えて落ちる）
+ */
+export const SPIN_EXTRA_MAX_MS = 4000;
+/** 最長の回転を待つときの余裕（往復の遅れ・描画） */
+export const SPIN_WAIT_SLACK_MS = 2000;
+/** 1 人を選ぶ回転が終わるまで待つ時間の上限 */
+export const SPIN_WAIT_MS = SPIN_MS + SPIN_EXTRA_MAX_MS + SPIN_WAIT_SLACK_MS;
+/** 2 人目からの「置く」＋「送る」（`STOP_HOLD_MS` + `NEXT_MOVE_MS`）。k 人の回転は SPIN_MS + (k − 1) × これ */
+export const NEXT_STOP_MS = 1600;
+
+/** `pickCount` 人を選ぶ回転が終わるまで待つ時間の上限 */
+export function spinWaitMs(pickCount: number): number {
+  return SPIN_WAIT_MS + (pickCount - 1) * NEXT_STOP_MS;
+}
+
 /** 選択画面のツールの札（poker・timer・お題の支援と同じ引き方）。 */
 function toolCard(page: Page, name: string): Locator {
   return page.getByRole('list', { name: 'ツール' }).getByRole('link', { name: new RegExp(name) });

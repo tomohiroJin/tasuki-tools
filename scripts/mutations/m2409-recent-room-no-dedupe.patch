@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/recent-room-names.ts b/apps/landing/src/hub/recent-room-names.ts
+index c124e36..b349d62 100644
+--- a/apps/landing/src/hub/recent-room-names.ts
++++ b/apps/landing/src/hub/recent-room-names.ts
+@@ -56,7 +56,7 @@ function tidy(names: readonly string[]): string[] {
+   const out: string[] = [];
+   for (const name of names) {
+     const usable = usableRoomName(name);
+-    if (usable === null || out.includes(usable)) continue;
++    if (usable === null) continue;
+     out.push(usable);
+     if (out.length === MAX_RECENT_ROOM_NAMES) break;
+   }

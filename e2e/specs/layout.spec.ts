@@ -809,7 +809,8 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
     const guestName = 'W'.repeat(30);
     await joinAsDriver(guest.page, code, guestName);
     await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
-    await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
+    // 合言葉の設定は玄関のルームの画面へ移った（#638）。timer のロビーには無い
+    await expect(page.getByLabel('パスフレーズ', { exact: true })).toHaveCount(0);
     return code;
   }
 

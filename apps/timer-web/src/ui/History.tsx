@@ -1,7 +1,7 @@
 /**
  * 履歴ビュー（端末ローカル記録の可視化）
  * v2.3 #5: 完了記録は IndexedDB に保存されているが閲覧画面が無かった。
- * loadRecords で端末ローカルの完成記録を読み込み、一覧表示・個別削除を提供する。
+ * loadRecords で端末ローカルの完成記録を読み込み、一覧表示・コピー・個別削除を提供する。
  * 記録は端末ローカル（IndexedDB）に閉じるので、誰でも自分の端末の記録を見られる。
  */
 
@@ -10,7 +10,9 @@ import { History as HistoryIcon, Trash2, ArrowLeft } from "lucide-react";
 import type { CompletionRecord } from "@tasuki/timer-core";
 import { Card, SectionHeader } from "./primitives.js";
 import { EmptyHint } from "./components/EmptyHint.js";
+import { RecordMarkdownCopy } from "./components/RecordMarkdownCopy.js";
 import { loadRecords, deleteRecord } from "../records/indexeddb.js";
+import { formatDuration, NO_TOPIC_LABEL } from "../records/record-markdown.js";
 
 interface HistoryProps {
   /**
@@ -21,16 +23,6 @@ interface HistoryProps {
    * 内部の mode 切り替えで開く経路は R9 で撤去した。
    */
   onBack: () => void;
-}
-
-/** お題なしで完了した記録の見出し（#91・E23）。 */
-const NO_TOPIC_LABEL = "お題なし";
-
-/** 所要時間（秒）を「○分○秒」へ整形する（Summary と同じ体裁）。 */
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}分${String(s).padStart(2, "0")}秒`;
 }
 
 /** 完了日時（epoch ms）を日本語ロケールで整形する。 */
@@ -144,6 +136,12 @@ export function History({ onBack }: HistoryProps) {
                       </dd>
                     </div>
                   </dl>
+                  <div className="ui-actions history-record-actions">
+                    <RecordMarkdownCopy
+                      record={record}
+                      recordLabel={`${formatCompletedAt(record.completedAt)} に完了した「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録`}
+                    />
+                  </div>
                 </Card>
               </li>
             ))}

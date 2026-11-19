@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/recent-room-names.ts b/apps/landing/src/hub/recent-room-names.ts
+index c124e36..37ddd51 100644
+--- a/apps/landing/src/hub/recent-room-names.ts
++++ b/apps/landing/src/hub/recent-room-names.ts
+@@ -18,7 +18,7 @@ import * as v from 'valibot';
+ import { rendersAsNothing } from '@tasuki/room-core';
+ 
+ /** 覚える数。新しい順にこれだけ残し、越えたら古いものから落とす（#633 決めること 1）。 */
+-const MAX_RECENT_ROOM_NAMES = 5;
++const MAX_RECENT_ROOM_NAMES = 6;
+ 
+ /**
+  * 覚えるルーム名の長さの上限。**ルーム名そのものの上限ではない**（作成の欄も境界も長さを縛らない）。

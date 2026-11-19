@@ -8,7 +8,8 @@ import { useHubRedirect } from '../src/room/index.js';
 
 afterEach(cleanup);
 
-const hubPathFor = (code: string, departure?: string): string => `HUB:${code}:${departure ?? '-'}`;
+const hubPathFor = (code: string, departure?: string, returnTo?: string): string =>
+  `HUB:${code}:${departure ?? '-'}${returnTo === undefined ? '' : `:from=${returnTo}`}`;
 
 describe('useHubRedirect', () => {
   it('Given どちらでもない / When 描く / Then 送らない', () => {
@@ -22,6 +23,19 @@ describe('useHubRedirect', () => {
     const { rerender } = renderHook(() => useHubRedirect({ departed: null, needsHub: true, roomCode: 'R', hubPathFor, redirectTo }));
     rerender();
     expect(redirectTo.mock.calls).toEqual([['HUB:R:-']]);
+  });
+
+  // #638: 名乗り・合言葉は玄関に 1 つだけ。通ったあとに元の道具へ戻れるよう、どの道具かを運ぶ。
+  it('Given 玄関が要り元の道具を渡した / When 描く / Then 元の道具を運んで送る', () => {
+    const redirectTo = vi.fn();
+    renderHook(() => useHubRedirect({ departed: null, needsHub: true, roomCode: 'R', returnTo: 'topic', hubPathFor, redirectTo }));
+    expect(redirectTo.mock.calls).toEqual([['HUB:R:-:from=topic']]);
+  });
+
+  it('Given 抜けた（理由つき） / When 元の道具を渡して描く / Then 元の道具は運ばない（戻すと外されたまま入り直す往復になる）', () => {
+    const redirectTo = vi.fn();
+    renderHook(() => useHubRedirect({ departed: 'self', needsHub: false, roomCode: 'R', returnTo: 'topic', hubPathFor, redirectTo }));
+    expect(redirectTo.mock.calls).toEqual([['HUB:R:self']]);
   });
 
   it('Given 抜けた（理由つき）と玄関が要るが同時 / When 描く / Then 理由を運ぶほうだけを送る', () => {

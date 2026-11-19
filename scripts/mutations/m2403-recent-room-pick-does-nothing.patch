@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/screens/CreateRoom.tsx b/apps/landing/src/screens/CreateRoom.tsx
+index 776b4e2..5f4716e 100644
+--- a/apps/landing/src/screens/CreateRoom.tsx
++++ b/apps/landing/src/screens/CreateRoom.tsx
+@@ -111,7 +111,7 @@ export function CreateRoom({
+                     <button
+                       type="button"
+                       className="ui-button ui-button--secondary ui-button--sm hub-recent-pick"
+-                      onClick={() => setRoomName(name)}
++                      onClick={() => undefined}
+                     >
+                       <span className="hub-recent-name">{name}</span>
+                     </button>

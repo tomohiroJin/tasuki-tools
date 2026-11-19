@@ -1,0 +1,13 @@
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 950b00c..3aa88ac 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -83,7 +83,7 @@ export function drawMethodInGroup(
+   input: { seq: number; group: GroupId },
+   randomInt: (n: number) => number,
+ ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+-  return drawFrom(s, input.seq, METHOD_GROUPS[input.group].methods, randomInt);
++  return drawFrom(s, input.seq, methodsOf(METHOD_GROUPS[input.group].side), randomInt);
+ }
+ 
+ type NoRound = CheckinError<"CHECKIN_NO_ROUND">;

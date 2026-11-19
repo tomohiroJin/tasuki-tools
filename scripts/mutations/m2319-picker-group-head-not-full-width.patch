@@ -1,0 +1,15 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 27485f1..582a5ab 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -153,10 +153,6 @@
+   }
+ 
+   /* 小見出しの行は全ての列にまたがる（1 列目だけに入ると、狭い幅で題が折れ、下線も 1 列目の下にしか引かれない） */
+-  .method-group-head {
+-    grid-column: 1 / -1;
+-  }
+-
+   /* 並びは小見出しの札の段（2 行目から最後まで）に載り、列と行を subgrid で受け継ぐ */
+   .method-list {
+     grid-column: 1 / -1;

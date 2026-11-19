@@ -1,0 +1,9 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -35,4 +35,4 @@
+ function markdownText(text: string): string {
+-  const line = text.replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ");
++  const line = text.replace(/\s*\n+\s*/g, " ");
+   // 自動リンクの構文で囲み、エスケープや隣の本文がリンクの行き先に入るのを防ぐ。
+   // 空白と日本語の句読点を境界にし、対応する丸括弧は URL 内に残す。

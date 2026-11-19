@@ -103,13 +103,21 @@ export class SyncConnection {
     };
   }
 
-  /** コマンドを送る。未確立なら確立時まで溜める。破棄済みなら捨てる。 */
-  send(payload: Record<string, unknown>): void {
+  /**
+   * コマンドを送る。未確立なら確立時まで溜める。破棄済みなら捨てる。
+   *
+   * **どれにしたかを返す**（#642 のレビュー）。溜めたコマンドは繋ぎ直しで流れ、その応答は新しい接続に届く。
+   * その場で送ったコマンドは、応答の前に切れると応答ごと失われる。応答を待つ呼び手（玄関の作成）は、
+   * 繋ぎ直したときに待ちを続けるか降ろすかをこれで決める。閉じかけ（CLOSING）の接続にも溜める。
+   */
+  send(payload: Record<string, unknown>): "sent" | "queued" | "dropped" {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(payload));
-    } else if (!this.disposed) {
-      this.pending.push(payload);
+      return "sent";
     }
+    if (this.disposed) return "dropped";
+    this.pending.push(payload);
+    return "queued";
   }
 
   dispose(): void {

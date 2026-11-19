@@ -236,6 +236,36 @@ describe("TopicGenerator", () => {
     expect(state?.degraded).toBe(true);
   });
 
+  it("API のクレジット切れ（processError）でも、止まらずに定型へ落として縮退を立てる（#459）", async () => {
+    // Given
+    const clock = new FakeClock();
+    const { provider, reject } = makeControllableProvider();
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: true }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider,
+      aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+
+    // When
+    generator.request("R1", AI_REQ);
+    reject(new ProviderFailure("claude -p exit 1: Credit balance is too low", "processError"));
+    await tracker.waitForCount(2);
+
+    // Then
+    const state = store.get("R1");
+    expect(state?.topic?.source).toBe("fallback");
+    expect(state?.degraded).toBe(true);
+    expect(state?.generating).toBe(false);
+  });
+
   it("AI の出力が検証に落ちたら定型へ落とす", async () => {
     // Given
     const clock = new FakeClock();

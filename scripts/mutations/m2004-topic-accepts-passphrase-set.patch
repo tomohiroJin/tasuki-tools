@@ -1,0 +1,22 @@
+# 変異 2004: お題ツールの接続が合言葉の設定を受け付ける
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2004-*.patch
+# 復元: git apply -R scripts/mutations/m2004-*.patch
+#
+# #638。合言葉の設定はハブだけの言葉。道具の接続から届くと、振り分けの想定外の形がお題のコマンドの処理へ流れる。
+diff --git a/apps/tasuki-sync/src/application/topic-handlers.ts b/apps/tasuki-sync/src/application/topic-handlers.ts
+index dcbc2ac8..558b02e5 100644
+--- a/apps/tasuki-sync/src/application/topic-handlers.ts
++++ b/apps/tasuki-sync/src/application/topic-handlers.ts
+@@ -205,7 +205,7 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
+         return;
+       }
+       // お題の接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
+-      if (isHubCommand(cmd)) {
++      if (cmd.command === "room.create" || cmd.command === "room.check") {
+         fail(connId, "INVALID_COMMAND");
+         return;
+       }

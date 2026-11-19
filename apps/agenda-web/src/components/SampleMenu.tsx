@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { roundsOf, scenarioTotalSec, type ScenarioInput } from '@tasuki/agenda-core';
+import { roundsOf, scenarioTotalSec } from '@tasuki/agenda-core';
 import {
   sampleTitle,
   SAMPLE_MENU_BUTTON,
@@ -8,16 +8,16 @@ import {
   SAMPLE_REPLACE_YES,
   scenarioDetail,
 } from '../copy';
-import { SAMPLE_SCENARIOS } from '../sample-scenarios';
+import { SAMPLE_GROUPS, type SampleScenario } from '../sample-scenarios';
 
 /**
- * 「サンプルから選ぶ」（#429 フィードバック F1〜F3。#595 で ScenarioBuilder から分けた）。小さな開閉のボタンで、押したときだけ 3 行の一覧を開く。
+ * 「サンプルから選ぶ」（#429 フィードバック F1〜F3）。押したときだけ、会の種類ごとの一覧を開く。
  * 下書きに中身があり、ルームのシナリオとも違うときに選んだら、その場で「いまの下書きを消して読み込みますか」と確かめる（「最初から」と同じ作り:
  * 確かめを開いたら安全な側＝やめる にフォーカス、閉じたら開閉のボタンへ返す）。
  */
-export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean; onPick: (scenario: ScenarioInput) => void }) {
+export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean; onPick: (scenario: SampleScenario) => void }) {
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState<ScenarioInput | null>(null);
+  const [pending, setPending] = useState<SampleScenario | null>(null);
   const [returnFocus, setReturnFocus] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const noRef = useRef<HTMLButtonElement>(null);
@@ -47,7 +47,7 @@ export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: b
     }
   }, [pending, returnFocus]);
 
-  const load = (scenario: ScenarioInput): void => {
+  const load = (scenario: SampleScenario): void => {
     onPick(scenario);
     setPending(null);
     setOpen(false);
@@ -70,22 +70,29 @@ export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: b
       </button>
       <div id={listId}>
         {open && pending === null && (
-          <ul className="builder-sample-list">
-            {SAMPLE_SCENARIOS.map((sample) => (
-              <li key={sample.label}>
-                <button
-                  type="button"
-                  className="builder-sample-row"
-                  onClick={() => (needsConfirm ? setPending(sample.scenario) : load(sample.scenario))}
-                >
-                  <span className="builder-sample-title">{sampleTitle(sample.label)}</span>
-                  <span className="builder-sample-detail">
-                    {scenarioDetail(sample.scenario.steps.length, scenarioTotalSec(sample.scenario) / 60, roundsOf(sample.scenario))}
-                  </span>
-                </button>
-              </li>
+          <div className="builder-sample-groups">
+            {SAMPLE_GROUPS.map(({ heading, scenarios }, index) => (
+              <div key={heading} className="builder-sample-group">
+                <h2 id={`${listId}-${index}`} className="builder-sample-heading">{heading}</h2>
+                <ul className="builder-sample-list" aria-labelledby={`${listId}-${index}`}>
+                  {scenarios.map((scenario) => (
+                    <li key={scenario.title}>
+                      <button
+                        type="button"
+                        className="builder-sample-row"
+                        onClick={() => (needsConfirm ? setPending(scenario) : load(scenario))}
+                      >
+                        <span className="builder-sample-title">{sampleTitle(scenario.title)}</span>
+                        <span className="builder-sample-detail">
+                          {scenarioDetail(scenario.steps.length, scenarioTotalSec(scenario) / 60, roundsOf(scenario))}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
         {open && pending !== null && needsConfirm && (
           <div

@@ -365,7 +365,7 @@ S3 が外した 6 件は事象そのもの（可否判定・ホスト移譲・�
 
 - **境界検証**: 全 WS メッセージを Valibot で一度だけ検証（未知 type・過大・不正を即拒否）。
 - **XSS**: React 既定エスケープ。AI/ユーザー由来テキストへ `dangerouslySetInnerHTML` 不使用。
-- **トークン管理**: AI 用 OAuth トークンはサーバー env のみ。`claude -p` 子プロセスの env にのみ渡し、
+- **トークン管理**: AI 用 API キー（ANTHROPIC_API_KEY。#459）はサーバー env のみ。`claude -p` 子プロセスの env にのみ渡し、
   argv・ログ・snapshot に混入させない（ADR-0008）。
 - **resumeToken の保存先**: **`localStorage`・ルームコード別の鍵**（`sync/resume-identity.ts`）。
   #95 S4b で `sessionStorage` から移した（FR-006 の撤廃・設計正本 D12）。根拠は 2 つ ——

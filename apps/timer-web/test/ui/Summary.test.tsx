@@ -3,8 +3,8 @@
  * @requirements FR-020, FR-021, FR-044, US5
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { Summary } from "../../src/ui/Summary.js";
 
@@ -19,6 +19,74 @@ const baseRecord = {
 
 describe("Summary", () => {
   const noop = vi.fn();
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("完成時、表示名と担当回数を含む Markdown を利用者の操作でコピーする（#408）", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    render(
+      <Summary
+        endType="complete"
+        record={{
+          ...baseRecord,
+          id: "internal-record-id",
+          roomId: "internal-room-id",
+          topicTitle: "R&D *Buzz*\r\n# 次のお題\r<tag>\u2028`code`\u2029~~test~~\n\\path &amp; &#65; &#x41; https://example.com/a_b（https://example.com/_health？） (https://example.com/__init__(1).py)",
+          members: ["A_[1]", "taro_y"],
+          driverCounts: [2, 1],
+          totalSwitches: 3,
+          rounds: 1,
+        }}
+        onNewSession={noop}
+        onSaveRecord={noop}
+      />,
+    );
+
+    expect(writeText).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Markdown をコピー" }));
+    expect(await screen.findByText("コピーしました")).toBeTruthy();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith([
+      "セッションまとめ",
+      "",
+      "- お題：R&D \\*Buzz\\* # 次のお題 \\<tag\\> \\`code\\` \\~\\~test\\~\\~ \\\\path \\&amp; \\&#65; \\&#x41; <https://example.com/a_b>（<https://example.com/_health>？） (<https://example.com/__init__(1).py>)",
+      "- 所要時間：5分00秒",
+      "- 交代回数：3回",
+      "- 周回数：1周",
+      "- 参加者（2人）",
+      "  - 「A\\_\\[1\\]」（担当2回）",
+      "  - 「taro_y」（担当1回）",
+    ].join("\n"));
+  });
+
+  it("コピーに失敗したときは本文を選択でき、再試行の成功で入力欄を閉じる（#408）", async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    render(<Summary endType="complete" record={baseRecord} onNewSession={noop} onSaveRecord={noop} />);
+
+    const copyButton = screen.getByRole("button", { name: "Markdown をコピー" });
+    expect(screen.queryByRole("textbox", { name: "手動コピー用の Markdown" })).toBeNull();
+    await act(async () => { fireEvent.click(copyButton); });
+
+    expect(screen.getByText("コピーできませんでした")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(3000));
+    const field = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "手動コピー用の Markdown" });
+    expect(field.readOnly).toBe(true);
+    expect(field.value).toContain("- お題：FizzBuzz");
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(field.value);
+    fireEvent.focus(field);
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(field.value.length);
+
+    writeText.mockResolvedValueOnce(undefined);
+    await act(async () => { fireEvent.click(copyButton); });
+    expect(screen.getByText("コピーしました")).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "手動コピー用の Markdown" })).toBeNull();
+  });
 
   it("完成（endType=complete）では達成を示すタイトルを表示する", () => {
     // Given
@@ -84,6 +152,7 @@ describe("Summary", () => {
     );
     // Then
     expect(screen.queryByRole("button", { name: /保存|save/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Markdown をコピー" })).toBeNull();
   });
 
   /**

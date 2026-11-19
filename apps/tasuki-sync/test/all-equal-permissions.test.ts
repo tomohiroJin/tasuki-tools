@@ -131,7 +131,6 @@ describe("ルームに居る全員が同格である（開始前）", () => {
     // 1 つに束ねて期待を反転させたもの。`role.set` は S3 でコマンドごと消えたため入らない。
     const cases: Array<[string, () => RoomScopedCommand]> = [
       ["session.abort", () => ({ command: "session.abort" })],
-      ["room.passphrase.set", () => ({ command: "room.passphrase.set", passphrase: "ひらけごま2026" })],
       ["member.shuffle", () => ({ command: "member.shuffle" })],
       ["member.move", () => ({ command: "member.move", fromIndex: 0, toIndex: 2 })],
       ["participant.remove（他人）", () => ({ command: "participant.remove", participantId: bobPid })],
@@ -204,7 +203,7 @@ describe("ルームに居る全員が同格である（開始前）", () => {
 
     it("在室していない接続の専用ハンドラ経由の操作も NOT_IN_ROOM で拒否される", async () => {
       // Given
-      const command = { command: "room.passphrase.set", passphrase: "pw" } as const;
+      const command = { command: "participant.remove", participantId: bobPid } as const;
 
       // When
       const result = await handlers.handleCommand("stranger-conn", command);

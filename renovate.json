@@ -19,12 +19,32 @@
       "packageNameTemplate": "oven-sh/bun",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^bun-v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "toolchain.json の Node（#441・docs/adr/0031）。CI と手元はこの版で流す。上げると手元の Node も入れ替えが要る（check-toolchain は宣言以上を求める）ので、Bun と同じく下の Node の規則で承認制にする。versioning は node（LTS に入った系列だけを安定版として扱う）。major の更新は下の major の規則（承認制）にかかる",
+      "managerFilePatterns": ["/^toolchain\\.json$/"],
+      "matchStrings": ["\"node\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
+    },
+    {
+      "customType": "regex",
+      "description": "package.json の engines.node の下限（#441）。toolchain.json の node と同じ PR で上げる（片方だけだと audit-toolchain が赤くなる）。値の >= は残り、版の部分だけが書き換わる",
+      "managerFilePatterns": ["/^package\\.json$/"],
+      "matchStrings": ["\"node\":\\s*\">=(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
     }
   ],
   "packageRules": [
     { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新", "groupSlug": "non-breaking" },
     { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },
     { "matchUpdateTypes": ["lockFileMaintenance"], "minimumReleaseAge": null },
-    { "matchDepNames": ["bun", "@types/bun"], "groupName": "Bun", "groupSlug": "bun", "dependencyDashboardApproval": true }
+    { "matchDepNames": ["bun", "@types/bun"], "groupName": "Bun", "groupSlug": "bun", "dependencyDashboardApproval": true },
+    { "matchDepNames": ["node"], "matchManagers": ["custom.regex"], "groupName": "Node", "groupSlug": "node", "dependencyDashboardApproval": true },
+    { "matchDepNames": ["node"], "matchManagers": ["npm"], "enabled": false }
   ]
 }

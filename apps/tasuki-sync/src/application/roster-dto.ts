@@ -23,9 +23,15 @@ function toolsOf(connections: ReadonlyMap<string, string | null>): string[] {
   return tools;
 }
 
-export function buildRoster(membership: MembershipRoom): RosterRoom {
+/**
+ * @param passphraseProtected そのルームに合言葉が付いているか（#638）。**平文は渡さない・載せない。**
+ *   正本は `token-store.ts` の保管で、名簿（`membership`）は持たない（名簿は復帰の組と同じく合言葉を知らない）。
+ *   玄関の設定の口が「設定中」と映すための印である。
+ */
+export function buildRoster(membership: MembershipRoom, passphraseProtected: boolean): RosterRoom {
   return {
     code: membership.code,
+    passphraseProtected,
     participants: membership.participants.map((p) => ({
       participantId: p.id,
       displayName: p.displayName,

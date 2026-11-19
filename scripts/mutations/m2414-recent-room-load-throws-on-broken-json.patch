@@ -1,0 +1,14 @@
+diff --git a/apps/landing/src/hub/recent-room-names-store.ts b/apps/landing/src/hub/recent-room-names-store.ts
+index 2e72e5c..80cccda 100644
+--- a/apps/landing/src/hub/recent-room-names-store.ts
++++ b/apps/landing/src/hub/recent-room-names-store.ts
+@@ -18,8 +18,7 @@ export function loadRecentRoomNames(): string[] {
+     const text = localStorage.getItem(RECENT_ROOM_NAMES_KEY);
+     if (text === null) return [];
+     return parseRecentRoomNames(JSON.parse(text));
+-  } catch {
+-    return [];
++  } finally {
+   }
+ }
+ 

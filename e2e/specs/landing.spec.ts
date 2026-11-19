@@ -10,6 +10,8 @@
  * - タグ無し #10 — 札を選ぶと各ツールが開くこと（`local` 専用の回帰）。
  * - タグ無し #249 — 端末の記録への入口（`?view=history`）と、繋がらないときの玄関
  *   （`local` 専用。実ルームの枠を使い、WS を成立させない細工も要る）。
+ * - タグ無し #633 — 前に作ったルーム名を覚えて作成画面に入れ直し、候補から選べて消せること
+ *   （`local` 専用。実ルームを 3 つ作る）。
  */
 import { expect, test } from '../fixtures/test';
 import { expectScreenAcrossWidths } from '../support/a11y';
@@ -64,8 +66,8 @@ test.describe('選択画面の札から各ツールへ移動できる', () => {
     { card: 'Topic Board', path: '/topic/', landmark: '場に出す' },
     // 進行タイマー（#429）。目印は組む画面の「サンプルから選ぶ」のボタン
     { card: 'Agenda Timer', path: '/agenda/', landmark: /サンプルから選ぶ/ },
-    // Check-in Cards（#406）。目印は選ぶ画面の「ランダム」（玄関にも他のツールにも無い）
-    { card: 'Check-in Cards', path: '/checkin/', landmark: 'ランダム' },
+    // Check-in Cards（#406）。目印は選ぶ画面の「ランダム」（玄関にも他のツールにも無い）。名前ちょうどで当てる（小見出しの「…からランダム」にも部分一致で当たる・#635）
+    { card: 'Check-in Cards', path: '/checkin/', landmark: /^ランダム$/ },
   ] as const;
 
   for (const tool of TOOLS) {
@@ -484,5 +486,94 @@ test.describe('@core 見つからないルームの参加用 URL', () => {
       page.getByRole('link', { name: '新しいルームを作る' }),
       '戻る導線',
     ).toBeVisible();
+  });
+});
+
+/**
+ * 前に作ったルーム名を覚えて入れ直す（#633・タグ無し = `local` 専用。実ルームを 3 つ作る）。
+ *
+ * 単体（`apps/landing/tests/hub/recent-room-names-screen.test.tsx`）は保管庫と画面を jsdom で見る。
+ * ここは**実ブラウザの `localStorage` が読み込みをまたいで残り、札が狭い幅でも崩れない**ことを見る。
+ */
+test.describe('玄関が前に作ったルーム名を覚えて入れ直す（#633）', () => {
+  /** ルームを作り、選択画面に入ったところまで進める。 */
+  async function createRoom(page: Page, roomName: string): Promise<void> {
+    await page.goto('/');
+    await page.getByLabel('ルーム名').fill(roomName);
+    await page.getByLabel('あなたの名前').fill('あや');
+    await page.getByRole('button', { name: 'ルームを作る' }).click();
+    await expect(page.getByLabel('参加用 URL'), '選択画面').toBeVisible();
+  }
+
+  const candidates = (page: Page) => page.getByRole('list', { name: '前に作ったルーム' });
+
+  test('Given 2 つのルームを作った / When 玄関を開き直す / Then 最後の名前が欄に入り、候補から選べて、消せる', async ({
+    page,
+  }) => {
+    // Given: 2 つ作る（読み込みをまたいで端末に残る）
+    await createRoom(page, '定例のモブ');
+    await createRoom(page, '朝会モブ');
+
+    // When: 玄関を開き直す
+    await page.goto('/');
+
+    // Then その1: 最後に作った名前が欄に入っている
+    await expect(page.getByLabel('ルーム名')).toHaveValue('朝会モブ');
+
+    // Then その2: 新しい順に候補の札が並ぶ
+    await expect(candidates(page).getByRole('button', { name: '朝会モブ', exact: true })).toBeVisible();
+    await expect(candidates(page).getByRole('button', { name: '定例のモブ', exact: true })).toBeVisible();
+    // 札と消すボタンが 320px〜1920px で溢れず、押せる大きさで重ならない（docs/guides/procedures/live-check.md）
+    // 測る操作: 札 2 枚 × (選ぶ・消す) + ルームを作る = 5 以上
+    await expectScreenAcrossWidths(page, '玄関（ルーム名の候補あり）', 5);
+
+    // 覚える上限いっぱい（100 文字。`MAX_REMEMBERED_ROOM_NAME`）の名前の札も、狭い幅で横に溢れず、押せる大きさを保つ（「…」で切れることまでは測っていない）。
+    // ルームの枠を使わないよう、端末の保存へ直に置いて開き直す（鍵の綴りは `recent-room-names-store.ts`）
+    const longName = 'あ'.repeat(100);
+    await page.evaluate(
+      (names) => localStorage.setItem('tasuki:recent-room-names', JSON.stringify(names)),
+      [longName, '朝会モブ', '定例のモブ'],
+    );
+    await page.reload();
+    await expect(candidates(page).getByRole('button', { name: longName, exact: true })).toBeVisible();
+    // 測る操作: 札 3 枚 × (選ぶ・消す) + ルームを作る = 7 以上
+    await expectScreenAcrossWidths(page, '玄関（100 文字の名前の札あり）', 7);
+    // 後の手順のため、作った 2 つだけの保存へ戻す
+    await page.evaluate(
+      (names) => localStorage.setItem('tasuki:recent-room-names', JSON.stringify(names)),
+      ['朝会モブ', '定例のモブ'],
+    );
+    await page.reload();
+    await expect(page.getByLabel('ルーム名')).toHaveValue('朝会モブ');
+
+    // When: 古いほうを選ぶ
+    await candidates(page).getByRole('button', { name: '定例のモブ', exact: true }).click();
+    // Then その3: 欄に入る（作成はしない）
+    await expect(page.getByLabel('ルーム名')).toHaveValue('定例のモブ');
+    await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeVisible();
+
+    // When: 新しいほうを候補から消す
+    await page.getByRole('button', { name: '「朝会モブ」を候補から消す' }).click();
+    // Then その4: 札から外れ、開き直しても戻ってこない（端末からも消えた）
+    await expect(candidates(page).getByRole('button', { name: '朝会モブ', exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByLabel('ルーム名')).toHaveValue('定例のモブ');
+    await expect(candidates(page).getByRole('button', { name: '朝会モブ', exact: true })).toHaveCount(0);
+  });
+
+  test('Given 端末の保存が壊れている / When 玄関を開く / Then 空の欄で見せ、作成できる', async ({ page }) => {
+    // Given: 鍵の綴りは `apps/landing/src/hub/recent-room-names-store.ts` の RECENT_ROOM_NAMES_KEY
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('tasuki:recent-room-names', '{'));
+
+    // When
+    await page.reload();
+
+    // Then: 欄は空で、候補は出ず、作成は止まらない
+    await expect(page.getByLabel('ルーム名')).toHaveValue('');
+    await expect(candidates(page)).toHaveCount(0);
+    await page.getByLabel('あなたの名前').fill('あや');
+    await page.getByRole('button', { name: 'ルームを作る' }).click();
+    await expect(page.getByLabel('参加用 URL'), '選択画面').toBeVisible();
   });
 });

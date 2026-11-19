@@ -171,6 +171,7 @@ describe('Check-in Cards の操作', () => {
     act(() => {
       result.current.chooseMethod(0, 'weather');
       result.current.drawMethod(2, 'checkin');
+      result.current.drawMethodInGroup(2, 'checkout-mood');
       result.current.playCard(3, 'sunny');
       result.current.setVisibility(3, 'anonymous');
       result.current.reveal(3);
@@ -180,7 +181,8 @@ describe('Check-in Cards の操作', () => {
     });
     expect(latestSocket().sentJson().slice(1)).toEqual([
       { command: 'checkin.method.choose', seq: 0, method: 'weather' },
-      { command: 'checkin.method.draw', seq: 2, side: 'checkin' },
+      { command: 'checkin.method.draw-side', seq: 2, side: 'checkin' },
+      { command: 'checkin.method.draw-group', seq: 2, group: 'checkout-mood' },
       { command: 'checkin.card.play', seq: 3, card: 'sunny' },
       { command: 'checkin.visibility.set', seq: 3, visibility: 'anonymous' },
       { command: 'checkin.reveal', seq: 3 },

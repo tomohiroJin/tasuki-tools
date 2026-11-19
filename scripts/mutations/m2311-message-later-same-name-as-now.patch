@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/method-copy.ts b/apps/checkin-web/src/method-copy.ts
+index 943b7af..0ac3634 100644
+--- a/apps/checkin-web/src/method-copy.ts
++++ b/apps/checkin-web/src/method-copy.ts
+@@ -280,7 +280,7 @@ export const METHOD_COPY: Readonly<Record<MethodId, MethodCopy>> = {
+     prompt: 'だれかに言っておきたいことは、ありますか？',
+     cards: {
+       now: { name: 'このあと話す', meaning: '終わる前にこの場で話す' },
+-      later: { name: 'あとで言う', meaning: '会のあとで相手に言う' },
++      later: { name: 'このあと話す', meaning: '会のあとで相手に言う' },
+       none: { name: '無い', meaning: '言いたいことはない' },
+     },
+   },

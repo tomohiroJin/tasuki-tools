@@ -1,0 +1,13 @@
+diff --git a/packages/checkin-core/src/methods.ts b/packages/checkin-core/src/methods.ts
+index fe3e36c..c52419f 100644
+--- a/packages/checkin-core/src/methods.ts
++++ b/packages/checkin-core/src/methods.ts
+@@ -76,7 +76,7 @@ export const METHODS: Readonly<Record<MethodId, MethodRule>> = {
+   "next-step": { side: "checkout", cards: ["clear", "mostly", "vague", "unknown"], defaultVisibility: "named" },
+   voice: { side: "checkout", cards: ["plenty", "some", "none"], defaultVisibility: "anonymous" },
+   pace: { side: "checkout", cards: ["fast", "right", "slow"], defaultVisibility: "anonymous" },
+-  fatigue: { side: "checkout", cards: ["fine", "bit", "very"], defaultVisibility: "anonymous" },
++  fatigue: { side: "checkout", cards: ["fine", "bit", "very"], defaultVisibility: "named" },
+   message: { side: "checkout", cards: ["now", "later", "none"], defaultVisibility: "named" },
+ };
+ 

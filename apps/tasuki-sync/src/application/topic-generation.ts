@@ -44,7 +44,7 @@ export interface TopicGeneratorDeps {
   clock: WallClock;
   /** 保管のあとに呼ぶ（宛先は呼び出し時点の名簿から決まる） */
   publish: (roomCode: string) => void;
-  /** 省略時は AI 無効（トークンか合言葉が無い） */
+  /** 省略時は AI 無効（API キーか合言葉が無い） */
   provider?: ServerTopicProvider | undefined;
   /** provider とセットで渡す。**サーバー全体で 1 つの予算**（配線が 1 個だけ作る） */
   aiLimiter?: AiLimiter | undefined;

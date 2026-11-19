@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -225,3 +225,3 @@
+   // 他の欄を編集して上限を超えた場合も、現在値を表示し、回数を減らせるようにする。
+-  return Math.max(repeat.count, Math.min(countBySteps, countByTime));
++  return Math.max(repeat.count, countBySteps);
+ }

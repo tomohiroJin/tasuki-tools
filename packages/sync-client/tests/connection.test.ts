@@ -65,6 +65,23 @@ describe('SyncConnection', () => {
     expect(latest().sent).toEqual([JSON.stringify({ command: 'room.join', code: 'ABC' })]);
   });
 
+  it('Given 確立済み・未接続・閉じかけ・破棄済み / When send する / Then その場で送ったか・溜めたか・捨てたかを返す（#642 のレビュー）', () => {
+    const conn = new SyncConnection({ url: 'ws://example/ws', onMessage: () => {} });
+    conn.connect();
+
+    // 未接続（確立前）は溜める
+    expect(conn.send({ command: 'a' })).toBe('queued');
+    latest().open();
+    // 確立済みはその場で送る
+    expect(conn.send({ command: 'b' })).toBe('sent');
+    // 閉じかけ（CLOSING。close はまだ届いていない）は溜める —— 繋ぎ直しで流れる
+    latest().readyState = 2;
+    expect(conn.send({ command: 'c' })).toBe('queued');
+    // 破棄済みは捨てる
+    conn.dispose();
+    expect(conn.send({ command: 'd' })).toBe('dropped');
+  });
+
   it('Given 確立済み / When send する / Then その場で送られる', () => {
     // Given
     const conn = new SyncConnection({ url: 'ws://example/ws', onMessage: () => {} });

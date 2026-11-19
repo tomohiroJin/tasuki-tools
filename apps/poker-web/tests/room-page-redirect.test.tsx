@@ -83,7 +83,7 @@ describe('端末に同一性が無いままルーム画面を開く', () => {
     render(<RoomPage roomId={ROOM_ID} sync={sync} />);
 
     // Then: コードを保ったまま玄関へ。名乗らないまま入室を試みない
-    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID));
+    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID, undefined, 'poker'));
     expect(joinRoom).not.toHaveBeenCalled();
   });
 
@@ -102,7 +102,7 @@ describe('端末に同一性が無いままルーム画面を開く', () => {
     render(<RoomPage roomId={ROOM_ID} sync={sync} />);
 
     // Then: 接続の確立を待たずに玄関の参加画面へ
-    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID));
+    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID, undefined, 'poker'));
     expect(joinRoom).not.toHaveBeenCalled();
   });
 
@@ -222,5 +222,7 @@ describe('別の場所で外された・抜けた', () => {
   it('hubPathFor は理由を ?left= で運び、無ければ付けない', () => {
     expect(hubPathFor('A-1')).toBe('/?room=A-1');
     expect(hubPathFor('A-1', 'removed')).toBe('/?room=A-1&left=removed');
+    // 名乗り・合言葉のために玄関へ送るときは、元の道具を ?from= で運ぶ（#638）
+    expect(hubPathFor('A-1', undefined, 'poker')).toBe('/?room=A-1&from=poker');
   });
 });

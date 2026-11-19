@@ -164,7 +164,7 @@ describe("再読込での復帰（#76 F-3）", () => {
 
     // Then: 前のルームへは繋がず、**そのルームの**名乗りへ送る（#95 S5c・R9）。
     // 撤去前はここで timer 自身の参加画面（`Join`）を出していた
-    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01&from=timer");
     expect(FakeWS.instances, "前のルームの組で繋いでいる").toHaveLength(0);
   });
 
@@ -176,7 +176,7 @@ describe("再読込での復帰（#76 F-3）", () => {
     render(<App />);
 
     // Then: 名乗りはハブに 1 つだけある。**コードは落とさずに運ぶ**（#95 S5c・R9）
-    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01&from=timer");
     expect(FakeWS.instances, "名乗れないのに接続を張っている").toHaveLength(0);
   });
 });
