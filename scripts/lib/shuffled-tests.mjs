@@ -7,7 +7,7 @@
  *
  * - vitest: `--sequence.shuffle --sequence.seed=<種>`
  * - bun test: `--randomize --seed=<種>`
- * - `node --test`（packages/ui・scripts/）: Node 22 にランダムな順の指定が無いので対象外
+ * - `node --test`（packages/ui・scripts/）: 今は対象外（Node 26 には --test-randomize があるが、まだ入れていない）
  *
  * 指定は package.json の `test` から導くので、テストのコマンドを変えたパッケージは追随する。
  * **知らないランナーは黙って飛ばさず、落とす**（新しいランナーのパッケージが検査の外に出るのを防ぐ）。
@@ -38,7 +38,7 @@ export function parseSeed(value) {
 export function shuffledCommand(testScript, seed) {
   if (typeof testScript !== "string" || testScript.trim() === "") return { skip: "test スクリプトが無い" };
   const words = testScript.trim().split(/\s+/);
-  if (words[0] === "node" && words[1] === "--test") return { skip: "node --test は Node 22 にランダムな順の指定が無い" };
+  if (words[0] === "node" && words[1] === "--test") return { skip: "node --test は今は対象外（Node 26 には --test-randomize があるが、まだ入れていない）" };
   if (/[&|;<>$`"'()\\*]/.test(testScript)) throw new Error(`test スクリプトにシェルの記法があり、種の指定を足せません: ${testScript}`);
   if (words[0] === "vitest" && words[1] === "run") return { args: [...words, "--sequence.shuffle", `--sequence.seed=${seed}`] };
   if (words[0] === "bun" && words[1] === "test") return { args: [...words, "--randomize", `--seed=${seed}`] };

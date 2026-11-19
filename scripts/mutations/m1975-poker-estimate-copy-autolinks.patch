@@ -1,0 +1,8 @@
+diff --git a/apps/poker-web/src/estimate-log-text.ts b/apps/poker-web/src/estimate-log-text.ts
+--- a/apps/poker-web/src/estimate-log-text.ts
++++ b/apps/poker-web/src/estimate-log-text.ts
+@@ -26,3 +26,3 @@
+     // GFM の自動リンクがエスケープ済みの文字を URL として飲み込まないようにする。
+-    const title = estimateTitle(group.item, group.id).replace(/[\\\x60*_[\]<>#~&!.:@]/g, '\\$&');
++    const title = estimateTitle(group.item, group.id).replace(/[\\\x60*_[\]<>#~&!]/g, '\\$&');
+     const points = group.open ? ESTIMATE_OPEN

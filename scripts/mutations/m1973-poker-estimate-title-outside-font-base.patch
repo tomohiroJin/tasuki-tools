@@ -1,0 +1,8 @@
+diff --git a/apps/poker-web/src/estimate-copy.ts b/apps/poker-web/src/estimate-copy.ts
+--- a/apps/poker-web/src/estimate-copy.ts
++++ b/apps/poker-web/src/estimate-copy.ts
+@@ -29,3 +29,3 @@
+ export function estimateTitle(item: string, number: number): string {
+-  return item === '' ? `見積もり ${number}` : item;
++  return item === '' ? `見積もり ${number} 目` : item;
+ }
