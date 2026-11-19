@@ -8,8 +8,6 @@
  */
 export const ESTIMATE_LOG_HEADING = '見積もりの記録';
 export const ESTIMATE_ITEM_LABEL = 'いま見積もっているもの';
-export const ESTIMATE_ITEM_PLACEHOLDER = '例: PROJ-123 ログイン画面';
-export const ESTIMATE_UNNAMED = '（名前なし）';
 export const ESTIMATE_OPEN = '見積もり中';
 export const ESTIMATE_NO_POINTS = 'ポイントなし';
 export const ESTIMATE_POINTS_LABEL = 'ポイント（任意）';
@@ -18,10 +16,19 @@ export const NEXT_ITEM = '次のアイテムへ';
 export const REVOTE = '再投票';
 export const ESTIMATE_LOG_EMPTY = '開票すると、ここに残ります';
 export const ESTIMATE_LOG_SHOW_ALL = '記録をすべて見る';
+export const ESTIMATE_LOG_COPY = '記録をコピー';
+export const ESTIMATE_LOG_COPIED = 'コピーしました';
+export const ESTIMATE_LOG_COPY_FAILED = 'コピーできません';
+export const ESTIMATE_EXPORT_POINTS = 'ポイント';
 /** 記録の切り替え（#427・設計 D）。`aria-pressed` で状態を示すので、文言は状態によって替えない */
 export const RECORDING_TOGGLE = '記録する';
 /** 閉じた束の名前を後から直す欄のラベル（#427・設計 E） */
 export const RENAME_GROUP = 'アイテム名を変える';
+
+/** 名前が空のときは、記録の束の通し番号を題に使う。 */
+export function estimateTitle(item: string, number: number): string {
+  return item === '' ? `見積もり ${number}` : item;
+}
 
 /** 同じアイテムの n 回めの開票。数字の後に半角空白を置く。 */
 export function attemptLabel(n: number): string {

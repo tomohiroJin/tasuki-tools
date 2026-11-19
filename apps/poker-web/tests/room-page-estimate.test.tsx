@@ -90,6 +90,28 @@ afterEach(() => {
 });
 
 describe('開票後の操作', () => {
+  it('空の題は次の番号を予告し、開票と再投票で同じ番号を保つ', () => {
+    const state = (status: 'voting' | 'revealed', log: NonNullable<RoomStateMessage['estimate']>['log']) =>
+      makeSync({ ...snapshot(status), estimate: { item: '', recording: true, log } });
+    const closed = { ...OPEN_GROUP, id: 101, open: false };
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={state('voting', [closed])} />);
+    const title = () => screen.getByRole('button', {
+      name: '見積もり 102', description: ESTIMATE_ITEM_LABEL,
+    });
+    expect(title().hasAttribute('data-auto-title')).toBe(true);
+    fireEvent.click(title());
+    const input = screen.getByRole<HTMLInputElement>('textbox', { name: ESTIMATE_ITEM_LABEL });
+    expect(input.placeholder).toBe('見積もり 102');
+    expect(input.value).toBe('');
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    const open = { ...OPEN_GROUP, id: 102, item: '' };
+    rerender(<RoomPage roomId={ROOM_ID} sync={state('revealed', [closed, open])} />);
+    expect(title()).toBeTruthy();
+    rerender(<RoomPage roomId={ROOM_ID} sync={state('voting', [closed, open])} />);
+    expect(title()).toBeTruthy();
+  });
+
   it('再投票が主で最後、その前に ポイント（任意） と 次のアイテムへ', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot('revealed'))} />);
     const dock = document.querySelector('.ui-actions--dock')!;
@@ -144,7 +166,9 @@ describe('アイテム名の欄と記録', () => {
     const sync = makeSync(snapshot('revealed'));
     render(<RoomPage roomId={ROOM_ID} sync={sync} />);
     expect(screen.getByText(ESTIMATE_ITEM_LABEL)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /PROJ-1/ }));
+    const title = screen.getByRole('button', { name: 'PROJ-1', description: ESTIMATE_ITEM_LABEL });
+    expect(title.hasAttribute('data-auto-title')).toBe(false);
+    fireEvent.click(title);
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: 'PROJ-2' } });
     fireEvent.keyDown(input, { key: 'Enter' });

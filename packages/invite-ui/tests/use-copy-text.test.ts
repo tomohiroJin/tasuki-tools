@@ -92,6 +92,28 @@ describe('共有コピー操作', () => {
     expect(result.current.state).toBe('idle');
   });
 
+  it('Given 開いたダイアログの中 / When 従来のコピーを使う / Then 一時欄をダイアログに置き、フォーカスを戻す', async () => {
+    vi.stubGlobal('navigator', {});
+    const dialog = document.createElement('dialog');
+    dialog.open = true;
+    const button = document.createElement('button');
+    dialog.append(button);
+    document.body.append(dialog);
+    button.focus();
+    const execCommand = vi.fn(() => dialog.querySelector('textarea')?.value === '見積もり 1');
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+    try {
+      const { result } = renderHook(() => useCopyText('見積もり 1'));
+      await act(() => result.current.copy());
+      expect(execCommand).toHaveBeenCalledWith('copy');
+      expect(result.current.state).toBe('done');
+      expect(dialog.querySelector('textarea')).toBeNull();
+      expect(document.activeElement).toBe(button);
+    } finally {
+      dialog.remove();
+    }
+  });
+
   it('Given コピーが未完了 / When 対象 URL が変わる / Then 古い成功を新しい URL の成功として見せない', async () => {
     // Given: 以前の URL のコピーが保留されている。
     let finish!: () => void;

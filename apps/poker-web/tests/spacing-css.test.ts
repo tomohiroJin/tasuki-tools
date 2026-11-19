@@ -74,4 +74,10 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     const body = foundBody(rulesOf(read('src/index.css'), '.estimate-group-open'), '.estimate-group-open');
     expect(body).toMatch(/margin-inline-start:\s*auto;/);
   });
+
+  it('Given 記録のコピーの結果 / When 規則を読む / Then コピーの操作を基準に重ねる', () => {
+    const css = read('src/index.css');
+    expect(foundBody(rulesOf(css, '.estimate-log-copy'), 'コピーの操作')).toMatch(/position:\s*relative;/);
+    expect(foundBody(rulesOf(css, '.estimate-log-copy-status'), 'コピーの結果')).toMatch(/position:\s*absolute;/);
+  });
 });
