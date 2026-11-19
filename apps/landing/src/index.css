@@ -417,6 +417,21 @@
   max-width: 100%;
   height: auto;
 }
+/* ルームの合言葉（`RoomPassphrase.tsx`・#638）。面は部品（`.ui-panel`）、入力・ボタンは部品が持つ。
+   ここは状態の一言・フォーム・注記の間隔だけ。 */
+.hub-passphrase-status {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+}
+.hub-passphrase-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.hub-passphrase-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-sm);
+}
 /* 横に並べる幅（64rem 以上）。札が 5 枚になると 1 列では 1 枚が 15rem を割り、「TDD Mob Pro Timer」が 2 行に折れた
    （1024・1280 で実測）。**縮めず折り返す**: 札は 15rem を基準の幅にして行をまたぎ（3 + 2）、中央に寄せる。
    字の大きさは動かさない。64rem 未満の縦積みは下の @media が受け持つ（ここは列方向に効かせない）。 */

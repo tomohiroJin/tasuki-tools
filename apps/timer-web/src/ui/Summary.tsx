@@ -10,6 +10,8 @@ import React, { useState } from "react";
 import { Trophy, Sparkles, Check } from "lucide-react";
 import type { CompletionRecord } from "@tasuki/timer-core";
 import { Card } from "./primitives.js";
+import { RecordMarkdownCopy } from "./components/RecordMarkdownCopy.js";
+import { formatDuration } from "../records/record-markdown.js";
 
 // 型の正本は records/end-type.ts（内側。層の向きのため #592）
 import type { EndType } from "../records/end-type.js";
@@ -20,12 +22,6 @@ interface SummaryProps {
   record: CompletionRecord | null;
   onNewSession: () => void;
   onSaveRecord: (record: CompletionRecord) => void;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}分${String(s).padStart(2, "0")}秒`;
 }
 
 export function Summary({ endType, record, onNewSession, onSaveRecord }: SummaryProps) {
@@ -71,7 +67,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
           <div className="summary-stats">
             <Card className="summary-stat">
               <p className="instrument-label">所要時間</p>
-              <p className="summary-stat-value tabular">{formatTime(record.elapsedSeconds)}</p>
+              <p className="summary-stat-value tabular">{formatDuration(record.elapsedSeconds)}</p>
             </Card>
             <Card className="summary-stat">
               <p className="instrument-label">交代回数</p>
@@ -117,7 +113,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
         </p>
       )}
 
-      {/* 次の行動導線。並びは保存 → 新しいセッション（主は最後）。保存の添え書きは並びの下。 */}
+      {/* 次の行動導線。保存とコピーに続けて主操作の新しいセッションを置く。 */}
       <div className="summary-next">
       <div className="ui-actions summary-actions">
         {isComplete && record && (
@@ -135,6 +131,7 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
             </span>
           </button>
         )}
+        {isComplete && record && <RecordMarkdownCopy record={record} />}
         <button type="button" className="ui-button ui-button--lg" onClick={onNewSession}>
           <span className="summary-button-label">
             <Sparkles className="summary-new-icon" aria-hidden="true" /> 新しいセッション

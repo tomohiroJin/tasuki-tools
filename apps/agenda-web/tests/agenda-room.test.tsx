@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
+import { redirectTo } from '../src/router';
 import {
   EXTEND_LABEL,
   FINISHED_ANNOUNCE,
@@ -631,5 +632,16 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     // Then
     expect(scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).not.toBe(runTitle());
+  });
+});
+
+// #638: 名乗り・合言葉は玄関に 1 つだけある。復帰の組を持たない人は玄関へ送られ、通ったあとに玄関が
+// 元の道具へ戻す。そのために、どの道具から来たかを運ぶ。
+describe('玄関へ送るとき', () => {
+  it('Given 復帰の組が無い / When 開く / Then 繋がずに、元の道具を運んで玄関のそのルームへ送る', () => {
+    render(<App />);
+
+    expect(ScriptedWebSocket.instances).toHaveLength(0);
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=agenda');
   });
 });

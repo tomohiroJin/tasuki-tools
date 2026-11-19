@@ -29,7 +29,6 @@ describe("createCommands: 引数をそのまま載せる操作", () => {
     ["startBreak", (c) => c.startBreak(), { command: "break.start" }],
     ["endBreak", (c) => c.endBreak(), { command: "break.end" }],
     ["removeParticipant", (c) => c.removeParticipant("p-2"), { command: "participant.remove", participantId: "p-2" }],
-    ["setPassphrase", (c) => c.setPassphrase("ひみつ"), { command: "room.passphrase.set", passphrase: "ひみつ" }],
     ["moveMember", (c) => c.moveMember(0, 2), { command: "member.move", fromIndex: 0, toIndex: 2 }],
     ["shuffleMembers", (c) => c.shuffleMembers(), { command: "member.shuffle" }],
     ["completeSession", (c) => c.completeSession(), { command: "session.complete" }],

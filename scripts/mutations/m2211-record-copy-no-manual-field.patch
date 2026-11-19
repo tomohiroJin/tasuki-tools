@@ -1,0 +1,10 @@
+diff --git a/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx b/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx
+--- a/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx
++++ b/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx
+@@ -27,5 +27,5 @@
+       </button>
+       <p className="ui-note record-markdown-copy-status" aria-live="polite">{message}</p>
+-      {state === "failed" && (
++      {false && (
+         <textarea
+           aria-label="手動コピー用の Markdown"

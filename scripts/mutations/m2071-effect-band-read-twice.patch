@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/components/Results.tsx b/apps/poker-web/src/components/Results.tsx
+index 568db882..bd2e7767 100644
+--- a/apps/poker-web/src/components/Results.tsx
++++ b/apps/poker-web/src/components/Results.tsx
+@@ -97,7 +97,7 @@ export function Results({ stats, seatCount, afterFlip, spread, effect = null }:
+       {/* 演出の帯（#639）。見た目だけで、操作は受け付けたまま（ポインタ・フォーカスを奪わない）。読み上げからは隠し、
+           読み上げは下の status 1 つだけが受け持つ（二重に読ませない）。動きを減らす設定では動かず、色と文言が残る */}
+       {effect && (
+-        <p className="results-effect" data-effect={effect} aria-hidden="true">
++        <p className="results-effect" data-effect={effect}>
+           {EFFECT_COPY[effect]}
+         </p>
+       )}

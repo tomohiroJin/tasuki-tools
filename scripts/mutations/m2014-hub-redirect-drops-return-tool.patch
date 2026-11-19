@@ -1,0 +1,21 @@
+# 変異 2014: 玄関が要るときの送り返しが、元の道具を運ばない
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/use-hub-redirect.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2014-*.patch
+# 復元: git apply -R scripts/mutations/m2014-*.patch
+#
+# #638。topic・roulette・agenda・checkin から合言葉のために送られた人が、通っても元の道具へ戻らない。
+diff --git a/packages/web-kit/src/room/use-hub-redirect.ts b/packages/web-kit/src/room/use-hub-redirect.ts
+index ba8adae5..0c892ed9 100644
+--- a/packages/web-kit/src/room/use-hub-redirect.ts
++++ b/packages/web-kit/src/room/use-hub-redirect.ts
+@@ -27,6 +27,6 @@ export function useHubRedirect<Departure extends string>({ departed, needsHub, r
+   useEffect(() => {
+     const { hubPathFor: pathFor, redirectTo: go, returnTo: from } = latest.current;
+     if (departed !== null) go(pathFor(roomCode, departed));
+-    else if (needsHub) go(pathFor(roomCode, undefined, from));
++    else if (needsHub) go(pathFor(roomCode));
+   }, [departed, needsHub, roomCode]);
+ }

@@ -79,3 +79,7 @@
 .history-fact-muted {
   color: var(--bone-muted);
 }
+
+.history-record-actions {
+  margin-top: var(--space-3);
+}

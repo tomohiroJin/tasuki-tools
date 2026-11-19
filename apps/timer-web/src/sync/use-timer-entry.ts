@@ -11,7 +11,7 @@
  * |---|---|
  * | `?view=history`（`?room=` の有無を問わず） | 何もしない（画面側が履歴を出す） |
  * | `?room=CODE` ＋ 端末に同一性あり | `resume` を呼ぶ（保存済みの `resumeToken` で `room.join`・#76 F-3） |
- * | `?room=CODE` ＋ 同一性なし | **玄関のそのルームへ replace**（名乗りはハブに 1 つ） |
+ * | `?room=CODE` ＋ 同一性なし | **玄関のそのルームへ replace**（名乗りはハブに 1 つ。通ったら玄関が timer へ戻すよう、`?from=timer` を運ぶ・#638） |
  * | それ以外 | **玄関へ replace**（旧入口を撤去したので行き先が無い） |
  *
  * 送るのは `replace` である。`assign` だと、戻るボタンが行き場の無い URL へ戻り、
@@ -48,7 +48,7 @@ export function useTimerEntry(resume: (code: string, saved: ResumeIdentity) => v
     if (!shouldResumeOnLoad(saved, code)) {
       // 名乗りはハブに 1 つだけある。**コードは落とさずに運ぶ** —— 落とすと、
       // リンクで来た人が入りたかったルームを失う。
-      redirectTo(hubRoomPath(code));
+      redirectTo(hubRoomPath(code, undefined, "timer"));
       return;
     }
     resumeRef.current(code, saved);

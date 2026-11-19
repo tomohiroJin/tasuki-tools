@@ -1,0 +1,22 @@
+# 変異 2095: press-gets-motions
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 振る舞い 6。押して止める回転にも動きが載り、押した位置と違う動きをして嘘に見える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2095-*.patch
+# 復元: git apply -R scripts/mutations/m2095-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -98,7 +98,7 @@
+  */
+ export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
+   if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
+-  if (state.mode === "press") return startPressSpin(state, input);
++  if (state.mode === "press") return startPressSpin(state, input).andThen((next) => (next.lastSpin === null ? ok(next) : withVariety(next.lastSpin, input).map((lastSpin) => ({ ...next, lastSpin }))));
+   return state.mode === "order" ? startOrderSpin(state, input) : startOnceSpin(state, input);
+ }
+ 

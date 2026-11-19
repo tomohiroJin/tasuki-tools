@@ -396,8 +396,5 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     handoffNote: timer.handoffNote,
     // 古い画面の `RoomSchema` が必須で読むので残す（#402）。休憩中かは集約から導く。
     onBreak: timer.session.break.since !== null,
-    ...(timer.passphraseProtected !== undefined
-      ? { passphraseProtected: timer.passphraseProtected }
-      : {}),
   };
 }

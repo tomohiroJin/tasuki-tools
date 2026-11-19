@@ -12,9 +12,9 @@ diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/c
 index d6f348fb..bcb0fb75 100644
 --- a/apps/tasuki-sync/src/create-sync-server.ts
 +++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -142,9 +142,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
-     store,
+@@ -160,9 +160,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
      ws: () => ws.get(),
+     isPassphraseProtected: (roomCode) => tokens.getPassphrase(roomCode) !== undefined,
      // 名簿が変わったら各道具が測り直す（チェックインが席と自動開票を。#406）。表は下で決まる。
 -    onRosterBroadcast: (roomCode) => {
 -      for (const part of Object.values(toolParts.get())) part.onRosterBroadcast?.(roomCode);

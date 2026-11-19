@@ -1,0 +1,21 @@
+# 変異 2030: 玄関が元の道具へ戻るとき、ハブの接続を閉じない
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-return-to-tool.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2030-*.patch
+# 復元: git apply -R scripts/mutations/m2030-*.patch
+#
+# #638 の code-review。同じ参加者のハブの接続と道具の復帰の接続が重なり、後でハブの切断が猶予のタイマーを始める。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 546e97d7..63c59de2 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -249,7 +249,6 @@ export function useHubSync(): HubSync {
+           if (returnPath !== null) {
+             // 退出の道と同じく、先に閉じてから戻る（道具の復帰の接続と、このハブの接続が重ならないように）。
+             cancelRetry();
+-            conn.dispose();
+             redirectTo(returnPath);
+             return;
+           }

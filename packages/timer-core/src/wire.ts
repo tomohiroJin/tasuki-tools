@@ -132,8 +132,6 @@ export interface Room {
    * から導いて載せる。古い画面の `RoomSchema` が必須で読むので、wire からは消さない。
    */
   onBreak: boolean;
-  /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
-  passphraseProtected?: boolean;
 }
 
 // ⚠ かつてここには `connId`（在席中の接続 1 本）があった。**#95 S4b で落とした。**

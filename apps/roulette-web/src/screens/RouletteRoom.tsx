@@ -35,7 +35,7 @@ import {
   spinButtonOf,
   stageViewOf,
 } from '../roulette-view';
-import { pickStopsMs } from '@tasuki/roulette-core';
+import { motionNamesOf, pickStopsMs } from '@tasuki/roulette-core';
 import { batchNoticeText, planBatch, restoreOf } from '../regulars-view';
 import type { RegularGroup } from '../storage/regulars';
 import { usePressMotion } from '../hooks/use-press-motion';
@@ -68,14 +68,14 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const reducedMotion = usePrefersReducedMotion();
 
   // 玄関へ戻す。抜けた・外されたときは理由を運ぶ（玄関が告知を出す・#290）。
-  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'roulette', hubPathFor, redirectTo });
 
   const view = sync.roulette;
   const spin = view?.spin ?? null;
   const wakeAts =
     spin === null
       ? []
-      : [...pickStopsMs(picksOf(spin).length, spin.stopStyle), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
+      : [...pickStopsMs(picksOf(spin).length, spin.stopStyle, motionNamesOf(spin)), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
   const nowMs = useNowMs(sync.receivedAt, wakeAts);
 
   // 押して止める（#401）。位置と「止まって寄せ終わったか」は画面の時計で動くので、早い return より前で持つ

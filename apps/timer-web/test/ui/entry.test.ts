@@ -77,4 +77,12 @@ describe("hubRoomPath", () => {
     expect(removed).toBe("/?room=ROOM01&left=removed");
     expect(self).toBe("/?left=self");
   });
+
+  it("元の道具を渡すと印を載せる（通ったあとに玄関が戻す・#638）", () => {
+    // Given / When
+    const path = hubRoomPath("ROOM01", undefined, "timer");
+
+    // Then: 綴りの正本は `@tasuki/room-core` の `RETURN_PARAM`
+    expect(path).toBe("/?room=ROOM01&from=timer");
+  });
 });

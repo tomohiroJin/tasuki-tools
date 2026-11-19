@@ -14,8 +14,6 @@ describe("passphraseWithinLimit", () => {
     ["合言葉なしの参加", { command: "room.join", code: "R", displayName: "あ" }, true],
     ["上限ちょうどの参加", { command: "room.join", code: "R", displayName: "あ", passphrase: atLimit }, true],
     ["上限を超える参加", { command: "room.join", code: "R", displayName: "あ", passphrase: tooLong }, false],
-    ["上限ちょうどを掛ける", { command: "room.passphrase.set", passphrase: atLimit }, true],
-    ["上限を超えて掛ける", { command: "room.passphrase.set", passphrase: tooLong }, false],
     ["合言葉を運ばないコマンド", { command: "time.ping", clientTime: 0 }, true],
   ])("Given %s / When 確かめる / Then %p", (_label, cmd, expected) => {
     expect(passphraseWithinLimit(cmd)).toBe(expected);

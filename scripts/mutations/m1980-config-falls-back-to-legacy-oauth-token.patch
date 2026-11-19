@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/config.ts b/apps/tasuki-sync/src/config.ts
+index e05fa803..097b53c8 100644
+--- a/apps/tasuki-sync/src/config.ts
++++ b/apps/tasuki-sync/src/config.ts
+@@ -195,7 +195,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
+     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
+     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
+     aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
+-    anthropicApiKey: (env["ANTHROPIC_API_KEY"] ?? "").trim() || undefined,
++    anthropicApiKey: (env["ANTHROPIC_API_KEY"] ?? env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
+     legacyOauthTokenIgnored:
+       (env["ANTHROPIC_API_KEY"] ?? "").trim() === "" && (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() !== "",
+     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,

@@ -158,7 +158,8 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
         const next = h.nextElementSibling!;
         return { title: (h.querySelector('h2')?.textContent ?? '').trim(), gap: next.getBoundingClientRect().top - h.getBoundingClientRect().bottom };
       }));
-      expect(gaps.length, `幅 ${String(width)}: 見出しの行`).toBeGreaterThanOrEqual(4);
+      // #638 で合言葉の節が消えたので、見出しは 4 つから 3 つになった（見ているのは見出しの下の間が 16px であること）
+      expect(gaps.length, `幅 ${String(width)}: 見出しの行`).toBeGreaterThanOrEqual(3);
       for (const g of gaps) expect(Math.abs(g.gap - 16), `幅 ${String(width)}: 「${g.title}」の下の間`).toBeLessThanOrEqual(1);
     }
   });

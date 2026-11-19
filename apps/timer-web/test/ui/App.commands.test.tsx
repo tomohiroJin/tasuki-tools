@@ -59,7 +59,6 @@ const ARGS: Record<string, unknown[]> = {
   onLeaveRotation: ["p-2"],
   onRemoveParticipant: ["p-2"],
   onMoveRotation: [0, 1],
-  onSetPassphrase: ["ひみつ"],
   onHandoffNoteSet: ["引き継ぎメモ"],
   onRenameParticipant: ["p-2", "新しい名前"],
   onDriverSkip: ["p-2"],
@@ -143,7 +142,6 @@ const LOBBY_CASES: Array<[string, Record<string, unknown>]> = [
   ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
   ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
   ["onShuffle", { command: "member.shuffle" }],
-  ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
 ];
 
 const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
@@ -164,7 +162,6 @@ const SESSION_CASES: Array<[string, Record<string, unknown>]> = [
   ["onRemoveParticipant", { command: "participant.remove", participantId: "p-2" }],
   ["onMoveRotation", { command: "member.move", fromIndex: 0, toIndex: 1 }],
   ["onShuffle", { command: "member.shuffle" }],
-  ["onSetPassphrase", { command: "room.passphrase.set", passphrase: "ひみつ" }],
 ];
 
 describe("App が子画面へ渡すコールバックと WS コマンドの対応（ロビー）", () => {

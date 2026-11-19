@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m924-*.patch
 # 復元: git apply -R scripts/mutations/m924-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index df11a9d..104d07f 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -49,7 +49,7 @@ type SpinErrorCode =
+@@ -55,7 +55,7 @@
  function isSpinning(state: RouletteState, now: number): boolean {
    const spin = state.lastSpin;
    if (spin === null) return false;
 -  if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
 +  if (spin.press !== undefined) return pressStopOf(spin, now + spin.startedAt) === null;
-   return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle);
+   return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle, motionNamesOf(spin));
  }
  
