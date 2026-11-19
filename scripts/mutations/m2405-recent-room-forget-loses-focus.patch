@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/screens/CreateRoom.tsx b/apps/landing/src/screens/CreateRoom.tsx
+index 776b4e2..e7f2c14 100644
+--- a/apps/landing/src/screens/CreateRoom.tsx
++++ b/apps/landing/src/screens/CreateRoom.tsx
+@@ -44,7 +44,7 @@ export function CreateRoom({
+   const forget = (name: string): void => {
+     onForgetRoomName(name);
+     // 押した札が消えると、フォーカスが行き場を失って文書の頭へ飛ぶ。入力の手を止めないよう欄へ戻す
+-    roomNameRef.current?.focus();
++    
+   };
+ 
+   const submit = (event: FormEvent): void => {

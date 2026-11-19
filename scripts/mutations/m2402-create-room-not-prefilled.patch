@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/screens/CreateRoom.tsx b/apps/landing/src/screens/CreateRoom.tsx
+index 776b4e2..be6d20e 100644
+--- a/apps/landing/src/screens/CreateRoom.tsx
++++ b/apps/landing/src/screens/CreateRoom.tsx
+@@ -36,7 +36,7 @@ export function CreateRoom({
+   onForgetRoomName,
+ }: CreateRoomProps) {
+   // 初期値は開いたときの 1 度だけ。以後は利用者の入力が持つ（候補を消しても欄には触らない）
+-  const [roomName, setRoomName] = useState(() => recentRoomNames[0] ?? '');
++  const [roomName, setRoomName] = useState(() => '');
+   const [displayName, setDisplayName] = useState(defaultDisplayName);
+   const roomNameRef = useRef<HTMLInputElement>(null);
+   const recentHeadingId = useId();

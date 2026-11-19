@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index ab64236..26cdfe8 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -406,7 +406,7 @@ export function useHubSync(): HubSync {
+       // どの接続で流れるかを控える（{@link pendingCreateConnRef}）。溜めたなら次に開く接続、その場で送ったならいまの接続。
+       // 捨てたなら応答は来ないので待たない
+       if (delivery === 'dropped') settleCreate();
+-      else pendingCreateConnRef.current = openCountRef.current + (delivery === 'queued' ? 1 : 0);
++      else pendingCreateConnRef.current = openCountRef.current ;
+     },
+     [send, cancelRetry, settleCreate],
+   );

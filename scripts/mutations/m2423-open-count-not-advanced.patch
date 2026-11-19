@@ -1,0 +1,12 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index ab64236..06e7a20 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -349,7 +349,6 @@ export function useHubSync(): HubSync {
+       },
+       onOpen: () => {
+         // 溜めた送信が流れる前に数える（`SyncConnection` は onOpen の後に流す）。{@link openCountRef}
+-        openCountRef.current += 1;
+         setConnection('online');
+       },
+       onConnectionChange: (state) => setConnection(state),

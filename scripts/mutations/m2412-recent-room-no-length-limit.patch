@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/recent-room-names.ts b/apps/landing/src/hub/recent-room-names.ts
+index c124e36..f2899f9 100644
+--- a/apps/landing/src/hub/recent-room-names.ts
++++ b/apps/landing/src/hub/recent-room-names.ts
+@@ -44,7 +44,7 @@ const isString = (x: unknown): x is string => typeof x === 'string';
+ function usableRoomName(name: string): string | null {
+   const trimmed = name.trim();
+   if (trimmed === '') return null;
+-  if (trimmed.length > MAX_REMEMBERED_ROOM_NAME) return null;
++  
+   if (CONTROL_CHARS.test(trimmed)) return null;
+   // 字面の無い名前（ZWJ だけ等）は、札が空に見えて何を選ぶのか分からない
+   if (rendersAsNothing(trimmed)) return null;

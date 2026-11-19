@@ -244,6 +244,53 @@
   color: var(--ivory-dim);
 }
 
+/* ルーム名の欄と、前に作ったルーム名の候補（#633）。候補は欄に付いた補助なので、フォームの間隔より詰めて置く */
+.hub-room-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.hub-recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+/* 札は折り返して並べる。横の gap は 10px 以上（--sm の当たりを上下に広げているので、縦も重ならない間を取る。button.css の約束） */
+.hub-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* 札 1 枚 = 選ぶボタン + 消すボタン。狭い幅でも 1 枚が行からはみ出さないよう、幅を親に収める */
+.hub-recent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  min-width: 0;
+}
+/* 部品の最小幅（6rem）は外して名前に合わせて縮めるが、押せる幅 44px は残す（1 文字の名前でも当たりを割らない） */
+.hub-recent-pick {
+  min-width: var(--tap-target);
+  max-width: 100%;
+}
+/* 長い名前は 1 行で切って「…」にする（全文は読み上げにも押したあとの欄にも出る） */
+.hub-recent-name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 消すボタンは字だけ（quiet）。下線は × には要らない。押せる幅は高さと同じ 44px を取る */
+.hub-recent-forget {
+  flex: none;
+  min-width: var(--tap-target);
+  text-decoration: none;
+}
+
 /* 作る・参加するのボタンは部品層の `.ui-button--lg`（主）が見た目を持つ。フォームの縦並びで幅いっぱいに伸びる。 */
 /* 一言の色は部品（`.ui-note` / `.ui-note--error`）が持つ。ここに色を書くと、後に読まれるこちらが勝って部品の色を潰す。 */
 .hub-error {

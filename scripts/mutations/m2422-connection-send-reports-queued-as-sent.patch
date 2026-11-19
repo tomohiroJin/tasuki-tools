@@ -1,0 +1,13 @@
+diff --git a/packages/sync-client/src/connection.ts b/packages/sync-client/src/connection.ts
+index 3b005c6..0d2bda9 100644
+--- a/packages/sync-client/src/connection.ts
++++ b/packages/sync-client/src/connection.ts
+@@ -117,7 +117,7 @@ export class SyncConnection {
+     }
+     if (this.disposed) return "dropped";
+     this.pending.push(payload);
+-    return "queued";
++    return "sent";
+   }
+ 
+   dispose(): void {

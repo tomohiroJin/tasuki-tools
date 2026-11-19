@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/recent-room-names.ts b/apps/landing/src/hub/recent-room-names.ts
+index c124e36..9421e9c 100644
+--- a/apps/landing/src/hub/recent-room-names.ts
++++ b/apps/landing/src/hub/recent-room-names.ts
+@@ -37,7 +37,7 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+  * ここで `v.string()` を課さない —— 課すと、文字列でない要素が 1 つ混ざっただけで配列ごと落ち、
+  * 次の作成でまともな名前まで上書きで失われる（#633 のレビュー指摘 1）。
+  */
+-const StoredRecentRoomNamesSchema = v.array(v.unknown());
++const StoredRecentRoomNamesSchema = v.array(v.string());
+ const isString = (x: unknown): x is string => typeof x === 'string';
+ 
+ /** 覚えてよい形に整えた名前。覚えられないなら null。 */

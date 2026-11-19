@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index ab64236..6bf8cbc 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -358,7 +358,7 @@ export function useHubSync(): HubSync {
+         // 溜めた送信を流してからここを呼ぶ。
+         // - **いま開いた接続で流れた作成**（溜めていた）は、応答がこれから届くので待ちを続ける
+         // - **それより前の接続で送った作成**は、応答が前の接続と一緒に失われた。降ろさないと、作るボタンが止まったまま戻らない
+-        if (pendingCreateConnRef.current !== openCountRef.current) settleCreate();
++        if (pendingCreateConnRef.current === null) settleCreate();
+         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
+         resumeIfPossible();
+         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
