@@ -17,16 +17,30 @@ function escapeMarkdownText(text: string): string {
     .replace(/&(?=(?:[a-z][a-z0-9]*|#[0-9]+|#x[0-9a-f]+);)/gi, "\\&");
 }
 
+function urlWithoutTrailingPunctuation(token: string): string {
+  let depth = 0;
+  let end = 0;
+  for (let i = 0; i < token.length; i++) {
+    const char = token[i];
+    if (char === "(") depth++;
+    if (char === ")") {
+      if (depth === 0) break;
+      depth--;
+    }
+    if (depth === 0) end = i + 1;
+  }
+  return token.slice(0, end).replace(/[.,;:!?]+$/, "");
+}
+
 function markdownText(text: string): string {
   const line = text.replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ");
-  // エスケープで URL が変わるときは、自動リンクの構文で元の行き先を囲む。
-  // 空白や括弧で区切られた本文と、URL の直後にある句読点はリンクに含めない。
-  return line.split(/(\bhttps?:\/\/[^\s\p{Cc}<>"'`\\()「」『』（）【】、。]+)/giu).map((part, index) => {
+  // 自動リンクの構文で囲み、エスケープや隣の本文がリンクの行き先に入るのを防ぐ。
+  // 空白と日本語の句読点を境界にし、対応する丸括弧は URL 内に残す。
+  return line.split(/(\bhttps?:\/\/[^\s\p{Cc}<>"'`\\「」『』（）【】、。！？；：]+)/giu).map((part, index) => {
     if (index % 2 === 0) return escapeMarkdownText(part);
-    const url = part.replace(/[.,;:!?]+$/, "");
-    const escaped = escapeMarkdownText(url);
-    const link = escaped !== url && URL.canParse(url) ? `<${url}>` : escaped;
-    return link + part.slice(url.length);
+    const url = urlWithoutTrailingPunctuation(part);
+    const link = URL.canParse(url) ? `<${url}>` : escapeMarkdownText(url);
+    return link + escapeMarkdownText(part.slice(url.length));
   }).join("");
 }
 

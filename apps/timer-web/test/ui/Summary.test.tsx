@@ -34,7 +34,7 @@ describe("Summary", () => {
           ...baseRecord,
           id: "internal-record-id",
           roomId: "internal-room-id",
-          topicTitle: "R&D *Buzz*\r\n# 次のお題\r<tag>\u2028`code`\u2029~~test~~\n\\path &amp; &#65; &#x41; https://example.com/a_b（https://example.com/_health、https://example.com/__init__.py）",
+          topicTitle: "R&D *Buzz*\r\n# 次のお題\r<tag>\u2028`code`\u2029~~test~~\n\\path &amp; &#65; &#x41; https://example.com/a_b（https://example.com/_health？） (https://example.com/__init__(1).py)",
           members: ["A_[1]", "taro_y"],
           driverCounts: [2, 1],
           totalSwitches: 3,
@@ -51,7 +51,7 @@ describe("Summary", () => {
     expect(writeText).toHaveBeenCalledExactlyOnceWith([
       "セッションまとめ",
       "",
-      "- お題：R&D \\*Buzz\\* # 次のお題 \\<tag\\> \\`code\\` \\~\\~test\\~\\~ \\\\path \\&amp; \\&#65; \\&#x41; https://example.com/a_b（<https://example.com/_health>、<https://example.com/__init__.py>）",
+      "- お題：R&D \\*Buzz\\* # 次のお題 \\<tag\\> \\`code\\` \\~\\~test\\~\\~ \\\\path \\&amp; \\&#65; \\&#x41; <https://example.com/a_b>（<https://example.com/_health>？） (<https://example.com/__init__(1).py>)",
       "- 所要時間：5分00秒",
       "- 交代回数：3回",
       "- 周回数：1周",

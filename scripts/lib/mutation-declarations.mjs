@@ -10615,7 +10615,7 @@ export const MUTATIONS = [
     patch: "m1983-record-markdown-escape-word-underscores.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/Summary.test.tsx"],
-    note: "#408 のレビュー。自動リンクが付く貼り付け先で URL にバックスラッシュが入る。",
+    note: "#408 のレビュー。プレーンテキストで貼り付けた表示名に不要なバックスラッシュが入る。",
   },
   {
     id: 1984,
@@ -10635,10 +10635,26 @@ export const MUTATIONS = [
   },
   {
     id: 1986,
-    label: "エスケープで URL が変わっても自動リンクで囲まない",
+    label: "URL を Markdown の自動リンクで囲まない",
     patch: "m1986-record-markdown-linkify-escaped-url.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/Summary.test.tsx"],
-    note: "#408 のレビュー。自動リンクを拾う描画器で、先頭に下線のある URL の行き先が変わる。",
+    note: "#408 のレビュー。貼り付け先が下線のエスケープや直後の本文まで URL として扱う。",
+  },
+  {
+    id: 1987,
+    label: "URL に含まれる対応した括弧でリンクを切る",
+    patch: "m1987-record-markdown-cut-balanced-url-parentheses.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408 のレビュー。パス中の括弧から先がリンクの行き先に含まれない。",
+  },
+  {
+    id: 1988,
+    label: "URL の直後の全角疑問符をリンクの一部にする",
+    patch: "m1988-record-markdown-url-consumes-japanese-punctuation.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408 のレビュー。URL に続けて書いた疑問符が、リンクの行き先に入る。",
   },
 ];
