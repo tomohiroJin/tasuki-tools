@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -99,7 +99,7 @@
+   const estimateLog = snapshot.estimate?.log ?? [];
+   // 束の ID は記録した順に増える。末尾が開いている間は再投票でも同じ束を使う。
+   const lastGroup = estimateLog.at(-1);
+-  const currentEstimateNumber = lastGroup ? lastGroup.id + (lastGroup.open ? 0 : 1) : 1;
++  const currentEstimateNumber = lastGroup ? lastGroup.id + 1 : 1;
+   // 記録するか。estimate が無い（古いサーバー）・recording が無いときは「する」と読む（#427・J9）
+   const recording = snapshot.estimate?.recording ?? true;
+   // ポイントを添えられるのは、記録していて、点を付ける open の束があるときだけ（J8）
