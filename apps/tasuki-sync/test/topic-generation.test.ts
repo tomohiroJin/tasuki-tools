@@ -5,10 +5,10 @@
  * フェイクの provider は「呼ばれたら、外から解決・失敗させられる Promise を返す」もの
  * （#91 PR 3 で撤去した旧い委譲のテストの組み立てに揃えてある）。
  *
- * @requirements #91 E7・E8・E9・E10・E11・E14・E22
+ * @requirements #91 E7・E8・E9・E10・E11・E14・E22・#634
  */
 import { describe, it, expect, jest } from "bun:test";
-import { INITIAL_TOPIC_STATE, type TopicState } from "@tasuki/topic-core";
+import { INITIAL_TOPIC_STATE, pickTopicFallback, type TopicState } from "@tasuki/topic-core";
 import { TopicGenerator } from "../src/application/topic-generation.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
 import { AiLimiter } from "../src/application/ai-limits.js";
@@ -20,9 +20,9 @@ import type { LogField } from "../src/application/log/log-safe.js";
 import { testLogger, testRefEncoder } from "./support/test-logger.js";
 
 /** 「AI で作る」の既定リクエスト */
-const AI_REQ = { mode: "ai" as const, language: "TypeScript" as const, difficulty: "easy" as const };
+const AI_REQ = { mode: "ai" as const, language: "TypeScript" as const, difficulty: "easy" as const, category: "tdd" as const };
 /** 「定型から作る」の既定リクエスト */
-const FALLBACK_REQ = { mode: "fallback" as const, language: "TypeScript" as const, difficulty: "easy" as const };
+const FALLBACK_REQ = { mode: "fallback" as const, language: "TypeScript" as const, difficulty: "easy" as const, category: "tdd" as const };
 
 function makeState(overrides?: Partial<TopicState>): TopicState {
   return { ...INITIAL_TOPIC_STATE, ...overrides };
@@ -45,7 +45,7 @@ function makeControllableProvider(): {
   let resolveFn: ((value: unknown) => void) | undefined;
   let rejectFn: ((err: unknown) => void) | undefined;
   const provider: ServerTopicProvider = {
-    generate: (_language, _difficulty, sig) => {
+    generate: (_language, _difficulty, _category, sig) => {
       calls++;
       signal = sig;
       return new Promise<unknown>((resolve, reject) => {
@@ -136,7 +136,7 @@ function makeQueuedProvider(): {
 } {
   const calls: Array<{ signal: AbortSignal; resolve: (value: unknown) => void; reject: (err: unknown) => void }> = [];
   const provider: ServerTopicProvider = {
-    generate: (_language, _difficulty, signal) =>
+    generate: (_language, _difficulty, _category, signal) =>
       new Promise<unknown>((resolve, reject) => {
         calls.push({ signal, resolve, reject });
       }),
@@ -816,4 +816,89 @@ describe("TopicGenerator", () => {
     const serialized = JSON.stringify(captured);
     expect(serialized.includes(secretTitle)).toBe(false);
   });
+});
+
+/**
+ * 種類（#634）。選んだ種類が、定型の絞り込みと AI への依頼の両方へ届くこと。
+ *
+ * @requirements #634（種類を選んで定型と AI の両方でお題を出せる・AI が使えないとき選ばれた種類の定型へ落ちる）
+ */
+describe("TopicGenerator の種類（#634）", () => {
+  const CATEGORIES_UNDER_TEST = ["tdd", "refactoring", "design", "debugging"] as const;
+
+  function setupGenerator(opts: { unlocked: boolean; provider?: ServerTopicProvider }) {
+    const clock = new FakeClock();
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: opts.unlocked }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider: opts.provider,
+      aiLimiter: opts.provider === undefined ? undefined : new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 }),
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+    return { clock, tracker, store, generator };
+  }
+
+  /** その種類の定型の 1 件目（種と直前を同じにした選び方の答え） */
+  const fallbackTitleFor = (category: (typeof CATEGORIES_UNDER_TEST)[number], now: number) =>
+    pickTopicFallback("TypeScript", "medium", category, now, null).title;
+
+  for (const category of CATEGORIES_UNDER_TEST) {
+    it(`Given 種類 ${category} / When 定型を求める / Then その種類の定型を掲げる`, () => {
+      // Given
+      const { clock, store, generator } = setupGenerator({ unlocked: false });
+      // When
+      generator.request("R1", { mode: "fallback", language: "TypeScript", difficulty: "medium", category });
+      // Then
+      expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor(category, clock.now()));
+    });
+  }
+
+  it("前提: 同じ種で、種類ごとに別の定型が選ばれる（上のテストが種類の取り違えを見分けられる）", () => {
+    const now = new FakeClock().now();
+    const titles = CATEGORIES_UNDER_TEST.map((c) => fallbackTitleFor(c, now));
+    expect(new Set(titles).size).toBe(CATEGORIES_UNDER_TEST.length);
+  });
+
+  it("Given 解錠済み / When 種類 refactoring で AI を求める / Then provider に種類が渡る", () => {
+    // Given
+    const generate = jest.fn((..._args: Parameters<ServerTopicProvider["generate"]>) => new Promise<unknown>(() => {}));
+    const { generator } = setupGenerator({ unlocked: true, provider: { generate } });
+    // When
+    generator.request("R1", { mode: "ai", language: "Rust", difficulty: "hard", category: "refactoring" });
+    // Then
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(generate.mock.calls[0]!.slice(0, 3)).toEqual(["Rust", "hard", "refactoring"]);
+  });
+
+  // AI が使えないときの落ち先は、型ごとに見る（#634 の完了条件。PR #643 のレビューで、1 つの型だけの
+  // 取り違え（refactoring の AI 依頼だけ TDD へ落とす変異）が 2 つの型だけのテストをすり抜けた）
+  for (const category of CATEGORIES_UNDER_TEST) {
+    it(`Given 未解錠 / When 型 ${category} で AI を求める / Then ${category} の定型へ落ち、縮退を立てる`, () => {
+      // Given
+      const { clock, store, generator } = setupGenerator({ unlocked: false });
+      // When
+      generator.request("R1", { mode: "ai", language: "TypeScript", difficulty: "medium", category });
+      // Then
+      expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor(category, clock.now()));
+      expect(store.get("R1")?.degraded).toBe(true);
+    });
+
+    it(`Given 解錠済み / When 型 ${category} で AI を求めて AI が失敗する / Then ${category} の定型へ落ち、縮退を立てる`, async () => {
+      // Given
+      const { provider, reject } = makeControllableProvider();
+      const { clock, tracker, store, generator } = setupGenerator({ unlocked: true, provider });
+      // When
+      generator.request("R1", { mode: "ai", language: "TypeScript", difficulty: "medium", category });
+      reject(new ProviderFailure("claude -p exit 1", "processError"));
+      await tracker.waitForCount(2);
+      // Then
+      expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor(category, clock.now()));
+      expect(store.get("R1")?.degraded).toBe(true);
+    });
+  }
 });

@@ -8,7 +8,7 @@
  *   クレジット切れ（`Credit balance is too low`）は非ゼロ終了などの失敗として扱い、呼び出し側が定型へ縮退する
  */
 import { spawn } from "node:child_process";
-import { buildTopicPrompt, type Difficulty, type Language } from "@tasuki/topic-core";
+import { buildTopicPrompt, type Category, type Difficulty, type Language } from "@tasuki/topic-core";
 import { ProviderFailure, type ServerTopicProvider } from "../ports/server-topic-provider.js";
 
 /** spawn 互換の最小インターフェース（テストで差し替える） */
@@ -75,7 +75,14 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
     this.maxOutputBytes = opts.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   }
 
-  generate(language: Language, difficulty: Difficulty, signal: AbortSignal): Promise<unknown> {
+  generate(language: Language, difficulty: Difficulty, category: Category, signal: AbortSignal): Promise<unknown> {
+    // プロンプトは子プロセスを起こす**前に**組む。許可リストの外の値なら `buildTopicPrompt` が
+    // 失敗を返す（`docs/adr/0012` D10）ので、子プロセスを起こさずに失敗する。
+    const built = buildTopicPrompt(language, difficulty, category);
+    if (built.isErr()) {
+      return Promise.reject(new ProviderFailure("prompt input is not in the allowlist", "invalid"));
+    }
+    const prompt = built.value;
     return new Promise((resolve, reject) => {
       if (signal.aborted) {
         reject(new ProviderFailure("aborted before start", "timeout"));
@@ -208,7 +215,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
       });
 
       // プロンプトは stdin 渡し
-      child.stdin?.write(buildTopicPrompt(language, difficulty));
+      child.stdin?.write(prompt);
       child.stdin?.end();
     });
   }

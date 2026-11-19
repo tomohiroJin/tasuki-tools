@@ -10675,6 +10675,26 @@ export const MUTATIONS = [
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
   },
   {
+    id: 2430,
+    label: "AI が使えないときの定型の落ち先で、型 refactoring の依頼だけを TDD の定型へ落とす",
+    patch: "m2430-topic-ai-fallback-refactoring-to-tdd.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/topic-generation.test.ts"],
+    note:
+      "#634 のレビュー（PR #643）。topic-generation.ts の fallback。1 つの型だけの取り違えは、2 つの型しか見ない" +
+      "縮退のテストをすり抜けた。壊れると、リファクタリングを選んで AI が使えなかった人に TDD のお題が出る。",
+  },
+  {
+    id: 2431,
+    label: "定型の本文を組むとき、選ばれた言語を無視して JavaScript の値を差し込む",
+    patch: "m2431-topic-render-ignores-language.patch",
+    pkg: "packages/topic-core",
+    tests: ["tests/fallback.test.ts"],
+    note:
+      "#634 のレビュー（PR #643 の 2 回目）。topic-render.ts の renderTopicBody。壊れると、言語を選んでも" +
+      "定型のコードが JavaScript で出る（言語を選ぶ意味が無くなる。PR #643 で人が指摘した状態に戻る）。",
+  },
+  {
     id: 2400,
     label: "作成の成功（room.created）でルーム名を覚えない",
     patch: "m2400-recent-room-not-remembered-on-created.patch",

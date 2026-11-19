@@ -209,13 +209,13 @@ test.describe('お題ツールの文字と書体', () => {
     expect(consoleWatcher.errors).toEqual([]);
   });
 
-  test('Given お題ツール / When 言語と難易度のプルダウンを開く / Then 一覧がページの中に卓の地で開く', async ({ page, consoleWatcher }) => {
+  test('Given お題ツール / When お題の型・言語・難易度のプルダウンを開く / Then 一覧がページの中に卓の地で開く', async ({ page, consoleWatcher }) => {
     // Given
     await openTopicTool(page, 'picker-topic');
     // 作る欄は最初たたまれている（開かないと言語・難易度の欄が見えない）
     await page.getByRole('region', { name: '定型や AI で作る' }).locator('summary').click();
     // When / Then（#317：別の窓で開くと、開いた一瞬が白く光る）
-    for (const label of ['言語', '難易度']) {
+    for (const label of ['お題の型', '言語', '難易度']) {
       await expectPickerInPage(page.getByLabel(label, { exact: true }), '--felt-950');
     }
     await expectFieldsAtLeast16px(page);
@@ -447,6 +447,10 @@ test.describe('作るを横帯に（#313 構成案 1）', () => {
     // Then その2b: 合言葉の欄は 1 行目の下にある（2 行目）
     const key = await page.getByLabel('AI 生成の合言葉').boundingBox();
     expect(key!.y, '合言葉が 2 行目に無い').toBeGreaterThanOrEqual(Math.max(...bottoms));
+    // Then その2c: お題の型（#634）は言語の行の上に単独で置く（帯に足すと 1280px の主の区画に収まらない）
+    const category = await page.getByLabel('お題の型', { exact: true }).boundingBox();
+    const language = await page.getByLabel('言語', { exact: true }).boundingBox();
+    expect(category!.y + category!.height, 'お題の型が言語の行の上に無い').toBeLessThanOrEqual(language!.y);
     // Then その3: 帯に詰めても、ボタンは潰れて折り返さない（「解錠する」が 2 行になった・実画面で発見）
     const fallback = await page.getByRole('button', { name: '定型から選ぶ' }).boundingBox();
     const unlock = await page.getByRole('button', { name: '解錠する' }).boundingBox();
@@ -467,6 +471,49 @@ test.describe('作るを横帯に（#313 構成案 1）', () => {
     const difficulty = await page.getByLabel('難易度', { exact: true }).boundingBox();
     expect(difficulty!.y).toBeGreaterThanOrEqual(language!.y + language!.height);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // 画面は例外を出していない
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});
+
+/**
+ * @requirements #634（利用者がお題の型を選んだとき、システムはその型の定型だけから選ぶ）
+ *
+ * 本文の形は型ごとに決まっている（`packages/topic-core/tests/topic-bank.test.ts`）。画面・wire・同期サーバー・
+ * 定型の選び方の全ホップを通った結果を、その型の本文にしか無い節（「対象のコード」「落ちるテスト」「話し合うこと」）で見分ける。
+ */
+test.describe('お題の型を選んで定型から作る（#634）', () => {
+  for (const [name, marker] of [
+    ['リファクタリング', '対象のコード:'],
+    ['設計・モデリング', '話し合うこと:'],
+    ['デバッグ', '落ちるテスト:'],
+  ] as const) {
+    test(`Given お題ツール / When お題の型「${name}」で定型から選ぶ / Then その型の定型が場に出る`, async ({ page, consoleWatcher }) => {
+      // Given
+      await openTopicTool(page, `category-topic-${marker.length}`);
+      await page.getByRole('region', { name: '定型や AI で作る' }).locator('summary').click();
+      // When
+      await page.getByLabel('お題の型', { exact: true }).selectOption({ label: name });
+      await page.getByRole('button', { name: '定型から選ぶ' }).click();
+      // Then
+      await expect(currentTopic(page)).toContainText(marker);
+      // 画面は例外を出していない
+      expect(consoleWatcher.errors).toEqual([]);
+    });
+  }
+
+  // 定型は選んだ言語で出す（#634。PR #643 のレビュー）。テストの書き方で見分ける
+  test('Given お題ツール / When 言語 Python・お題の型「デバッグ」で定型から選ぶ / Then Python のテストの定型が場に出る', async ({ page, consoleWatcher }) => {
+    // Given
+    await openTopicTool(page, 'language-topic');
+    await page.getByRole('region', { name: '定型や AI で作る' }).locator('summary').click();
+    // When
+    await page.getByLabel('お題の型', { exact: true }).selectOption({ label: 'デバッグ' });
+    await page.getByLabel('言語', { exact: true }).selectOption('Python');
+    await page.getByRole('button', { name: '定型から選ぶ' }).click();
+    // Then
+    await expect(currentTopic(page)).toContainText('落ちるテスト:');
+    await expect(currentTopic(page)).toContainText('def test_');
     // 画面は例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
   });

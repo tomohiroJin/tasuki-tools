@@ -1,7 +1,9 @@
 import { useId, useState } from 'react';
-import { DIFFICULTIES, LANGUAGES, MAX_AI_UNLOCK_KEY, type Difficulty, type Language } from '@tasuki/topic-core';
+import { CATEGORIES, DIFFICULTIES, LANGUAGES, MAX_AI_UNLOCK_KEY, type Category, type Difficulty, type Language } from '@tasuki/topic-core';
 import {
   AI_BUTTON,
+  CATEGORY_LABEL,
+  CATEGORY_NAMES,
   DIFFICULTY_LABEL,
   DIFFICULTY_NAMES,
   FALLBACK_BUTTON,
@@ -15,7 +17,7 @@ import { canUnlock } from '../topic-view';
 interface Props {
   readonly aiUnlocked: boolean;
   readonly enabled: boolean;
-  onGenerate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty): void;
+  onGenerate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty, category: Category): void;
   onUnlock(key: string): void;
 }
 
@@ -32,6 +34,7 @@ interface Props {
  * 並べるかどうかは CSS が面の幅で決める（`.topic-make` の容器クエリ）。
  */
 export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props) {
+  const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [language, setLanguage] = useState<Language>(LANGUAGES[0]);
   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTIES[0]);
   const [key, setKey] = useState('');
@@ -46,6 +49,24 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
           <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
         </summary>
         <div className="topic-make-row">
+          <div className="topic-make-field topic-make-category">
+            <label htmlFor={`${id}-category`}>{CATEGORY_LABEL}</label>
+            <select
+              id={`${id}-category`}
+              className="ui-select"
+              value={category}
+              onChange={(e) => {
+                const next = CATEGORIES.find((c) => c === e.target.value);
+                if (next !== undefined) setCategory(next);
+              }}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {CATEGORY_NAMES[c]}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="topic-make-field topic-make-language">
             <label htmlFor={`${id}-language`}>{LANGUAGE_LABEL}</label>
             <select
@@ -84,11 +105,11 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
           </div>
           <div className="ui-actions">
             {aiUnlocked && (
-              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty)} disabled={!enabled}>
+              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!enabled}>
                 {AI_BUTTON}
               </button>
             )}
-            <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty)} disabled={!enabled}>
+            <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty, category)} disabled={!enabled}>
               {FALLBACK_BUTTON}
             </button>
           </div>

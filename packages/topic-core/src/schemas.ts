@@ -9,7 +9,7 @@
  * 文言は同じパッケージの `error-messages.ts` が持つ。
  */
 import * as v from "valibot";
-import { DIFFICULTIES, LANGUAGES, MAX_AI_UNLOCK_KEY, MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from "./limits.js";
+import { CATEGORIES, DIFFICULTIES, LANGUAGES, MAX_AI_UNLOCK_KEY, MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from "./limits.js";
 
 /**
  * 空白だけのタイトルを拒む(見出しが空の札が全員の画面に出る)。
@@ -56,6 +56,10 @@ export const TopicCommandSchema = v.variant("command", [
     // 任意の文字列が届く**(2026-08-13 に持ち出し経路が本番で成立した入口)。
     language: v.picklist(LANGUAGES),
     difficulty: v.picklist(DIFFICULTIES),
+    // 種類も同じ列挙検証を通す（#634。プロンプトの選択に使い、値は埋め込まない）。
+    // **省いたら TDD として読む** —— 種類を足す前の画面（配布の切り替えの間に開いたままのタブ）は
+    // 種類を送らないので、拒むと「定型から選ぶ」が読み込み直すまで失敗し続ける。
+    category: v.optional(v.picklist(CATEGORIES), "tdd"),
   }),
   v.strictObject({
     command: v.literal("ai.unlock"),

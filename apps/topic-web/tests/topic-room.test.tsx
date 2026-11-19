@@ -500,17 +500,44 @@ describe('作る', () => {
     fireEvent.change(screen.getByLabelText(copy.DIFFICULTY_LABEL), { target: { value: 'hard' } });
     fireEvent.click(screen.getByRole('button', { name: copy.AI_BUTTON }));
     // Then
-    expect(lastSent()).toEqual({ command: 'topic.generate', mode: 'ai', language: 'Go', difficulty: 'hard' });
+    expect(lastSent()).toEqual({ command: 'topic.generate', mode: 'ai', language: 'Go', difficulty: 'hard', category: 'tdd' });
   });
 
-  it('Given 画面 / When 定型から選ぶ / Then 既定の言語と難易度で topic.generate が送られる', () => {
+  it('Given 画面 / When 定型から選ぶ / Then 既定の種類（TDD）・言語・難易度で topic.generate が送られる', () => {
     // Given
     enterWith();
     // When
     fireEvent.click(screen.getByRole('button', { name: copy.FALLBACK_BUTTON }));
     // Then
-    expect(lastSent()).toEqual({ command: 'topic.generate', mode: 'fallback', language: 'TypeScript', difficulty: 'easy' });
+    expect(lastSent()).toEqual({ command: 'topic.generate', mode: 'fallback', language: 'TypeScript', difficulty: 'easy', category: 'tdd' });
   });
+
+  /** @requirements #634（利用者がお題の種類を選んだとき、その種類で定型・AI のお題を求める） */
+  it('Given 画面 / When 種類の選択肢を見る / Then topic-core の許可リストの 4 種類が名前つきで並ぶ', () => {
+    // Given
+    enterWith();
+    // When
+    const options = within(screen.getByLabelText(copy.CATEGORY_LABEL)).getAllByRole('option');
+    // Then
+    expect(options.map((o) => [(o as HTMLOptionElement).value, o.textContent])).toEqual([
+      ['tdd', 'TDD'],
+      ['refactoring', 'リファクタリング'],
+      ['design', '設計・モデリング'],
+      ['debugging', 'デバッグ'],
+    ]);
+  });
+
+  for (const [category, mode] of [['refactoring', 'fallback'], ['design', 'ai'], ['debugging', 'fallback']] as const) {
+    it(`Given 解錠済み / When 種類 ${category} を選んで ${mode} で作る / Then 選んだ種類で topic.generate が送られる`, () => {
+      // Given
+      enterWith({ ...IDLE_STATE, aiUnlocked: true });
+      // When
+      fireEvent.change(screen.getByLabelText(copy.CATEGORY_LABEL), { target: { value: category } });
+      fireEvent.click(screen.getByRole('button', { name: mode === 'ai' ? copy.AI_BUTTON : copy.FALLBACK_BUTTON }));
+      // Then
+      expect(lastSent()).toEqual({ command: 'topic.generate', mode, language: 'TypeScript', difficulty: 'easy', category });
+    });
+  }
 
   it('Given 作り直しが早すぎた / When サーバーが拒む / Then 待ってから作り直すよう伝える', () => {
     // Given

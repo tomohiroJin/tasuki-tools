@@ -220,6 +220,7 @@
     gap: var(--space-4);
   }
 
+  .topic-make-category,
   .topic-make-language {
     inline-size: 14rem;
   }
@@ -374,7 +375,7 @@
   min-height: 3.25rem; /* scale-exempt: 隣の `.ui-select` の高さ（余白 12px×2 + 行 + 枠）に合わせる */
 }
 
-/* 作るは 2 行（#316）。1 行目に 言語・難易度・定型から選ぶ、2 行目に 合言葉・解錠する。
+/* 作るは 3 行（#316・#634）。1 行目に お題の型、2 行目に 言語・難易度・定型から選ぶ、3 行目に 合言葉・解錠する。
    読む面を右に置くと主の区画は 1280px で約 573px になり、`@container make` の 44rem に届かず縦に積んでいた。
    容器クエリの境目は変えず、64rem 以上では並びをここで決める（容器クエリの規則と同じ詳細度で、後に書いてあるので勝つ）。 */
 @media (width >= 64rem) {
@@ -389,6 +390,12 @@
   .topic-make .topic-make-language,
   .topic-make .topic-make-difficulty {
     inline-size: auto;
+  }
+
+  /* お題の型（#634）は 1 行目に単独で置く。言語・難易度・定型から選ぶの帯に足すと、1280px の主の区画（約 573px）に収まらない */
+  .topic-make .topic-make-category {
+    grid-column: 1 / -1;
+    inline-size: min(100%, 14rem);
   }
 
   .topic-make .topic-unlock {

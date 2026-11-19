@@ -435,6 +435,20 @@ PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の�
 
 本追記は上の「`style-src 'unsafe-inline'` を外す条件」と同じく、決定を覆さずに本文の事実誤認を訂正するものである。
 
+## 追記（2026-11-18・#634） — D10 の許可リストに「お題の型」（`category`）が加わった
+
+[#634](https://github.com/tomohiroJin/tasuki-tools/issues/634) で、お題の生成に種類（TDD・リファクタリング・設計・デバッグ）を選ぶ口を足した。
+種類は**プロンプトの選択**に使う値で、利用者由来の値である。D10 の「プロンプトへ補間する利用者由来の値は、境界で許可リストに対する列挙検証を行う」を、
+`language` / `difficulty` と同じ形で満たす。
+
+| D10 の MUST | 満たしている場所 |
+|---|---|
+| `category` を境界で列挙検証する | `packages/topic-core/src/schemas.ts` の `topic.generate` が `v.picklist(CATEGORIES)` で検証する。許可リストの正本は `packages/topic-core/src/limits.ts` の `CATEGORIES`。省いた要求（種類を足す前の画面）は `tdd` として読む |
+| 境界をすり抜けた値を埋め込まない | `buildTopicPrompt`（`packages/topic-core/src/prompt.ts`）が、言語・難易度・種類のどれかが許可リストの外なら、プロンプトを組まずに失敗（`Result` の err。どの欄かだけを持ち、渡された値は持たない）を返す。`ClaudeCliTopicProvider` は子プロセスを起こす前にプロンプトを組み、失敗なら起こさずに `invalid` で失敗する（呼び出し側は定型へ落ちる） |
+
+種類の値そのものはプロンプトの本文に埋め込まず、種類ごとに持つプロンプト（1 種類 1 本）を選ぶ鍵にだけ使う。
+**決定 D10 そのものは変えていない。** 守る対象の値が 1 つ増えたことを記録する。
+
 ## 追記（2026-11-19・#459） — AI 子プロセスの認証を OAuth トークンから API キーへ替える（Accepted）
 
 **状態: Accepted（2026-11-19・利用者が採択）。** 決定 D4 は秘密の例に「OAuth トークン」を挙げ、決定 D10 は `claude -p` の権限を閉じる。

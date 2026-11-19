@@ -16,18 +16,25 @@ if (!TOKEN) {
 
 const MODELS = ["sonnet", "haiku"];
 const COMBOS = [
-  { language: "TypeScript", difficulty: "easy" },
-  { language: "TypeScript", difficulty: "hard" },
-  { language: "Python", difficulty: "medium" },
-  { language: "Go", difficulty: "easy" },
-  { language: "Java", difficulty: "medium" },
+  // 種類（#634）ごとに確かめる。tdd の 5 組は種類を足す前の実験と同じ組
+  { language: "TypeScript", difficulty: "easy", category: "tdd" },
+  { language: "TypeScript", difficulty: "hard", category: "tdd" },
+  { language: "Python", difficulty: "medium", category: "tdd" },
+  { language: "Go", difficulty: "easy", category: "tdd" },
+  { language: "Java", difficulty: "medium", category: "tdd" },
+  { language: "TypeScript", difficulty: "medium", category: "refactoring" },
+  { language: "Python", difficulty: "hard", category: "refactoring" },
+  { language: "TypeScript", difficulty: "medium", category: "design" },
+  { language: "Kotlin", difficulty: "hard", category: "design" },
+  { language: "TypeScript", difficulty: "easy", category: "debugging" },
+  { language: "Go", difficulty: "medium", category: "debugging" },
 ];
 const SAMPLES = 2;
 const CONCURRENCY = 1; // claude -p の並列起動は認証/設定競合で落ちるため直列（本番も maxConcurrent=1）
 
 // アダプタと同じ起動方法で claude -p を呼ぶ。
-function generate(model, language, difficulty) {
-  const prompt = buildTopicPrompt(language, difficulty);
+function generate(model, language, difficulty, category) {
+  const prompt = buildTopicPrompt(language, difficulty, category)._unsafeUnwrap(); // COMBOS は許可リストの値だけ
   return new Promise((resolve) => {
     const started = Date.now();
     const args = [
@@ -83,7 +90,7 @@ async function runPool(tasks, concurrency) {
       results[i] = await tasks[i]();
       const r = results[i].result;
       process.stderr.write(
-        `  [${i + 1}/${tasks.length}] ${results[i].model} ${results[i].language}/${results[i].difficulty} ` +
+        `  [${i + 1}/${tasks.length}] ${results[i].model} ${results[i].category}/${results[i].language}/${results[i].difficulty} ` +
         `#${results[i].sample} → ${r.ok ? (r.valid ? "OK" : "INVALID") : "FAIL"} ${r.ms}ms\n`);
     }
   }
@@ -96,8 +103,8 @@ for (const model of MODELS)
   for (const combo of COMBOS)
     for (let s = 1; s <= SAMPLES; s++)
       jobs.push(() =>
-        generate(model, combo.language, combo.difficulty).then((result) => ({
-          model, language: combo.language, difficulty: combo.difficulty, sample: s, result,
+        generate(model, combo.language, combo.difficulty, combo.category).then((result) => ({
+          model, language: combo.language, difficulty: combo.difficulty, category: combo.category, sample: s, result,
         })));
 
 console.error(`生成開始: ${jobs.length} 件（並列 ${CONCURRENCY}）`);
