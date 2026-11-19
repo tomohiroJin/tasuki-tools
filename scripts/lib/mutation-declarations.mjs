@@ -10633,4 +10633,12 @@ export const MUTATIONS = [
     tests: ["tests/use-copy-text.test.ts"],
     note: "#408 のレビュー。選択する前に Markdown の手動選択欄が消える。",
   },
+  {
+    id: 1986,
+    label: "エスケープで URL が変わっても自動リンクで囲まない",
+    patch: "m1986-record-markdown-linkify-escaped-url.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408 のレビュー。自動リンクを拾う描画器で、先頭に下線のある URL の行き先が変わる。",
+  },
 ];

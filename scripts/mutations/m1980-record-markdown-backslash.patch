@@ -1,8 +1,7 @@
 diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
 --- a/apps/timer-web/src/records/record-markdown.ts
 +++ b/apps/timer-web/src/records/record-markdown.ts
-@@ -13,5 +13,5 @@
-     .replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ")
+@@ -12,4 +12,4 @@
      // 単語中の下線は強調にならない。表示名や URL をそのまま保つ。
 -    .replace(/(?<=[\p{L}\p{N}])(_+)(?=[\p{L}\p{N}])|[<>[\]*_`~\\]/gu, (symbol, wordUnderscores: string | undefined) =>
 +    .replace(/(?<=[\p{L}\p{N}])(_+)(?=[\p{L}\p{N}])|[<>[\]*_`~]/gu, (symbol, wordUnderscores: string | undefined) =>
