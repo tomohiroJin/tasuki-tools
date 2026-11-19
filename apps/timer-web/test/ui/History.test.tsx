@@ -4,8 +4,8 @@
  * loadRecords/deleteRecord をモックし、表示・空状態・削除・戻る導線を検証する。
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import React from "react";
 
 // indexeddb はモックして実 DB に触れない（既存 web テストの流儀）。
@@ -36,6 +36,40 @@ describe("History（履歴ビュー）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDeleteRecord.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("選んだ履歴をコピーし、旧記録で未記録の数値は未記録と示す（#408）", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    mockLoadRecords.mockResolvedValue([
+      { ...baseRecord, id: "other", topicTitle: "別のお題", completedAt: baseRecord.completedAt + 1 },
+      { ...baseRecord, topicTitle: null },
+    ]);
+    render(<History onBack={vi.fn()} />);
+
+    const record = (await screen.findAllByRole("listitem")).find(
+      (item) => within(item).queryByText("お題なし"),
+    )!;
+    expect(writeText).not.toHaveBeenCalled();
+    fireEvent.click(within(record).getByRole("button", { name: /Markdown をコピー.*お題なし/ }));
+
+    expect(await within(record).findByText("コピーしました")).toBeTruthy();
+    expect(within(screen.getByText("別のお題").closest("li")!).queryByText("コピーしました")).toBeNull();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith([
+      "セッションまとめ",
+      "",
+      "- お題：お題なし",
+      "- 所要時間：5分05秒",
+      "- 交代回数：4回",
+      "- 周回数：未記録",
+      "- 参加者（2人）",
+      "  - 「Alice」（担当回数は未記録）",
+      "  - 「Bob」（担当回数は未記録）",
+    ].join("\n"));
   });
 
   it("保存済み記録のお題タイトル・所要時間・交代回数・日時を表示する", async () => {

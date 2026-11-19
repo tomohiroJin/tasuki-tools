@@ -1,0 +1,10 @@
+diff --git a/packages/invite-ui/src/use-copy-text.ts b/packages/invite-ui/src/use-copy-text.ts
+--- a/packages/invite-ui/src/use-copy-text.ts
++++ b/packages/invite-ui/src/use-copy-text.ts
+@@ -49,5 +49,5 @@
+     }
+     setResult({ text, state: done ? 'done' : 'failed' });
+-    if (done || !keepFailure) {
++    if (true) {
+       timer.current = setTimeout(() => {
+         if (current === request.current) setResult({ text, state: 'idle' });

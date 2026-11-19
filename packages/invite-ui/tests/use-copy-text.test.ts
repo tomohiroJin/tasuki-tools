@@ -73,6 +73,25 @@ describe('共有コピー操作', () => {
     expect(document.querySelector('textarea')).toBeNull();
   });
 
+  it.each([
+    { keepFailure: true, afterTimeout: 'failed' },
+    { keepFailure: false, afterTimeout: 'idle' },
+  ])('コピー失敗の通知を 2 秒後に $afterTimeout にする', async ({ keepFailure, afterTimeout }) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('navigator', {});
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: () => false });
+    const { result, rerender } = renderHook(({ text }) => useCopyText(text, { keepFailure }), {
+      initialProps: { text: '元の記録' },
+    });
+
+    await act(() => result.current.copy());
+    expect(result.current.state).toBe('failed');
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.state).toBe(afterTimeout);
+    rerender({ text: '次の記録' });
+    expect(result.current.state).toBe('idle');
+  });
+
   it('Given 開いたダイアログの中 / When 従来のコピーを使う / Then 一時欄をダイアログに置き、フォーカスを戻す', async () => {
     vi.stubGlobal('navigator', {});
     const dialog = document.createElement('dialog');

@@ -1,0 +1,9 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -17,4 +17,4 @@
+     )
+     // R&D などの & は保ち、Markdown で文字参照として読まれる形だけを保護する。
+-    .replace(/&(?=(?:[a-z][a-z0-9]*|#[0-9]+|#x[0-9a-f]+);)/gi, "\\&");
++    .replace(/&(?=[a-z][a-z0-9]*;)/gi, "\\&");
+ }
