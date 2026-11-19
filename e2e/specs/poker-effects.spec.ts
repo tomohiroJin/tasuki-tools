@@ -19,6 +19,8 @@ import { chooseCard, createRoom, joinRoom, resultsSection } from '../support/pok
 const UNANIMOUS = '全員同じ';
 const SCATTERED = '全員バラバラ';
 const COMPLETE = '全員出そろいました';
+/** 2 席の卓で帯の動きが終わる時刻（ms）。遅れは札のめくりの待ち（(2 − 1) × 90 + 450）・動きは 1500（`apps/poker-web/src/index.css`） */
+const MOTION_END_2_SEATS_MS = (2 - 1) * 90 + 450 + 1500;
 
 /** 結果の節の演出の帯（見える帯。読み上げからは隠してある）。 */
 const band = (page: Page, text: string): Locator => resultsSection(page).locator('.results-effect').filter({ hasText: text });
@@ -109,19 +111,19 @@ test.describe('poker の開票の演出（#639）', () => {
     const pages = await openRoom(page, openPeer, 'fx-e', 2);
     const other = pages[1]!;
     await everyoneVotes(pages, ['3', '3']);
-    // 演出の最中に押す: 開票の直後（帯の動きが終わる 1.75 秒より前）に、帯の出現を待たずに押す（帯は操作を奪わない）
+    // 演出の最中に押す: 開票の直後（帯の動きが終わるより前）に、帯の出現を待たずに押す（帯は操作を奪わない）
     const clickedAt = Date.now();
     await page.getByRole('button', { name: '再投票' }).click();
-    expect(Date.now() - clickedAt, '押せるまでが動きの終わりより前').toBeLessThan(1750);
+    expect(Date.now() - clickedAt, '押せるまでが動きの終わりより前').toBeLessThan(MOTION_END_2_SEATS_MS);
     for (const p of pages) await expect(p.getByRole('heading', { name: 'あなたのカード' })).toBeVisible();
     await expect(band(page, UNANIMOUS)).toHaveCount(0);
     // 同じアイテム・同じ票でも毎回出る: 2 回目の開票の後に、両方の画面で帯が見える
     await everyoneVotes(pages, ['3', '3']);
     const secondRevealAt = Date.now();
     await Promise.all(pages.map((p) => expect(band(p, UNANIMOUS)).toBeVisible()));
-    // 次のアイテムへ（演出の最中。もう一方の画面から）。開票の直後（帯の動きが終わる 1.75 秒より前）に押す
+    // 次のアイテムへ（演出の最中。もう一方の画面から）。開票の直後（帯の動きが終わるより前）に押す
     await other.getByRole('button', { name: '次のアイテムへ' }).click();
-    expect(Date.now() - secondRevealAt, '押せるまでが動きの終わりより前').toBeLessThan(1750);
+    expect(Date.now() - secondRevealAt, '押せるまでが動きの終わりより前').toBeLessThan(MOTION_END_2_SEATS_MS);
     for (const p of pages) await expect(p.getByRole('heading', { name: 'あなたのカード' })).toBeVisible();
     await expect(band(other, UNANIMOUS)).toHaveCount(0);
   });
@@ -131,9 +133,18 @@ test.describe('poker の開票の演出（#639）', () => {
     await everyoneVotes(pages, ['8', '8']);
     const el = band(page, UNANIMOUS);
     await expect(el).toBeVisible();
-    // 帯の動き（遅れ 0.25s + 1.5s）は 2 秒以内に終わる
+    // 動きそのものの長さは 2 秒以内（1.5s）。遅れは札のめくりの待ち（(席の数 − 1) × 90ms + 0.45s）で、演出の長さではない。
+    // 終わる時刻を壁時計で測ると、遅れと CI の揺れで偽の赤になる（PR #652 の CI）ので、長さは動きの設定から読み、終わりは余裕を持って待つ
+    const timings = await el.evaluate((node) =>
+      node.getAnimations().map((a) => {
+        const t = a.effect?.getTiming();
+        return { duration: Number(t?.duration ?? 0), iterations: Number(t?.iterations ?? 1) };
+      }),
+    );
+    expect(timings.length).toBeGreaterThan(0);
+    for (const t of timings) expect(t.duration * t.iterations).toBeLessThanOrEqual(2000);
     await expect
-      .poll(() => el.evaluate((node) => node.getAnimations().every((a) => a.playState === 'finished')), { timeout: 2500 })
+      .poll(() => el.evaluate((node) => node.getAnimations().every((a) => a.playState === 'finished')), { timeout: 10_000 })
       .toBe(true);
     await expect(el).toBeVisible();
     await expect(el).toHaveCSS('opacity', '1');
