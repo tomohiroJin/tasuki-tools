@@ -86,24 +86,53 @@ test.describe('poker は見積もりを記録に残す', () => {
     await expect(guest.getByRole('button', { name: '記録する' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('Given 閉じた束 / When 2 人目が束の名前を変える / Then 1 人目の画面の見出しも変わる（#427）', async ({ page, openPeer }) => {
+  test('Given 名前が空の束 / When 再投票して閉じ、名前を入れて空に戻す / Then 両画面とコピーで同じ番号を保つ（#637）', async ({ page, context, openPeer }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     const guest = await openTwo(page, openPeer, 'log-guest-rename');
-    await setItem(page, ITEM);
+    for (const target of [page, guest]) {
+      await expect(currentTitle(target)).toHaveAccessibleName('見積もり 1');
+      await expect(currentTitle(target)).toHaveAttribute('data-auto-title', '');
+    }
     await bothVote(page, guest, '5', '5');
+    await guest.getByRole('button', { name: '再投票' }).click();
+    await expect(resultsSection(page)).toHaveCount(0);
+    await expect(currentTitle(page)).toHaveText('見積もり 1');
+    await bothVote(page, guest, '5', '5');
+    for (const target of [page, guest]) {
+      const opened = groups(target).first();
+      await expect(opened.locator('.estimate-group-item')).toHaveText('見積もり 1');
+      await expect(opened.locator('.estimate-entry-attempt')).toHaveText(['2 回め', '1 回め']);
+    }
     await page.getByRole('button', { name: '次のアイテムへ' }).click();
     await expect(resultsSection(guest)).toHaveCount(0);
 
     const guestHeading = groups(guest).first().locator('.estimate-group-item');
-    await expect(guestHeading.locator('.estimate-item-title')).toHaveText(ITEM);
-    await guestHeading.getByRole('button').click();
+    await guestHeading.getByRole('button', { name: '見積もり 1' }).click();
     const input = guest.getByRole('textbox', { name: 'アイテム名を変える' });
     await input.fill('PROJ-999');
     await input.press('Enter');
     await expect(guestHeading.locator('.estimate-item-title'), '押した本人の見出し').toHaveText('PROJ-999');
     await expect(groups(page).first().locator('.estimate-group-item .estimate-item-title'), '1 人目の画面の見出し').toHaveText('PROJ-999');
+
+    await guestHeading.getByRole('button', { name: 'PROJ-999' }).click();
+    await input.clear();
+    await input.press('Enter');
+    for (const target of [page, guest]) {
+      await expect(groups(target).first().getByRole('button', { name: '見積もり 1' })).toBeVisible();
+      await expect(groups(target).first().getByRole('combobox')).toHaveAccessibleName('見積もり 1 ポイントを変える');
+      await expect(currentTitle(target)).toHaveText('見積もり 2');
+    }
+    const copy = sideLog(page).getByRole('button', { name: '記録をコピー' });
+    const copyBefore = await copy.boundingBox();
+    expect(copyBefore).not.toBeNull();
+    await copy.click();
+    await expect(sideLog(page).getByRole('status')).toHaveText('コピーしました');
+    expect(await copy.boundingBox()).toEqual(copyBefore);
+    const markdown = await page.evaluate(() => navigator.clipboard.readText());
+    expect(markdown.split('\n')).toContain('### 見積もり 1');
   });
 
-  test('Given 2 人のルーム / When アイテム名を入れ、割れて再投票し、そろって 5 で次のアイテムへ、名前なしでもう 1 件開票する / Then 両方の画面の記録に、新しい順で（名前なし）（見積もり中）と PROJ-120（5・2 回めと 1 回め）が出る', async ({ page, openPeer }) => {
+  test('Given 2 人のルーム / When 名前のあるアイテムを再投票し、次を名前なしで開票する / Then 両画面に見積もり 2 と PROJ-120 の記録が出る', async ({ page, openPeer }) => {
     const guest = await openTwo(page, openPeer, 'log-guest-1');
 
     // 前: 記録はまだ空
@@ -126,7 +155,7 @@ test.describe('poker は見積もりを記録に残す', () => {
     await guest.getByRole('combobox', { name: 'ポイント（任意）' }).selectOption('5');
     await guest.getByRole('button', { name: '次のアイテムへ' }).click();
     await expect(resultsSection(page)).toHaveCount(0);
-    await expect(currentTitle(page)).toHaveText('（名前なし）');
+    await expect(currentTitle(page)).toHaveText('見積もり 2');
 
     // When: 名前なしのままもう 1 件開票する（そろって 3）
     await bothVote(page, guest, '3', '3');
@@ -136,7 +165,7 @@ test.describe('poker は見積もりを記録に残す', () => {
       const gs = groups(target);
       await expect(gs, `${label}の画面: 束は 2 つ`).toHaveCount(2);
       const newest = gs.nth(0);
-      await expect(newest.locator('.estimate-group-item'), `${label}: 上は名前なし`).toHaveText('（名前なし）');
+      await expect(newest.locator('.estimate-group-item'), `${label}: 上は見積もり 2`).toHaveText('見積もり 2');
       await expect(newest.getByText('見積もり中', { exact: true }), `${label}: 上は見積もり中`).toBeVisible();
       await expect(newest.locator('.estimate-entry'), `${label}: 名前なしの束は 1 回`).toHaveCount(1);
       await expect(newest.locator('.estimate-entry-attempt').first()).toHaveText('1 回め');
@@ -152,6 +181,28 @@ test.describe('poker は見積もりを記録に残す', () => {
       await expect(entries.nth(1).locator('.estimate-entry-attempt')).toHaveText('1 回め');
       await expect(entries.nth(1).locator('.estimate-entry-counts')).toHaveText('5×1 8×1');
     }
+  });
+
+  test('Given 記録が 1 件ある / When 記録を切って開票した後に再開する / Then 次の記録は見積もり 2 になる', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createRoom(page, HOST);
+    await turnRecordingOn(page);
+    await chooseCard(page, '5');
+    await expect(groups(page).first().locator('.estimate-group-item')).toHaveText('見積もり 1');
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    const recording = page.getByRole('button', { name: '記録する' });
+    await recording.click();
+    await expect(recording).toHaveAttribute('aria-pressed', 'false');
+    await chooseCard(page, '3');
+    await expect(resultsSection(page)).toBeVisible();
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    await turnRecordingOn(page);
+    await expect(currentTitle(page)).toHaveText('見積もり 2');
+    await chooseCard(page, '8');
+    const recorded = groups(page);
+    await expect(recorded).toHaveCount(2);
+    await expect(recorded.first().locator('.estimate-group-item')).toHaveText('見積もり 2');
+    await expect(recorded.last().getByRole('button', { name: '見積もり 1' })).toBeVisible();
   });
 
   test('Given 閉じた束 / When 2 人目が記録の欄でポイントを 8 に変える / Then 1 人目の画面も 8 になる', async ({ page, openPeer }) => {
@@ -204,6 +255,36 @@ test.describe('poker は見積もりを記録に残す', () => {
     expect(results).not.toBeNull();
     expect(box).not.toBeNull();
     expect(box!.y, '足の記録が結果より下にある').toBeGreaterThanOrEqual(results!.y + results!.height - 1);
+  });
+
+  test('Given コピー API を使えない幅 390 の画面 / When 記録のシートからコピー / Then すべての題がクリップボードに入る', async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await createRoom(page, HOST);
+    await turnRecordingOn(page);
+    for (const card of ['2', '3', '5', '8']) {
+      await chooseCard(page, card);
+      await expect(resultsSection(page)).toBeVisible();
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+      await expect(resultsSection(page)).toHaveCount(0);
+    }
+
+    await page.getByRole('button', { name: '記録をすべて見る' }).click();
+    const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
+    await page.evaluate(async () => {
+      const clipboard = navigator.clipboard;
+      await clipboard.writeText('前のコピー');
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { readText: clipboard.readText.bind(clipboard) },
+      });
+    });
+    const copy = drawer.getByRole('button', { name: '記録をコピー' });
+    await copy.click();
+    await expect(drawer.getByRole('status')).toHaveText('コピーしました');
+    const markdown = await page.evaluate(() => navigator.clipboard.readText());
+    expect(markdown.split('\n').filter((line) => line.startsWith('### '))).toEqual([
+      '### 見積もり 4', '### 見積もり 3', '### 見積もり 2', '### 見積もり 1',
+    ]);
   });
 
   test('Given 幅 1280・高さ 700 / When 開票と次のアイテムへを 10 回くり返す / Then 手札も脇も画面に収まり、記録は脇の中でスクロールする', async ({ page }) => {
