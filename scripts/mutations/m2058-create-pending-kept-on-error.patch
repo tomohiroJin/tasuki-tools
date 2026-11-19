@@ -1,8 +1,8 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 8f6cda6..81b0592 100644
+index 4da16e2..eb3d321 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -274,7 +274,6 @@ export function useHubSync(): HubSync {
+@@ -286,7 +286,6 @@ export function useHubSync(): HubSync {
          setResuming(false);
          // **作成の待ちも終わらせる**（#642 のレビュー）。作成を弾かれたら送り直せるようにする。
          // 作成と無関係のエラーで降りても、覚える名前は捨てるだけなので、弾かれた名前は残らない。

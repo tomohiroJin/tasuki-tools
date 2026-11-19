@@ -1,8 +1,8 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 8f6cda6..fdee8ac 100644
+index 4da16e2..a67a5e8 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -256,7 +256,7 @@ export function useHubSync(): HubSync {
+@@ -268,7 +268,7 @@ export function useHubSync(): HubSync {
            // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
            // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
            if (msg.type === 'room.created') {

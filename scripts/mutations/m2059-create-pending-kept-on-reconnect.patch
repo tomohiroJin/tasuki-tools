@@ -1,12 +1,13 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 8f6cda6..0971916 100644
+index 4da16e2..267f7f3 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -336,7 +336,6 @@ export function useHubSync(): HubSync {
-         // 既知の隙間: `SyncConnection` は溜めた送信を流してから `onReconnected` を呼ぶ。接続が閉じかけ
-         // （CLOSING）で close がまだ届いていない数ミリ秒の間に押した作成は溜められ、ここで流れたあとに
-         // 待ちが降りる。その応答では名前を覚えない（覚え損ねるだけで、弾かれた名前は残らない）。
--        settleCreate();
+@@ -349,8 +349,6 @@ export function useHubSync(): HubSync {
+         // - **その場で送った作成**は、応答が前の接続と一緒に失われた。降ろさないと、作るボタンが止まったまま戻らない
+         if (pendingCreateQueuedRef.current) {
+           pendingCreateQueuedRef.current = false;
+-        } else {
+-          settleCreate();
+         }
          // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
          resumeIfPossible();
-         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で

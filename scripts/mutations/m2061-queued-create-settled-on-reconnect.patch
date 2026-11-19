@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 4da16e2..72a64af 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -397,7 +397,7 @@ export function useHubSync(): HubSync {
+       setError(null);
+       const delivery = send(createCommand(roomName, displayName));
+       // 溜めたなら、繋ぎ直しで流れて応答が来る（{@link pendingCreateQueuedRef}）。捨てたなら応答は来ないので待たない
+-      if (delivery === 'queued') pendingCreateQueuedRef.current = true;
++      
+       if (delivery === 'dropped') settleCreate();
+     },
+     [send, cancelRetry, settleCreate],

@@ -10629,6 +10629,22 @@ export const MUTATIONS = [
     note: RESERVED_2040_2069 + " " + "#642 のレビュー。待っていることが画面から分からず、押しても何も起きない。",
   },
   {
+    id: 2061,
+    label: "閉じかけの接続に溜めた作成でも、繋ぎ直しで応答待ちを降ろす",
+    patch: "m2061-queued-create-settled-on-reconnect.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_2040_2069 + " " + "#642 の再確認。溜めた作成の応答を待つ間に別の名前で送り直せて、名前を取り違える。",
+  },
+  {
+    id: 2062,
+    label: "SyncConnection.send が、溜めたコマンドを「その場で送った」と返す",
+    patch: "m2062-connection-send-reports-queued-as-sent.patch",
+    pkg: "packages/sync-client",
+    tests: ["tests/connection.test.ts"],
+    note: RESERVED_2040_2069 + " " + "#642 の再確認。呼び手が、繋ぎ直しで流れる送信と応答ごと失われた送信を区別できない。",
+  },
+  {
     id: 1970,
     label: "見積もり中の束があっても次の番号を表示する",
     patch: "m1970-poker-estimate-preview-always-next.patch",
