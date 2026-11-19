@@ -32,6 +32,20 @@ corepack enable
 pnpm install
 ```
 
+### 手元のシステムの Node が古いとき
+
+手元（devcontainer など）のシステムの Node が 22 系のままで、`toolchain.json` の `node`（26 系）に届かないときは、
+26 系を別の場所に置き、**PATH の先頭に足して**流します。システムの Node は触りません。
+
+```bash
+# 例: https://nodejs.org/dist/v<版>/ の tar.xz を SHASUMS256.txt で照合して展開した場所
+export PATH="$HOME/.local/node-v<版>-linux-x64/bin:$PATH"
+node -v   # toolchain.json の node 以上で、かつ同じ major であることを確かめてから流す（Renovate が下限を上げたら手元も入れ替える）
+```
+
+コンテナのシステムの Node を上げるかどうかは claym 側（`.devcontainer/Dockerfile`。同じ Node で動く MCP サーバーや
+Codex CLI に影響する）の判断です。Tasuki の検査は 26 系を前提に流します（`check-toolchain` が止めます）。
+
 ### クラウドのセッションで道具を揃える
 
 claude.ai/code のクラウドのセッションでは、外への通信がプロキシを通り、**届かない取得先があります**
@@ -760,8 +774,12 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
   型定義（`@types/bun`）も同じまとまり（`renovate/bun`）に入れ、実行環境より先へ進まないようにしてあります。
   承認したら、本番・手元・CI（`.github/workflows/ci.yml` の `bun-version` すべて）を同時に上げてください。
   手順は [`deploy/README.md` の「Bun を上げる」](../../deploy/README.md#bun-を上げる) にあります。
-  規則は `packageRules` の**末尾**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
-  「非破壊的な更新」の `groupName` に負けます）
+  規則は `packageRules` の「非破壊的な更新」の規則**より後ろ**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
+  「非破壊的な更新」の `groupName` に負けます。下の Node の規則も同じ理由で後ろに置いています）
+- **Node（`toolchain.json` の `node`）も Renovate が PR を出します**（#441。`customManagers`・`node-version`）。
+  Renovate が `toolchain.json` の `node` と `package.json` の `engines.node` を **1 つの PR で**上げます
+  （片方だけだと `audit-toolchain` が赤くなるため）。「Node」の独立した群にしてあり、ほかの「非破壊的な更新」を巻き込みません。
+  **patch・minor も含めて Dependency Dashboard での承認制**です（上げると `check-toolchain` が手元の古い Node を止めるので、Bun と同じく手元を入れ替える準備ができてから承認する）。npm の manager が `engines` を拾って別の PR を出さないよう、無効にする規則を置いてあります
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
   Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）
@@ -1128,7 +1146,7 @@ CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路�
 
 - 中身は `node scripts/test-shuffled.mjs --all`（指定が無いと何も流さず使い方を出して終わる。`entry-point-wiring.test.mjs` が引数なしで起動するため、重い検査を無指定で走らせない。先に `check-toolchain test` を通し、版が合わなければ始めない。飛ばす指定は無い）（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
   vitest は `--sequence.shuffle --sequence.seed=<種>`、`apps/tasuki-sync`（bun）は `--randomize --seed=<種>`。
-  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 22 にランダムな順の指定が無い）。
+  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 26 には `--test-randomize` があるが、まだ入れていない）。
   知らないランナーが足されたら黙って飛ばさず落ちます（指定を決めて `shuffled-tests.mjs` に足す）
 - **種は毎回変えて、ログの先頭に出します**（`--seed <整数>` で固定もできる）。固定すると 1 通りの順しか見ず、新しく入った順番依存を取りこぼすためです。
   代わりに「落ちたら同じ種で手元で再現できる」ことを守ります: 落ちたパッケージごとに `cd <dir> && pnpm exec vitest run --sequence.shuffle --sequence.seed=<種>` の形の再現コマンドが最後に出ます。

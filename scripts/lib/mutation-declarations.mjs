@@ -251,6 +251,9 @@ const RESERVED_1950_1959 =
 const RESERVED_1960_1969 =
   "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
 
+const RESERVED_1980_1999 =
+  "**対応表より後に足した変異。** 1980〜1999 は #459（AI お題生成の認証を API キーへ切り替える）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -10766,6 +10769,54 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-motions.test.ts"],
     note: RESERVED_2110_2129 + " " + "#640 の /code-review。動きの選びが選択肢の数を超えた目になり、選べない・偏る。止まり方の選びも同じ関数を通る。",
+  },
+  {
+    id: 1980,
+    label: "API キーが無いとき、旧 CLAUDE_CODE_OAUTH_TOKEN を API キーとして読む",
+    patch: "m1980-config-falls-back-to-legacy-oauth-token.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/config-ai.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459。config.ts。旧トークンが残った本番が、API キーに替えたつもりでサブスクの上限を消費し続ける。",
+  },
+  {
+    id: 1981,
+    label: "AI 子プロセスの env に親の環境をそのまま渡す",
+    patch: "m1981-child-env-inherits-parent-env.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/claude-cli-topic-provider.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459。claude-cli-topic-provider.ts。親の旧 OAuth トークンが子へ漏れ、API キーでなくサブスク側で認証・精算される。",
+  },
+  {
+    id: 1982,
+    label: "AI の有効判定が API キーを見ず、合言葉だけで有効にする",
+    patch: "m1982-ai-ready-ignores-api-key.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ai-budget.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459。assembly/topic.ts。キー未設定でも AI が有効に見え、生成のたびに失敗する（定型への縮退が使われない）。",
+  },
+  {
+    id: 1983,
+    label: "exit 0 でも外側の is_error を見ず、result の埋め込みの JSON をお題の下書きとして返す",
+    patch: "m1983-outer-is-error-ignored.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/claude-cli-topic-provider.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459 の /code-review。claude-cli-topic-provider.ts。API のエラーの文が下書きとして扱われ、理由が検証の失敗としてログに出る。",
+  },
+  {
+    id: 1984,
+    label: "非ゼロ終了のとき、stdout の JSON の result を理由に含めない",
+    patch: "m1984-exit-error-drops-stdout-reason.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/claude-cli-topic-provider.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459 の /code-review。claude-cli-topic-provider.ts。クレジット切れの理由が stdout にだけ出る CLI で、失敗の文が空になり原因が分からない。",
+  },
+  {
+    id: 1985,
+    label: "旧トークンの警告の印が、API キーがあっても立つ",
+    patch: "m1985-legacy-warning-ignores-api-key.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/config-ai.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459 の /code-review。config.ts。切り替え済みの本番でも毎回警告が出て、本物の取り残しの警告が埋もれる。",
   },
   {
     id: 1970,
