@@ -4,7 +4,7 @@
 
 2〜10 人のチームが、設定した間隔で「ドライバー（キーボードを打つ人）」を自動的に回し、
 全員が同一のカウントダウンと同一のセッション状態をほぼ即時に共有します。お題（プログラミング課題）は
-サーバー常駐の AI 生成（合言葉で解錠・運営者の Claude サブスクを使用）または定型バンクから出題され、
+サーバー常駐の AI 生成（合言葉で解錠・運営者の Console の API キーで認証し、プランの API クレジットから引かれる）または定型バンクから出題され、
 AI 生成に失敗しても定型お題へ自動縮退します。完成時には所要時間・交代回数などの記録が残ります。
 
 ## 特徴
@@ -42,7 +42,7 @@ timer は Tasuki monorepo の**次のパッケージ**で構成されます（�
 
 ## 前提条件
 
-- **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
+- **Node.js 26.13.1 以上（26 系）**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
 - pnpm 11.5.0（`packageManager` 宣言に従う。`corepack enable` でよい）
 - **Bun** — 同期サーバーの起動（`bun run --watch`）とテストに必要
 
@@ -77,24 +77,20 @@ Vite の開発サーバーは `/ws` を同期サーバー（`ws://127.0.0.1:8787
 
 ### AI お題生成をローカルで試す
 
-AI お題生成は、サーバー env に **OAuth トークン**と**解錠の合言葉**の両方を設定したときだけ有効になります。
+AI お題生成は、サーバー env に **API キー**（`ANTHROPIC_API_KEY`）と**解錠の合言葉**の両方を設定したときだけ有効になります。
 どちらかが欠けると AI 機能は丸ごと無効で、お題は定型バンクのみになります（解錠も常に失敗＝機能の存在を秘匿）。
 設計の詳細は [../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](../superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
 本番デプロイ手順は [deploy/timer/NOTES.md](../../deploy/timer/NOTES.md) と [deploy/README.md](../../deploy/README.md)を参照してください。
 
-#### 1. OAuth トークンを用意する
+#### 1. API キーを用意する
 
 AI 生成は `claude -p` 子プロセス（スタンドアロンの claude バイナリ）で行い、運営者（あなた）の
-Claude サブスクの月次 Agent SDK クレジットを使います。Claude Agent SDK 専用の OAuth トークンを
-以下のコマンドで発行してください。
+API キーで認証します。Anthropic Console（https://platform.claude.com）で、プランに連携した組織の
+API キーを発行してください（#459。自動チャージは無効にしておく）。
 
-```bash
-claude setup-token      # → sk-ant-oat01-... が出力される
-```
-
-> ⚠ このトークンは個人アカウントのサブスク・クレジットを実際に消費します（共有・プール不可）。
-> 第三者から読める場所には置かず、自己ホストで自分の契約の範囲に限って使ってください。
-> ローカルでは次の手順で `apps/tasuki-sync/.env`（gitignore 済み）にのみ書きます。
+> ⚠ このキーは呼んだ分だけ Console のクレジットを実際に消費します。クレジットを使い切ると生成は失敗し、
+> お題は定型バンクへ縮退します。第三者から読める場所には置かず、ローカルでは次の手順で
+> `apps/tasuki-sync/.env`（gitignore 済み）にのみ書きます。
 
 #### 2. `.env` に設定して起動する
 
@@ -103,8 +99,8 @@ sync は Bun 起動で **cwd（`apps/tasuki-sync`）の `.env` を自動で読�
 
 ```bash
 cp apps/tasuki-sync/.env.example apps/tasuki-sync/.env
-# apps/tasuki-sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
-# 下のログ例に合わせるなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
+# apps/tasuki-sync/.env を編集（最低限 ANTHROPIC_API_KEY と AI_UNLOCK_KEY。
+# 速くて安く試すなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
 ```
 
 ルートから `pnpm dev` を起動すると、turbo が各ワークスペースを適切な作業ディレクトリで回し、
@@ -114,18 +110,18 @@ sync は `apps/tasuki-sync` を cwd とするため、この `apps/tasuki-sync/.
 pnpm dev
 ```
 
-起動ログに `AI お題生成: 有効 (model=haiku)` が出れば設定成功です（無効時は `無効 (トークン/合言葉 未設定)`）。
+起動ログの `ai` の行に `enabled=true` が出れば設定成功です（API キーか合言葉が未設定なら `enabled=false`）。
 モデルは未指定なら `sonnet`。検証では速くて安い `haiku` が便利です。
 
-> コマンドラインに env を直接書いて渡すこともできます（`CLAUDE_CODE_OAUTH_TOKEN=... pnpm dev`）。
+> コマンドラインに env を直接書いて渡すこともできます（`ANTHROPIC_API_KEY=... pnpm dev`）。
 > その場合 `turbo.json` の `dev.passThroughEnv` 経由で透過します（新しい env を足すときは
-> `passThroughEnv` も更新）。ただし `.env` 方式のほうがシェル履歴にトークンが残らず安全です。
+> `passThroughEnv` も更新）。ただし `.env` 方式のほうがシェル履歴に API キーが残らず安全です。
 
 AI 関連の環境変数:
 
 | 変数 | 既定 | 説明 |
 |---|---|---|
-| `CLAUDE_CODE_OAUTH_TOKEN` | （空） | `claude setup-token` で発行する OAuth トークン。子プロセスの env にのみ渡る（argv・ログ・snapshot 非混入） |
+| `ANTHROPIC_API_KEY` | （空） | Anthropic Console で発行する API キー（#459。旧 `CLAUDE_CODE_OAUTH_TOKEN` はもう読まない）。子プロセスの env にのみ渡る（argv・ログ・snapshot 非混入） |
 | `AI_UNLOCK_KEY` | （空） | 解錠の合言葉。これを知る在室者なら誰でも AI 生成を有効化できる（#95 S3 以前は host のみ） |
 | `AI_PROBLEM_MODEL` | `sonnet` | `claude -p --model` に渡すモデル名 |
 | `AI_GENERATION_TIMEOUT_MS` | `60000` | 生成のタイムアウト（ms）。超過で定型へ縮退 |
@@ -141,7 +137,7 @@ AI 関連の環境変数:
 5. 「定型に戻す」でいつでも定型バンクへ切替
 
 合言葉が一致しなければ「合言葉が違います。」と表示され、生成は走りません。生成に失敗（タイムアウト・
-検証失敗・トークン失効など）しても必ず定型お題へ縮退するため、お題が出ない状態にはなりません。
+検証失敗・API キーの失効・クレジット切れなど）しても必ず定型お題へ縮退するため、お題が出ない状態にはなりません。
 
 > 実機確認の前に必ず旧プロセスを掃除してから単一起動してください（WSL では vite の HMR 取りこぼし・
 > ゾンビプロセスが古いコードを配信する罠があります）:

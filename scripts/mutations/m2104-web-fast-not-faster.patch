@@ -1,0 +1,22 @@
+# 変異 2104: web-fast-not-faster
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 回転の動き。速いの回で、円盤が速く回らない（止まる時刻だけが早まる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2104-*.patch
+# 復元: git apply -R scripts/mutations/m2104-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -117,7 +117,7 @@
+ 
+   if (spinMotion === 'fast') {
+     // 最初の FAST_SPAN_MS（本体の時間）を、縮める長さだけ短い時間で進める（速くなる）。後ろは普通の速さ
+-    const real = FAST_SPAN_MS + SPIN_MOTION_EXTRA_MS.fast;
++    const real = FAST_SPAN_MS;
+     return sign * base(u < real ? (u * FAST_SPAN_MS) / real : u - real + FAST_SPAN_MS);
+   }
+   if (spinMotion === 'turnback') {

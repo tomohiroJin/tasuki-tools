@@ -1,0 +1,22 @@
+# 変異 2117: rare-second-draw-odds
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 の /code-review。動きの選びが選択肢の数を超えた目になり、選べない・偏る。止まり方の選びも同じ関数を通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2117-*.patch
+# 復元: git apply -R scripts/mutations/m2117-*.patch
+diff --git a/packages/roulette-core/src/rare.ts b/packages/roulette-core/src/rare.ts
+--- a/packages/roulette-core/src/rare.ts
++++ b/packages/roulette-core/src/rare.ts
+@@ -15,7 +15,7 @@
+   const roll = randomInt(odds);
+   if (!isIndex(roll, odds)) return err({ code: "INVALID_RANDOM" });
+   if (roll !== odds - 1) return ok(null);
+-  const index = randomInt(names.length);
++  const index = randomInt(odds);
+   const name = isIndex(index, names.length) ? names[index] : undefined;
+   return name === undefined ? err({ code: "INVALID_RANDOM" }) : ok(name);
+ }

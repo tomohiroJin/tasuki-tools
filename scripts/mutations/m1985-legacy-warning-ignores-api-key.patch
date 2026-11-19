@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/config.ts b/apps/tasuki-sync/src/config.ts
+index e05fa803..27c63f6e 100644
+--- a/apps/tasuki-sync/src/config.ts
++++ b/apps/tasuki-sync/src/config.ts
+@@ -197,7 +197,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
+     aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
+     anthropicApiKey: (env["ANTHROPIC_API_KEY"] ?? "").trim() || undefined,
+     legacyOauthTokenIgnored:
+-      (env["ANTHROPIC_API_KEY"] ?? "").trim() === "" && (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() !== "",
++(env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() !== "",
+     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,
+     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
+     // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。

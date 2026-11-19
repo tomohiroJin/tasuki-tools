@@ -4,7 +4,7 @@
  */
 
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { Summary } from "../../src/ui/Summary.js";
 
@@ -22,6 +22,7 @@ describe("Summary", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("完成時、表示名と担当回数を含む Markdown を利用者の操作でコピーする（#408）", async () => {
@@ -62,15 +63,17 @@ describe("Summary", () => {
   });
 
   it("コピーに失敗したときは本文を選択でき、再試行の成功で入力欄を閉じる（#408）", async () => {
+    vi.useFakeTimers();
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     render(<Summary endType="complete" record={baseRecord} onNewSession={noop} onSaveRecord={noop} />);
 
     const copyButton = screen.getByRole("button", { name: "Markdown をコピー" });
     expect(screen.queryByRole("textbox", { name: "手動コピー用の Markdown" })).toBeNull();
-    fireEvent.click(copyButton);
+    await act(async () => { fireEvent.click(copyButton); });
 
-    expect(await screen.findByText("コピーできませんでした")).toBeTruthy();
+    expect(screen.getByText("コピーできませんでした")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(3000));
     const field = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "手動コピー用の Markdown" });
     expect(field.readOnly).toBe(true);
     expect(field.value).toContain("- お題：FizzBuzz");
@@ -80,8 +83,8 @@ describe("Summary", () => {
     expect(field.selectionEnd).toBe(field.value.length);
 
     writeText.mockResolvedValueOnce(undefined);
-    fireEvent.click(copyButton);
-    expect(await screen.findByText("コピーしました")).toBeTruthy();
+    await act(async () => { fireEvent.click(copyButton); });
+    expect(screen.getByText("コピーしました")).toBeTruthy();
     expect(screen.queryByRole("textbox", { name: "手動コピー用の Markdown" })).toBeNull();
   });
 

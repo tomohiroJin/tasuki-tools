@@ -1,0 +1,8 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -31,3 +31,3 @@
+   }
+-  return token.slice(0, end).replace(/[.,;:!?]+$/, "");
++  return token.slice(0, end);
+ }

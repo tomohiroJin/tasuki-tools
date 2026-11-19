@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/assembly/topic.ts b/apps/tasuki-sync/src/assembly/topic.ts
+index 4d8b2124..b90498bf 100644
+--- a/apps/tasuki-sync/src/assembly/topic.ts
++++ b/apps/tasuki-sync/src/assembly/topic.ts
+@@ -27,7 +27,7 @@ export interface AiBudget {
+ /** 設定から AI の予算を決める（API キーと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）。 */
+ export function createAiBudget(base: Pick<AssemblyBase, "config" | "clock">): AiBudget {
+   const { config, clock } = base;
+-  const aiReady = Boolean(config.anthropicApiKey && config.aiUnlockKey);
++  const aiReady = Boolean(config.aiUnlockKey);
+   return { aiReady, aiLimiter: aiReady ? new AiLimiter({ clock, dailyLimit: config.aiDailyLimit }) : undefined };
+ }
+ 

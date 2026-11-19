@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { RoomStateMessage } from '@tasuki/poker-core';
-import { holdsSeatCard, isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../src/room-view';
+import { holdsSeatCard, isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, spreadPromptOf } from '../src/room-view';
 
 type Round = RoomStateMessage['round'];
 
@@ -101,6 +101,108 @@ describe('spreadPromptOf（#405）', () => {
       high: { card: n(8), names: ['あお'] },
       low: { card: n(2), names: ['きい'] },
     });
+  });
+});
+
+describe('resultsEffectOf（#639）', () => {
+  type Card = { kind: 'number'; value: 1 | 3 | 5 | 8 | 13 } | { kind: 'question' } | { kind: 'coffee' };
+  const n = (value: 1 | 3 | 5 | 8 | 13): Card => ({ kind: 'number', value });
+  const person = (id: string, over: Partial<{ connected: boolean; spectator: boolean }> = {}) => ({
+    id,
+    name: id,
+    connected: true,
+    hasVoted: true,
+    spectator: false,
+    ...over,
+  });
+  const revealed = (votes: [string, Card][]) =>
+    ({
+      status: 'revealed',
+      votes: votes.map(([participantId, card]) => ({ participantId, card })),
+      stats: { average: 0, modes: [] },
+    }) as Round;
+  const three = [person('a'), person('b'), person('c')];
+
+  it('投票中は null', () => {
+    expect(resultsEffectOf({ status: 'voting' } as Round, three)).toBeNull();
+  });
+
+  it('全員が同じ数字なら unanimous', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), three)).toBe('unanimous');
+  });
+
+  it('同じ札が 1 組も無ければ scattered', () => {
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), three)).toBe('scattered');
+  });
+
+  it('全員が出したが一致でもバラバラでもなければ complete（全員の投票完了。投票完了は自動で開票されるので、開票と同時に届く）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(8)]]), three)).toBe('complete');
+  });
+
+  it('? が混ざれば、全員が出していても complete（一致・バラバラにはならない）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', { kind: 'question' }]]), three)).toBe('complete');
+  });
+
+  it('接続中の投票者に出していない人が居る（手動の開票）なら null', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), three)).toBeNull();
+  });
+
+  it('接続中の 5 人のうち 2 人だけが同じ札を出して手動で開票したなら、unanimous にしない（全員が出した回だけ）', () => {
+    const five = [person('a'), person('b'), person('c'), person('d'), person('e')];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)]]), five)).toBeNull();
+  });
+
+  it('接続中の 5 人のうち 3 人だけが違う札を出して手動で開票したなら、scattered にしない', () => {
+    const five = [person('a'), person('b'), person('c'), person('d'), person('e')];
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), five)).toBeNull();
+  });
+
+  it('接続中の 2 人が 5・8 で、切断した人が 13 を出して開票されたなら、見える 3 枚がすべて違うので scattered（帯は札の事実と合う）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('scattered');
+  });
+
+  it('卓の見える札が 3 枚とも 5（切断した人の 5 を含む）なら、unanimous（見える全票で判定する）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), people)).toBe('unanimous');
+  });
+
+  it('卓の見える札が 3 枚とも違う（切断した人の 13 を含む）なら、scattered（見える全票で判定する）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(13)]]), people)).toBe('scattered');
+  });
+
+  it('接続中の 2 人が同じ 5 で、切断した人が 13 を出していたなら、見える札は同じでないので complete', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(13)]]), people)).toBe('complete');
+  });
+
+  it('接続中の 3 人が 1・5・8 で、切断した人が 5 を出していたなら、見える札に同じ 5 があるので complete', () => {
+    const people = [person('a'), person('b'), person('c'), person('d', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)], ['d', n(5)]]), people)).toBe('complete');
+  });
+
+  it('名簿に居ない人の票も見える札として判定に入る（接続中の 2 人と 5・5・5）', () => {
+    const people = [person('a'), person('b')];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['gone', n(5)]]), people)).toBe('unanimous');
+  });
+
+  it('出していない人が切断中なら、接続中の全員が出したので complete', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), people)).toBe('complete');
+  });
+
+  it('見学者は出していなくてよい', () => {
+    const people = [person('a'), person('b'), person('w', { spectator: true })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), people)).toBe('complete');
+  });
+
+  it('投票者が 1 人だけなら complete にしない（そろうも何もない）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)]]), [person('a')])).toBeNull();
+  });
+
+  it('全員が ☕ なら unanimous にはならず complete（休憩の演出は第 2 段。テーブルが出る間は結果の節ごと描かれない）', () => {
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }]]), [person('a'), person('b')])).toBe('complete');
   });
 });
 

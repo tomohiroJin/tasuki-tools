@@ -3,6 +3,7 @@
 import type { Command } from "@tasuki/timer-core";
 import { LiveSetupError } from "./waiting";
 import type { LiveClient, MsgOf } from "./timer-client";
+import type { LiveSyncServer } from "./server";
 
 /** 実 WS 越しにルームを作る。エラーが返ったら throw する（前提の構築の失敗）。 */
 export async function createRoom(
@@ -70,4 +71,32 @@ export async function addToRotation(client: LiveClient, participantId: string): 
   if (msg.type === "error") {
     throw new LiveSetupError(`member.add(${participantId}) が ${msg.code} で失敗した`);
   }
+}
+
+/**
+ * 作成済みのルームに、玄関（ハブ）から合言葉を設定する（#638）。**空文字で解除。**
+ *
+ * 合言葉の設定は timer のコマンドではなくハブの言葉である（`room.passphrase.set`）。timer などで作ったルームの
+ * 作成者が、**自分の復帰の組でハブへ入り**（同じ参加者に接続が 1 本足される）、設定して名簿の印が変わるのを待つ。
+ * ハブの接続は設定が済んだら閉じる（作成者は元の接続に残る）。前提の構築なので、失敗は throw する。
+ */
+export async function setPassphraseViaHub(
+  server: LiveSyncServer,
+  room: { code: string; resumeToken: string },
+  displayName: string,
+  passphrase: string,
+): Promise<void> {
+  const hub = await server.connectHub(`passphrase-setter-${displayName}`);
+  hub.send({ command: "room.join", code: room.code, displayName, resumeToken: room.resumeToken });
+  const joined = await hub.take((m) => m.type === "room.joined" || m.type === "error", "room.joined");
+  if (joined.type !== "room.joined") {
+    throw new LiveSetupError(`ハブへの入り直しが ${joined.type === "error" ? joined.code : joined.type} で失敗した`);
+  }
+  hub.send({ command: "room.passphrase.set", passphrase });
+  const expected = passphrase.trim() !== "";
+  await hub.take(
+    (m) => m.type === "roster" && (m.room.passphraseProtected === true) === expected,
+    `passphraseProtected=${expected} の roster`,
+  );
+  await hub.close();
 }

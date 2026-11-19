@@ -18,8 +18,9 @@ import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
-import type { NumberCardValue } from '@tasuki/poker-core';
-import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
+import type { Card, NumberCardValue } from '@tasuki/poker-core';
+import type { ResultsEffect } from '../effect-copy';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, sameRevealRound, spreadPromptOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
 // （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
@@ -71,6 +72,37 @@ export function RoomPage({ roomId, sync }: Props) {
     setSeenStatus(roundStatus);
     setRevealedLive(revealedLiveAfter(seenStatus, roundStatus));
   }
+  // 開票の演出の帯（#639）。**この画面が実際に見た出来事だけ**で決める（状態の中身から回を推し量らない）。
+  // - 出す: 接続が開いている間に、投票中の次の描画で公開を見た。種類はその瞬間の名簿と票で一度だけ決める
+  // - 捨てる: 回が投票中へ戻った・接続が開いていない状態になった・投票中を挟まず別の回の公開済みが届いた（票が見届けた票に収まらない。
+  //   同じ回で票が減る（退出）のは収まるので捨てない）
+  // それ以外（同じ公開のままの名簿の変化・票の削除・状態の届き直し）では変えない。再接続の後は、投票中を見るまで出さない。
+  const round = sync.snapshot?.round;
+  // 再接続の直後は、切れる前の古い状態が残ったまま `status` だけが `open` になる（入り直した後の `room-state` で初めて置き換わる）。
+  // 古い状態を見たことにしない: 開いた時点の状態の実体を控え、それと同じ間は見ていない（`undefined`）ものとして扱う。
+  const open = sync.status === 'open';
+  const [seenOpen, setSeenOpen] = useState(open);
+  const [staleSnapshot, setStaleSnapshot] = useState<typeof sync.snapshot>(null);
+  // この描画で決まる次の控えから計算する（`set` は予約されるだけなので、古い控えで計算した値を `setBandSeen` へ渡さない）
+  const nextStale = open !== seenOpen ? (open ? sync.snapshot : null) : staleSnapshot;
+  if (open !== seenOpen) {
+    setSeenOpen(open);
+    setStaleSnapshot(nextStale);
+  }
+  const bandStatus = open && sync.snapshot !== nextStale ? round?.status : undefined;
+  const [bandSeen, setBandSeen] = useState(bandStatus);
+  const [band, setBand] = useState<{ votes: ReadonlyMap<string, Card>; effect: ResultsEffect | null } | null>(null);
+  if (bandStatus !== bandSeen) {
+    setBandSeen(bandStatus);
+    setBand(
+      revealedLiveAfter(bandSeen, bandStatus) && sync.snapshot
+        ? { votes: revealedVoteMap(sync.snapshot.round) ?? new Map(), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+        : null,
+    );
+  } else if (band !== null && !(round !== undefined && sameRevealRound(band.votes, round))) {
+    setBand(null);
+  }
+  const effect = band?.effect ?? null;
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
 
@@ -246,6 +278,7 @@ export function RoomPage({ roomId, sync }: Props) {
               seatCount={seatCount}
               afterFlip={revealedLive}
               spread={spreadPromptOf(snapshot.round, snapshot.participants)}
+              effect={effect}
             />
           )}
           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、

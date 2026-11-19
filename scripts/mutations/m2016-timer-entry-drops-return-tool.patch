@@ -1,0 +1,22 @@
+# 変異 2016: timer が玄関へ送るとき、元の道具を運ばない
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.entry.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2016-*.patch
+# 復元: git apply -R scripts/mutations/m2016-*.patch
+#
+# #638。timer の URL から合言葉つきのルームへ入った人が、玄関で通っても timer へ戻らない。
+diff --git a/apps/timer-web/src/sync/use-timer-entry.ts b/apps/timer-web/src/sync/use-timer-entry.ts
+index b80f5958..387141c2 100644
+--- a/apps/timer-web/src/sync/use-timer-entry.ts
++++ b/apps/timer-web/src/sync/use-timer-entry.ts
+@@ -48,7 +48,7 @@ export function useTimerEntry(resume: (code: string, saved: ResumeIdentity) => v
+     if (!shouldResumeOnLoad(saved, code)) {
+       // 名乗りはハブに 1 つだけある。**コードは落とさずに運ぶ** —— 落とすと、
+       // リンクで来た人が入りたかったルームを失う。
+-      redirectTo(hubRoomPath(code, undefined, "timer"));
++      redirectTo(hubRoomPath(code));
+       return;
+     }
+     resumeRef.current(code, saved);

@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'jsdom',
+    // Node 25 以降の壊れたグローバル `localStorage` が jsdom のものを覆わないよう切る（#441）。
+    execArgv: ['--no-experimental-webstorage'],
     globals: true,
     // vi.fn() の呼び出しの記録を、テストごとに消す（#499）。この設定には restoreMocks / mockReset が無く、
     // vi.mock の工場で作った vi.fn() の記録は次のテストへ漏れる。mockClear は実装を残すので、工場の既定は残る。

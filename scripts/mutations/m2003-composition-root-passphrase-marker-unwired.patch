@@ -1,0 +1,22 @@
+# 変異 2003: 組み立てで名簿の合言葉の印を保管から引かない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2003-*.patch
+# 復元: git apply -R scripts/mutations/m2003-*.patch
+#
+# #638。配信の単体試験は印を直に渡すので緑のまま、実 WS でだけ、設定しても名簿の印が立たないことが分かる。
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index ac0cba6a..6f9b1d3a 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -158,7 +158,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+   const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({
+     store,
+     ws: () => ws.get(),
+-    isPassphraseProtected: (roomCode) => tokens.getPassphrase(roomCode) !== undefined,
++    isPassphraseProtected: () => false,
+     // 名簿が変わったら各道具が測り直す（チェックインが席と自動開票を。#406）。表は下で決まる。
+     onRosterBroadcast: (roomCode) => {
+       for (const part of Object.values(toolParts.get())) part.onRosterBroadcast?.(roomCode);

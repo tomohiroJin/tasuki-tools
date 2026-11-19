@@ -29,7 +29,7 @@ const ROOM: MembershipRoom = {
   ],
 };
 
-function setup() {
+function setup(protectedRooms: readonly string[] = []) {
   const store = new InMemoryRoomStore();
   store.put(ROOM);
   const sent: { kind: string; to: string[]; msg: ServerMsg | HubServerMsg }[] = [];
@@ -48,7 +48,12 @@ function setup() {
     store,
     sent,
     rosterChanged,
-    ...createTimerWsBroadcaster({ store, ws: () => ws, onRosterBroadcast: (code) => rosterChanged.push(code) }),
+    ...createTimerWsBroadcaster({
+      store,
+      ws: () => ws,
+      isPassphraseProtected: (code) => protectedRooms.includes(code),
+      onRosterBroadcast: (code) => rosterChanged.push(code),
+    }),
   };
 }
 
@@ -82,6 +87,24 @@ describe("ハブの配信", () => {
     // Then
     expect(h.sent).toHaveLength(1);
     expect(h.sent[0]).toMatchObject({ kind: "broadcastHub", to: ["c-hub", "c-roulette"], msg: { type: "roster" } });
+  });
+
+  it("Given 合言葉つきのルーム / When 名簿を配る / Then 名簿に設定中の印が付く（#638）", () => {
+    // Given
+    const h = setup(["ROOM-A"]);
+    // When
+    h.hubBroadcaster.broadcastRoster("ROOM-A");
+    // Then
+    expect(h.sent[0]?.msg).toMatchObject({ type: "roster", room: { passphraseProtected: true } });
+  });
+
+  it("Given 合言葉の無いルーム / When 名簿を配る / Then 印は false（付いていない）", () => {
+    // Given
+    const h = setup();
+    // When
+    h.hubBroadcaster.broadcastRoster("ROOM-A");
+    // Then
+    expect(h.sent[0]?.msg).toMatchObject({ type: "roster", room: { passphraseProtected: false } });
   });
 
   it("Given 名簿に無いルーム / When 名簿を配る / Then 何も送らず、名簿の変化も知らせない", () => {

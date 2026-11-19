@@ -4,7 +4,8 @@
  * - プロンプトは stdin 渡し（argv 長・エスケープ問題の回避）
  * - --strict-mcp-config 等でユーザー設定を読み込ませない（メモリ実測 726MB→355MB。spec 参照）
  * - `--setting-sources "" --tools ""` で組み込みツールと利用者設定を閉じる（docs/adr/0012 D10）
- * - OAuth トークンは子プロセスの env にのみ渡す（ログ・snapshot 非混入）
+ * - API キー（ANTHROPIC_API_KEY）は子プロセスの env にのみ渡す（ログ・snapshot 非混入）。
+ *   クレジット切れ（`Credit balance is too low`）は非ゼロ終了などの失敗として扱い、呼び出し側が定型へ縮退する
  */
 import { spawn } from "node:child_process";
 import { buildTopicPrompt, type Difficulty, type Language } from "@tasuki/topic-core";
@@ -27,8 +28,8 @@ export type SpawnFn = (
 ) => SpawnedProcess;
 
 export interface ClaudeCliTopicProviderOptions {
-  /** CLAUDE_CODE_OAUTH_TOKEN（sk-ant-oat01-...） */
-  token: string;
+  /** ANTHROPIC_API_KEY（sk-ant-api03-...。Console で発行する API キー。#459） */
+  apiKey: string;
   /** claude -p --model に渡す値 */
   model: string;
   /** テスト用の spawn 差し替え */
@@ -51,14 +52,24 @@ export function extractJsonObject(text: string): unknown {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+/** stdout が外殻の JSON で、文字列の result を持つなら、その文を返す（無ければ空文字）。 */
+function outerResultText(stdout: string): string {
+  try {
+    const outer = JSON.parse(stdout) as { result?: unknown };
+    return typeof outer.result === "string" ? outer.result : "";
+  } catch {
+    return "";
+  }
+}
+
 export class ClaudeCliTopicProvider implements ServerTopicProvider {
-  private readonly token: string;
+  private readonly apiKey: string;
   private readonly model: string;
   private readonly spawnFn: SpawnFn;
   private readonly maxOutputBytes: number;
 
   constructor(opts: ClaudeCliTopicProviderOptions) {
-    this.token = opts.token;
+    this.apiKey = opts.apiKey;
     this.model = opts.model;
     this.spawnFn = opts.spawnFn ?? (spawn as unknown as SpawnFn);
     this.maxOutputBytes = opts.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
@@ -98,10 +109,12 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
 
       const child = this.spawnFn("claude", args, {
         env: {
-          // PATH/HOME は必要（バイナリ解決・内部キャッシュ）。トークンはここだけに渡す。
+          // 許可リスト。PATH/HOME は必要（バイナリ解決・内部キャッシュ）。API キーはここだけに渡す。
+          // 親の環境の CLAUDE_CODE_OAUTH_TOKEN・ANTHROPIC_AUTH_TOKEN などは渡さない
+          // （API キーだけで認証させ、クレジット側で精算させる。#459）
           PATH: process.env["PATH"],
           HOME: process.env["HOME"],
-          CLAUDE_CODE_OAUTH_TOKEN: this.token,
+          ANTHROPIC_API_KEY: this.apiKey,
         },
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -150,9 +163,14 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
       child.on("error", (err) => settle(() => reject(new ProviderFailure(err.message, "spawnFailed"))));
       child.on("close", (code) => {
         if (code !== 0) {
-          // stderr にトークン様文字列が混入しても外へ出さない（ログ衛生・多層防御）
+          // 実行中の失敗（クレジット切れ・認証の欠落など）は、--output-format json では
+          // 外殻 { is_error, result } として stdout に出る（公式の headless の文書）。stderr は空のことがある。
+          // 理由は stderr と stdout の result の両方から作る。キー様文字列は伏せ、長さを切る（多層防御）
           const stderr = Buffer.concat(stderrChunks).toString("utf8");
-          const redacted = stderr.replace(/sk-ant-[\w-]+/g, "[redacted]");
+          const reason = [stderr, outerResultText(Buffer.concat(stdoutChunks).toString("utf8"))]
+            .filter((s) => s !== "")
+            .join(" / ");
+          const redacted = reason.replace(/sk-ant-[\w-]+/g, "[redacted]");
           settle(() =>
             reject(new ProviderFailure(`claude -p exit ${code}: ${redacted.slice(0, 200)}`, "processError")),
           );
@@ -163,7 +181,19 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
         let parsed: unknown;
         try {
           // --output-format json の外殻 { result: "...", ... } から本文を取り出す
-          const outer = JSON.parse(Buffer.concat(stdoutChunks).toString("utf8")) as { result?: unknown };
+          const outer = JSON.parse(Buffer.concat(stdoutChunks).toString("utf8")) as {
+            result?: unknown;
+            is_error?: unknown;
+          };
+          if (outer.is_error === true) {
+            // API のエラー。result は文章であり、お題の下書きとして解釈しない（埋め込みの JSON を拾わない）
+            const text = typeof outer.result === "string" ? outer.result : "";
+            const redacted = text.replace(/sk-ant-[\w-]+/g, "[redacted]");
+            settle(() =>
+              reject(new ProviderFailure(`claude -p API error: ${redacted.slice(0, 200)}`, "processError")),
+            );
+            return;
+          }
           if (typeof outer.result !== "string") {
             throw new Error(
               `--output-format json の result フィールドが文字列ではありません: ${JSON.stringify(outer).slice(0, 200)}`,

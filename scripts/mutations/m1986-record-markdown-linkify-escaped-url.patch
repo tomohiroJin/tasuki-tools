@@ -1,9 +1,0 @@
-diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
---- a/apps/timer-web/src/records/record-markdown.ts
-+++ b/apps/timer-web/src/records/record-markdown.ts
-@@ -41,4 +41,4 @@
-     const url = urlWithoutTrailingPunctuation(part);
--    const link = URL.canParse(url) ? `<${url}>` : escapeMarkdownText(url);
-+    const link = escapeMarkdownText(url);
-     return link + escapeMarkdownText(part.slice(url.length));
-   }).join("");

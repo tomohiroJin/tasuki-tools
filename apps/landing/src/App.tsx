@@ -90,6 +90,9 @@ export function App() {
           roster={hub.roster}
           connection={hub.connection}
           topicTitle={hub.topicTitle}
+          passphraseProtected={hub.passphraseProtected}
+          passphraseError={hub.passphraseError}
+          onSetPassphrase={hub.setPassphrase}
         />
       );
     case 'gone':

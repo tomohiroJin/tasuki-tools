@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 80bbe90b..d4abbc73 100644
+index 5f1d0020..308ab773 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -227,7 +227,7 @@ export function RoomPage({ roomId, sync }: Props) {
+@@ -274,7 +274,7 @@ export function RoomPage({ roomId, sync }: Props) {
                stats={snapshot.round.stats}
                seatCount={seatCount}
                afterFlip={revealedLive}
 -              spread={spreadPromptOf(snapshot.round, snapshot.participants)}
 +              spread={null}
+               effect={effect}
              />
            )}
-           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、

@@ -1,9 +1,0 @@
-diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
---- a/apps/timer-web/src/records/record-markdown.ts
-+++ b/apps/timer-web/src/records/record-markdown.ts
-@@ -38,4 +38,4 @@
-   // 空白と日本語の句読点を境界にし、対応する丸括弧は URL 内に残す。
--  return line.split(/(\bhttps?:\/\/[^\s\p{Cc}<>"'`\\「」『』（）【】、。！？；：]+)/giu).map((part, index) => {
-+  return line.split(/(\bhttps?:\/\/[^\s\p{Cc}<>"'`\\「」『』（）【】、。]+)/giu).map((part, index) => {
-     if (index % 2 === 0) return escapeMarkdownText(part);
-     const url = urlWithoutTrailingPunctuation(part);

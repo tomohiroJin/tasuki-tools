@@ -87,3 +87,14 @@ Caddy の版を知る手段は、CI の YAML を読むことだけだった。
 - **devcontainer の定義はリポジトリに無い**（2026-10-31）。devcontainer が版を `toolchain.json` から読むようにするのは、
   定義をリポジトリに置くときに行う。それまでは、devcontainer の中でも決定 2 の比較が検査の前に止める
 - 環境の版が宣言と違う手元では、`pnpm test` が始まらなくなる。揃え方は止まったときの出力に出る
+
+## 追記（2026-11-19・#441・Accepted）
+
+上の「影響」の「Node の下限と Caddy は今までどおり手で上げる」のうち、**Node は変わった**（本文は記録なので書き換えない）。
+
+- Node を 26 系の LTS（26.13.1）へ移した。`toolchain.json` の `node` と `package.json` の `engines.node`（`>=26.13.1`）を同じ版にしてある
+- Renovate は `toolchain.json` の `node` と `engines.node` を、**同じ PR で**追う（`renovate.json` の `customManagers`・独立した群 `Node`）。
+  片方だけ上がると決定 3 の検査が赤くなるため、2 つを 1 つの PR にしてある
+- patch・minor も含めて Dependency Dashboard での承認制（Bun と同じ。下限が上がると決定 2 の事前の検査が手元の古い Node を止めるので、手元を入れ替える準備ができてから承認する）。Renovate の `node` の versioning は LTS に入った系列だけを安定版と見るので、LTS に入るまで提案されない
+- Caddy は今までどおり手で上げる
+- 根拠: ISSUE #441 のコメント（2026-10-25。「26 系へ固定したあとは、その版を Renovate が追う」）

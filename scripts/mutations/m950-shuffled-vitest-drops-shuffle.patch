@@ -4,7 +4,7 @@ index 9327683..0b3a04f 100644
 +++ b/scripts/lib/shuffled-tests.mjs
 @@ -39,7 +39,7 @@ export function shuffledCommand(testScript, seed) {
    const words = testScript.trim().split(/\s+/);
-   if (words[0] === "node" && words[1] === "--test") return { skip: "node --test は Node 22 にランダムな順の指定が無い" };
+   if (words[0] === "node" && words[1] === "--test") return { skip: "node --test は今は対象外（Node 26 には --test-randomize があるが、まだ入れていない）" };
    if (/[&|;<>$`"'()\\*]/.test(testScript)) throw new Error(`test スクリプトにシェルの記法があり、種の指定を足せません: ${testScript}`);
 -  if (words[0] === "vitest" && words[1] === "run") return { args: [...words, "--sequence.shuffle", `--sequence.seed=${seed}`] };
 +  if (words[0] === "vitest" && words[1] === "run") return { args: [...words, `--sequence.seed=${seed}`] };

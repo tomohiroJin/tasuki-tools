@@ -22,8 +22,6 @@ export interface TimerCommands {
   /** ローテーションから外す。index は**呼び出し時**の snapshot から解決する。 */
   removeMember(participantId: string): void;
   removeParticipant(participantId: string): void;
-  /** 空文字で解除。 */
-  setPassphrase(passphrase: string): void;
   moveMember(fromIndex: number, toIndex: number): void;
   /** 順列はサーバーが生成するため wire は command のみ。 */
   shuffleMembers(): void;
@@ -56,7 +54,6 @@ export function createCommands(send: SendFn, getRoom: () => Room | null): TimerC
       if (idx >= 0) send({ command: "member.remove", index: idx });
     },
     removeParticipant: (participantId) => send({ command: "participant.remove", participantId }),
-    setPassphrase: (passphrase) => send({ command: "room.passphrase.set", passphrase }),
     moveMember: (fromIndex, toIndex) => send({ command: "member.move", fromIndex, toIndex }),
     shuffleMembers: () => send({ command: "member.shuffle" }),
     completeSession: () => send({ command: "session.complete" }),

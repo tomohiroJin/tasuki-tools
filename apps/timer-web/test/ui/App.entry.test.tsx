@@ -167,7 +167,7 @@ describe("App の入口配線（旧入口の撤去・R9）", () => {
     render(<App />);
 
     // Then: 名乗りはハブに 1 つだけある。コードは落とさずに運ぶ
-    expect(redirectTo).toHaveBeenCalledWith("/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2");
+    expect(redirectTo).toHaveBeenCalledWith("/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2&from=timer");
     expect(FakeWS.instances, "名乗れないのに接続を張っている").toHaveLength(0);
   });
 

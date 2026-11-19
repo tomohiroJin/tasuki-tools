@@ -1,0 +1,22 @@
+# 変異 2032: 玄関の合言葉の設定の失敗を画面に出さない
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-passphrase.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2032-*.patch
+# 復元: git apply -R scripts/mutations/m2032-*.patch
+#
+# #638 の code-review。設定がサーバーに拒まれても何も出ず、押した人は設定したと思う。
+diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
+index 843e2edd..de085e98 100644
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -51,7 +51,7 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
+             ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
+             : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
+       </p>
+-      {error !== null && (
++      {false && error !== null && (
+         <p className="hub-error ui-note ui-note--error" role="alert">
+           {error}
+         </p>

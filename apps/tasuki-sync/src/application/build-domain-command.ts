@@ -80,7 +80,7 @@ export function buildDomainCommand(cmd: RoomScopedCommand) {
     case "break.end":
       return { command: "break.end" as const };
     default:
-      // 翻訳の対象外（member.shuffle・participant.remove・room.passphrase.set は前段の専用処理）。UNKNOWN_COMMAND になる。
+      // 翻訳の対象外（member.shuffle・participant.remove は前段の専用処理）。UNKNOWN_COMMAND になる。
       return null;
   }
 }

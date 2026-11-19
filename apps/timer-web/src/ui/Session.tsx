@@ -42,7 +42,6 @@ import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
-import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { NotifyHint } from "./components/NotifyHint.js";
 import { roomChoiceHref } from "./room-heading.js";
 import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
@@ -83,8 +82,6 @@ interface SessionProps {
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
   /** ドライバー順をランダムに並べ替える（v2.3 #1）。member.shuffle を送る。 */
   onShuffle?: () => void;
-  /** ルームのパスフレーズ設定/解除（R4-2）。空文字で解除。 */
-  onSetPassphrase?: (passphrase: string) => void;
   /**
    * ルームのいまのお題（#91）。**読むだけ**（作る/直すのはお題ツールの仕事・spec T4）。
    * 未接続や `topic` フレーム未到達では無いので、無ければ描かない。
@@ -116,7 +113,6 @@ export function Session({
   onRemoveParticipant,
   onMoveRotation,
   onShuffle,
-  onSetPassphrase,
   topic = null,
 }: SessionProps) {
   // 初回ヒントを閉じたか（手動 dismiss で永続化）。実際の表示可否は下の notifyPrefs.enabled と
@@ -451,15 +447,7 @@ export function Session({
             label: "ルーム",
             content: (
               <div className="session-room">
-                {/* ルームのパスフレーズ設定/解除（R4-2）。招待は上の共通の見出しが持つ（#447 段 2）。 */}
-                {onSetPassphrase && (
-                  <Card>
-                    <PassphrasePanel
-                      protectedNow={!!room.passphraseProtected}
-                      onSet={onSetPassphrase}
-                    />
-                  </Card>
-                )}
+                {/* 招待は上の共通の見出しが持つ（#447 段 2）。合言葉の設定は玄関のルームの画面にある（#638）。 */}
                 {/* このタブには SelfDriverToggle が無いため、自分の一時離脱/復帰は行に出す
                     （セッションタブ側は SelfDriverToggle が担うので行には出さない＝#1）。 */}
                 <Card>

@@ -1,0 +1,26 @@
+# 変異 2010: 玄関が入室で受けた復帰の組を、元の道具へ戻す前に端末へ置かない
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-return-to-tool.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2010-*.patch
+# 復元: git apply -R scripts/mutations/m2010-*.patch
+#
+# #638。戻った先の道具に復帰の組が無く、また玄関へ送り返される往復になる（合言葉を通ったのに道具に入れない）。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 9dbfe2d1..508ee875 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -230,12 +230,6 @@ export function useHubSync(): HubSync {
+           return;
+         }
+         if (msg.type === 'room.created' || msg.type === 'room.joined') {
+-          saveResumeIdentity({
+-            code: msg.code,
+-            participantId: msg.participantId,
+-            resumeToken: msg.resumeToken,
+-            displayName: lastJoinRef.current?.displayName ?? '',
+-          });
+           saveDefaultDisplayName(lastJoinRef.current?.displayName ?? '');
+           // 道具から送り返された人は、通ったら元の道具へ戻す（#638）。**選択画面へ進めない**
+           // （一瞬映ると、戻る先を持つ人に別の画面を見せる）。復帰の組は置いてあるので、道具が復帰できる。

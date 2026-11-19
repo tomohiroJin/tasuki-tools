@@ -79,7 +79,7 @@
         "ROOM_IDLE_TTL_MS",
         "ADMIN_TOKEN",
         "AI_UNLOCK_KEY",
-        "CLAUDE_CODE_OAUTH_TOKEN",
+        "ANTHROPIC_API_KEY",
         "AI_PROBLEM_MODEL",
         "AI_GENERATION_TIMEOUT_MS",
         "AI_DAILY_LIMIT"

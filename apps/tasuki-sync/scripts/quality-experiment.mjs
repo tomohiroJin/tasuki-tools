@@ -1,6 +1,6 @@
 // AI お題生成 品質実験：sonnet/haiku を実プロンプトで回し、スキーマ検証＋レイテンシ＋多様性を計測する。
 // 実行: cd apps/sync && bun run scripts/quality-experiment.mjs
-// 認証: cwd の .env（CLAUDE_CODE_OAUTH_TOKEN）を Bun が自動読込。
+// 認証: cwd の .env（ANTHROPIC_API_KEY）を Bun が自動読込。
 // 結果レポート: docs/experiments/2026-06-14-ai-problem-quality-sonnet-vs-haiku.md
 // 出力: /tmp/tasuki-quality-results.json（採点は quality-judge.mjs で実施）
 import { spawn } from "node:child_process";
@@ -8,9 +8,9 @@ import { writeFileSync } from "node:fs";
 // #91 PR 3 でお題の生成は topic-core（title / body の 2 項目）へ移った。
 import { buildTopicPrompt, validateTopicDraft } from "@tasuki/topic-core";
 
-const TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+const TOKEN = process.env.ANTHROPIC_API_KEY;
 if (!TOKEN) {
-  console.error("CLAUDE_CODE_OAUTH_TOKEN が未設定です（apps/sync/.env を確認）");
+  console.error("ANTHROPIC_API_KEY が未設定です（apps/sync/.env を確認）");
   process.exit(1);
 }
 
@@ -35,7 +35,7 @@ function generate(model, language, difficulty) {
       "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--settings", "{}",
     ];
     const child = spawn("claude", args, {
-      env: { PATH: process.env.PATH, HOME: process.env.HOME, CLAUDE_CODE_OAUTH_TOKEN: TOKEN },
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, ANTHROPIC_API_KEY: TOKEN },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "", stderr = "";

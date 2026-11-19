@@ -78,7 +78,7 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
       () => readStored() !== null,
     );
     entryAppliedRef.current = entry.applied;
-    if (entry.redirect) redirectTo(hubPathFor(roomId));
+    if (entry.redirect) redirectTo(hubPathFor(roomId, undefined, 'poker'));
 
     const rejoin = decideAutoRejoin({
       status: sync.status,

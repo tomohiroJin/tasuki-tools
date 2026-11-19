@@ -1,0 +1,22 @@
+# 変異 2089: spin-motion-accepts-any-name
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 決めること 5。新しいサーバーの知らない回転の動きを読んで、止まる時刻が壊れる（NaN）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2089-*.patch
+# 復元: git apply -R scripts/mutations/m2089-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -106,7 +106,7 @@
+ 
+ /** 回転の動きの名前か（知らない名前は動きが無いものとして読む） */
+ export function isSpinMotion(value: unknown): value is SpinMotion {
+-  return typeof value === "string" && (SPIN_MOTIONS as readonly string[]).includes(value);
++  return typeof value === "string";
+ }
+ 
+ /** 回転の動きで延びる長さ（ms）。無い・知らない名前なら 0。負なら短くなる */

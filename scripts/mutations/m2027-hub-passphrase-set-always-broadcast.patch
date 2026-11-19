@@ -1,0 +1,22 @@
+# 変異 2027: 合言葉の変更（印が変わらない）でも、名簿を全員へ配り直す
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2027-*.patch
+# 復元: git apply -R scripts/mutations/m2027-*.patch
+#
+# #638 の code-review。名簿が変わらないのに各道具の名簿の変化の測り直し（チェックインの席・自動の開票）が走る。
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 22f09bdb..fd0433f0 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -184,7 +184,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+     }
+     const wasProtected = deps.tokenStore.getPassphrase(room.code) !== undefined;
+     const nowProtected = applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
+-    if (wasProtected !== nowProtected) {
++    if (true) {
+       // 名簿に載る印が変わったときだけ全員へ配り直す（各道具の名簿の変化の測り直しも、その時だけ走る）。
+       hub.broadcastRoster(room.code);
+       return;

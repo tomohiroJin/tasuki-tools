@@ -4,10 +4,11 @@ import { useCopyText, useInviteQr } from '@tasuki/invite-ui';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
 import { HistoryLink } from './HistoryLink.js';
+import { RoomPassphrase } from './RoomPassphrase.js';
 
 /**
- * 選択画面（#95 S5a・R1）。ルーム名を見出しに置き、道具・参加者・仲間を招くの 3 つを
- * 見出しつきの領域に分けて並べる（#270）。
+ * 選択画面（#95 S5a・R1）。ルーム名を見出しに置き、道具・参加者・仲間を招く・合言葉の 4 つを
+ * 見出しつきの領域に分けて並べる（#270・合言葉は #638）。
  *
  * **札の意匠は変えない**（設計正本 §5.7）。既存の {@link TOOLS} をそのまま使い、
  * `href` に `?room=CODE` を付けるだけである。新しいツールを足すときに触るのは、
@@ -24,9 +25,15 @@ export interface RoomChoiceProps {
    * （玄関はタイトルだけを出す・spec §5.5）。
    */
   readonly topicTitle: string | null;
+  /** そのルームに合言葉が付いているか（名簿の印。同期フックが持つ・#638）。 */
+  readonly passphraseProtected: boolean | null;
+  /** 合言葉の設定の失敗の文言（無ければ null）。 */
+  readonly passphraseError?: string | null;
+  /** 合言葉の設定・変更・解除（空文字で解除）。ルームに居る誰でも実行できる（#638）。 */
+  onSetPassphrase(passphrase: string): void;
 }
 
-export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: RoomChoiceProps) {
+export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, passphraseError = null, onSetPassphrase }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
   const copy = useCopyText(inviteUrl);
   const [showQr, setShowQr] = useState(false);
@@ -112,6 +119,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
               )}
             </div>
           </section>
+          <RoomPassphrase protectedNow={passphraseProtected} error={passphraseError} connection={connection} onSet={onSetPassphrase} />
         </div>
       </div>
 

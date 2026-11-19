@@ -1,0 +1,22 @@
+# 変異 2031: 玄関の合言葉が、状態の分からない間も設定できる
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-passphrase.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2031-*.patch
+# 復元: git apply -R scripts/mutations/m2031-*.patch
+#
+# #638 の code-review。名簿が届く前に設定すると、付いている合言葉を付いていないと思って黙って上書きする。
+diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
+index 843e2edd..e4067e87 100644
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -27,7 +27,7 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
+   const [value, setValue] = useState('');
+   const headingId = useId();
+   // 状態が分かるまでは押せない。付いている合言葉を、付いていないと思って黙って上書きしないため。
+-  const online = connection === 'online' && protectedNow !== null;
++  const online = connection === 'online';
+   // 空白だけの値は解除と同じ意味になる（サーバーが前後の空白を落とす）。設定の口からは送らせない —— 解除は専用の
+   // ボタンから。取り違えて外してしまわないため。
+   const canSubmit = online && value.trim() !== '';

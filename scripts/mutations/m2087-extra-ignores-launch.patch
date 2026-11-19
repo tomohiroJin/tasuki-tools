@@ -1,0 +1,22 @@
+# 変異 2087: extra-ignores-launch
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 決めること 3。動き出しの長さが止まる時刻に入らず、画面が動き出しの途中で結果を言う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2087-*.patch
+# 復元: git apply -R scripts/mutations/m2087-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -132,7 +132,7 @@
+ 
+ /** 1 人目が止まる時刻の延び（ms）。止まり方・動き出し（詰めた長さ）・回転の動きの合計 */
+ function firstExtraMs(style: string | null | undefined, motions: MotionNames | undefined): number {
+-  return stopStyleExtraMs(style) + launchMotionMs(motions?.launch, style, motions?.spin) + spinMotionExtraMs(motions?.spin);
++  return stopStyleExtraMs(style) + spinMotionExtraMs(motions?.spin);
+ }
+ 
+ /**

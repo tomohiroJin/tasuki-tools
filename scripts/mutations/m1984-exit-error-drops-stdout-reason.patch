@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+index 549a2a96..6fa64969 100644
+--- a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
++++ b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+@@ -167,7 +167,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
+           // 外殻 { is_error, result } として stdout に出る（公式の headless の文書）。stderr は空のことがある。
+           // 理由は stderr と stdout の result の両方から作る。キー様文字列は伏せ、長さを切る（多層防御）
+           const stderr = Buffer.concat(stderrChunks).toString("utf8");
+-          const reason = [stderr, outerResultText(Buffer.concat(stdoutChunks).toString("utf8"))]
++          const reason = [stderr, ""]
+             .filter((s) => s !== "")
+             .join(" / ");
+           const redacted = reason.replace(/sk-ant-[\w-]+/g, "[redacted]");

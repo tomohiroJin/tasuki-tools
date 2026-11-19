@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
-import { SETTLE_MAX, SETTLE_MIN, STOP_STYLES, pickStopsMs, type RouletteView } from "@tasuki/roulette-core";
+import { LAUNCH_MOTIONS, SETTLE_MAX, SETTLE_MIN, SPIN_MOTIONS, STOP_STYLES, pickStopsMs, type RouletteView } from "@tasuki/roulette-core";
 import { makeRouletteHandlers } from "../src/application/roulette-handlers.js";
 import { makeRouletteBroadcaster } from "../src/application/roulette-broadcast.js";
 import { createRateLimitGate } from "../src/application/rate-limit-gate.js";
@@ -258,8 +258,9 @@ describe("回す", () => {
   });
 
   it("変わった止まり方（#420）: 乱数源で 1/24 の目が出たら、止まり方を載せて延びた長さで配り、その間は次の回転を拒む", async () => {
-    // Given: どの n にも最後の値を返す乱数（当たりは最後の席・止まり方は表の最後）
-    const h = setup({ randomIntOf: (n) => n - 1 });
+    // Given: 止まり方の抽選（母数 24・8）までは最後の値を返す乱数（当たりは最後の席・止まり方は表の最後）。
+    // 動きの抽選（母数 12・16）は外す（動きは別のテストが見る）
+    const h = setup({ randomIntOf: (n) => (n === 12 || n === 16 ? 0 : n - 1) });
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
 
@@ -273,7 +274,8 @@ describe("回す", () => {
     expect(spin?.durationMs).toBe(pickStopsMs(1, "swing")[0]);
     expect(spin?.durationMs).toBeGreaterThan(pickStopsMs(1)[0]!);
     // 当たり（2 人から 1 人）→ 止まり方が出るか（1/24）→ どの止まり方か
-    expect(h.randomCalls).toEqual([2, 24, STOP_STYLES.length]);
+    // 続けて、動き出し（1/12）・回転（1/16）の抽選（#640。外れなので 2 回目は引かない）
+    expect(h.randomCalls).toEqual([2, 24, STOP_STYLES.length, 12, 16]);
 
     // When: 普通の長さが過ぎた時点で回す
     h.sent.length = 0;
@@ -281,6 +283,73 @@ describe("回す", () => {
     await h.handle("r-2", { command: "roulette.spin" });
     // Then: まだ回っている
     expect(errorsTo(h, "r-2")).toEqual(["ROULETTE_SPINNING"]);
+  });
+
+  it("変わった動き（#640）: 乱数源で動き出し・回転の目が出たら、動きを載せて延びた長さで配る。当たる人は変わらない", async () => {
+    // Given: どの n にも最後の値を返す乱数（止まり方・動き出し・回転がすべて出る）
+    const h = setup({ randomIntOf: (n) => n - 1 });
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then: 当たりは乱数のまま（最後の席）で、動きは表の最後（つまずく・速い）。全員に同じ長さで配る
+    const spin = viewsTo(h, "r-2").at(-1)?.spin;
+    expect(spin?.winnerIndex).toBe(1);
+    expect(spin?.launchMotion).toBe(LAUNCH_MOTIONS.at(-1));
+    expect(spin?.spinMotion).toBe(SPIN_MOTIONS.at(-1));
+    expect(spin?.durationMs).toBe(pickStopsMs(1, "swing", { launch: "stumble", spin: "fast" })[0]);
+    expect(viewsTo(h, "r-1").at(-1)?.spin?.durationMs).toBe(spin?.durationMs);
+    // 当たり → 止まり方（出るか・どれか）→ 動き出し（出るか・どれか）→ 回転（出るか・どれか）
+    expect(h.randomCalls).toEqual([2, 24, STOP_STYLES.length, 12, LAUNCH_MOTIONS.length, 16, SPIN_MOTIONS.length]);
+  });
+
+  it("変わった動き（#640）: 当たりの引き方・当たる人は、動きが出ても出なくても同じ", async () => {
+    // Given: 当たりの母数（2）だけ最後の値を返し、動きは出す・出さないで比べる
+    const hit = setup({ randomIntOf: (n) => (n === 12 || n === 16 ? n - 1 : n === 2 ? 1 : 0) });
+    const miss = setup({ randomIntOf: (n) => (n === 2 ? 1 : 0) });
+    for (const h of [hit, miss]) {
+      await joined(h, "r-1", "Alice");
+      await joined(h, "r-2", "Bob");
+      // When
+      await h.handle("r-1", { command: "roulette.spin" });
+    }
+    // Then
+    const a = viewsTo(hit, "r-1").at(-1)?.spin;
+    const b = viewsTo(miss, "r-1").at(-1)?.spin;
+    expect(a?.launchMotion).toBe(LAUNCH_MOTIONS[0]);
+    expect(b).not.toHaveProperty("launchMotion");
+    expect(a?.winnerIndex).toBe(b?.winnerIndex);
+    expect(a?.settle).toBe(b?.settle);
+    expect(a?.picks).toEqual(b?.picks);
+  });
+
+  it("変わった動き（#640）: 動きの乱数が範囲外なら INTERNAL_ERROR で回さない", async () => {
+    // Given: 当たり・止まり方は通り、動き出しの目（母数 12）だけ範囲外
+    const h = setup({ randomIntOf: (n) => (n === 12 ? 99 : 0) });
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+    // Then
+    expect(errorsTo(h, "r-1")).toEqual(["INTERNAL_ERROR"]);
+    expect(viewsTo(h, "r-1")).toEqual([]);
+  });
+
+  it("新旧の混在（#640）: 古い画面が送る形（動きの項目を持たないコマンド）はこれまでどおり受ける。動きが出ない回は項目を載せない", async () => {
+    // Given: 動きは出ない乱数。古い画面のコマンドは `roulette.spin` だけ（動きを選ぶ項目は無い）
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+    // Then: 拒まず、古い画面が読む項目だけで配る
+    expect(errorsTo(h, "r-1")).toEqual([]);
+    const spin = viewsTo(h, "r-2").at(-1)?.spin;
+    expect(spin).not.toHaveProperty("launchMotion");
+    expect(spin).not.toHaveProperty("spinMotion");
+    expect(spin?.durationMs).toBe(pickStopsMs(1)[0]);
   });
 
   it("変わった止まり方（#420）: 1/24 の目が出なければ止まり方を載せない", async () => {

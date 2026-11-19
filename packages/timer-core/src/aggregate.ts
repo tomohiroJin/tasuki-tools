@@ -203,8 +203,6 @@ export interface TimerState {
   phase: RoomPhase;
   sessionRecords: CompletionRecord[];
   handoffNote: string;
-  /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
-  passphraseProtected?: boolean;
   // ⚠ かつてここには timer のお題（`problem`・`problemMode`・`aiUnlocked`・
   // `problemGeneration`・AI の鍵を持つ参加者の一覧）があった。**#91 PR 3 で落とした。** お題は
   // ルームの共有資産になり、状態は `@tasuki/topic-core` の文脈が持つ（timer-core は

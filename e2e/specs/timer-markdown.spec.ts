@@ -36,6 +36,11 @@ test('完了画面と保存済み履歴から同じ Markdown をコピーでき�
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(copied).toBeHidden();
+    if (width === 1280) {
+      const saveRecord = page.getByRole('button', { name: '記録を保存' });
+      const top = (button: Element) => button.getBoundingClientRect().top;
+      expect(await completeCopy.evaluate(top)).toBe(await saveRecord.evaluate(top));
+    }
     await prepareClipboard();
     const before = await nextSessionPosition();
     await completeCopy.click();
