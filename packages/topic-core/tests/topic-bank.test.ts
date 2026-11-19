@@ -188,6 +188,26 @@ describe("定型バンクの言語ごとの書き方", () => {
     expect(found).toEqual([]);
   });
 
+  /**
+   * 本文に「四捨五入」と書いたお題で、コードが偶数への丸め（銀行家の丸め）になっていないか。
+   * Python の組み込みの `round()` と、C# の `Math.Round` の既定（`MidpointRounding.ToEven`）は
+   * 0.5 ちょうどを偶数へ丸め、本文の「四捨五入」と境目で 1 円ずれる（PR #643 のレビューで 2 回見つかった）。
+   */
+  it("本文に「四捨五入」とあるお題では、Python は組み込みの round() を使わず、C# の Math.Round は AwayFromZero を指定する", () => {
+    const found: string[] = [];
+    for (const e of TOPIC_BANK) {
+      const python = renderTopicBody(e, "Python");
+      if (python.includes("四捨五入") && /(?<![.\w])round\(/.test(python)) found.push(`${e.title} [Python]: round(`);
+      const csharp = renderTopicBody(e, "C#");
+      if (csharp.includes("四捨五入")) {
+        for (const line of csharp.split("\n")) {
+          if (line.includes("Math.Round(") && !line.includes("MidpointRounding.AwayFromZero")) found.push(`${e.title} [C#]: ${line.trim()}`);
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+
   it("Kotlin のバッククォートで書いたテスト名に、JVM の名前に使えない字（. ; [ ] / < > : \\）が無い", () => {
     const found: string[] = [];
     for (const e of TOPIC_BANK) {
