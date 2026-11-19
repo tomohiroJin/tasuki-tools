@@ -435,9 +435,9 @@ PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の�
 
 本追記は上の「`style-src 'unsafe-inline'` を外す条件」と同じく、決定を覆さずに本文の事実誤認を訂正するものである。
 
-## 追記（2026-11-19・#459） — AI 子プロセスの認証を OAuth トークンから API キーへ替える（Proposed）
+## 追記（2026-11-19・#459） — AI 子プロセスの認証を OAuth トークンから API キーへ替える（Accepted）
 
-**状態: Proposed。採択は人が行う。** 決定 D4 は秘密の例に「OAuth トークン」を挙げ、決定 D10 は `claude -p` の権限を閉じる。
+**状態: Accepted（2026-11-19・利用者が採択）。** 決定 D4 は秘密の例に「OAuth トークン」を挙げ、決定 D10 は `claude -p` の権限を閉じる。
 [#459](https://github.com/tomohiroJin/tasuki-tools/issues/459) で、**認証だけを `claude setup-token` のサブスクの OAuth トークン
 （`CLAUDE_CODE_OAUTH_TOKEN`）から、Console で発行する API キー（`ANTHROPIC_API_KEY`）へ替える。**
 
