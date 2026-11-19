@@ -17,7 +17,7 @@ test("vitest と bun の test スクリプトに、ランダムな順と種の�
 });
 
 test("node --test と test の無いパッケージは理由つきで対象外、知らないランナーは落とす", () => {
-  assert.match(shuffledCommand("node --test tests/*.test.mjs", 1).skip, /Node 22/);
+  assert.match(shuffledCommand("node --test tests/*.test.mjs", 1).skip, /test-randomize/);
   assert.match(shuffledCommand(undefined, 1).skip, /無い/);
   assert.throws(() => shuffledCommand("jest", 1), /知らないテストランナー/);
   assert.throws(() => shuffledCommand("vitest run && echo done", 1), /シェルの記法/);
