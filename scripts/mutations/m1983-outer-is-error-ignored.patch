@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+index 549a2a96..2f3c75bb 100644
+--- a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
++++ b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+@@ -185,7 +185,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
+             result?: unknown;
+             is_error?: unknown;
+           };
+-          if (outer.is_error === true) {
++          if (outer.is_error === false) {
+             // API のエラー。result は文章であり、お題の下書きとして解釈しない（埋め込みの JSON を拾わない）
+             const text = typeof outer.result === "string" ? outer.result : "";
+             const redacted = text.replace(/sk-ant-[\w-]+/g, "[redacted]");

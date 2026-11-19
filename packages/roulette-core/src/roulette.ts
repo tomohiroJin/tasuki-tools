@@ -7,9 +7,10 @@
 import { err, ok, type Result } from "neverthrow";
 import { drawPicks } from "./draw.js";
 import type { RouletteError } from "./errors.js";
-import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, PRESS_AUTO_STOP_MS, PRESS_SEATS_PER_SEC, SETTLE_MAX, SETTLE_MIN, spinDurationMs } from "./limits.js";
+import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, PRESS_AUTO_STOP_MS, PRESS_SEATS_PER_SEC, SETTLE_MAX, SETTLE_MIN, motionNamesOf, spinDurationMs } from "./limits.js";
 import { pressStopOf } from "./press.js";
 import { poolOf } from "./pool.js";
+import { drawLaunchMotion, drawSpinMotion } from "./motion.js";
 import { drawStopStyle } from "./stop-style.js";
 import type { Entry, EntryId, Member, NameConflict, OrderRound, Pick, PressSpin, PressStop, RouletteMode, RouletteState, Spin } from "./types.js";
 
@@ -31,6 +32,11 @@ export interface SpinInput {
    * **省くと引かない**（変わった止まり方をしない）。当たりを引く `randomInt` とは分けて受ける（当たりの引き方を変えない・spec S8）
    */
   randomStyle?: (n: number) => number;
+  /**
+   * 変わった動き（動き出し・回転）を引く `[0, n)` の整数（#640）。同期サーバーは `randomInt` と同じ乱数源を渡す。
+   * **省くと引かない**。当たりを引く `randomInt`・止まり方を引く `randomStyle` とは分けて受ける（当たりの引き方を変えない）
+   */
+  randomMotion?: (n: number) => number;
 }
 
 /** `startSpin` が返しうるコード。`INVALID_SETTLE`・`INVALID_RANDOM` は乱数源の契約違反（内部の誤り） */
@@ -50,7 +56,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
   const spin = state.lastSpin;
   if (spin === null) return false;
   if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
-  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle);
+  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle, motionNamesOf(spin));
 }
 
 /**
@@ -60,6 +66,26 @@ function isSpinning(state: RouletteState, now: number): boolean {
 function withStopStyle(spin: Spin, randomStyle: SpinInput["randomStyle"]): Result<Spin, RouletteError<"INVALID_RANDOM">> {
   if (randomStyle === undefined) return ok(spin);
   return drawStopStyle(randomStyle).map((stopStyle) => (stopStyle === null ? spin : { ...spin, stopStyle }));
+}
+
+/**
+ * 変わった動き（動き出し・回転）を、止まり方とは別に・独立に引いて回転に載せる（#640 決めること 1・2）。出なければ持たない。
+ * 順は動き出し → 回転（乱数を引く順は固定）。押して止めるには掛けない（{@link withStopStyle} と同じ）。
+ */
+function withMotions(spin: Spin, randomMotion: SpinInput["randomMotion"]): Result<Spin, RouletteError<"INVALID_RANDOM">> {
+  if (randomMotion === undefined) return ok(spin);
+  return drawLaunchMotion(randomMotion).andThen((launchMotion) =>
+    drawSpinMotion(randomMotion).map((spinMotion) => ({
+      ...spin,
+      ...(launchMotion === null ? {} : { launchMotion }),
+      ...(spinMotion === null ? {} : { spinMotion }),
+    })),
+  );
+}
+
+/** 止まり方・動きを引いて回転に載せる（止まり方 → 動き出し → 回転の順に乱数を引く） */
+function withVariety(spin: Spin, input: SpinInput): Result<Spin, RouletteError<"INVALID_RANDOM">> {
+  return withStopStyle(spin, input.randomStyle).andThen((styled) => withMotions(styled, input.randomMotion));
 }
 
 /**
@@ -99,7 +125,7 @@ function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteS
       spunBy: input.spunBy,
       startedAt: input.now,
     };
-    return withStopStyle(spin, input.randomStyle).map((lastSpin) => ({ ...state, lastSpin }));
+    return withVariety(spin, input).map((lastSpin) => ({ ...state, lastSpin }));
   });
 }
 
@@ -137,7 +163,7 @@ function startOrderSpin(state: RouletteState, input: SpinInput): Result<Roulette
     spunBy: input.spunBy,
     startedAt: input.now,
   };
-  return withStopStyle(spin, input.randomStyle).map((lastSpin) => ({
+  return withVariety(spin, input).map((lastSpin) => ({
     ...state,
     order: { done: [...round.done, chosen], finished: false },
     lastSpin,
@@ -372,6 +398,12 @@ export interface RouletteView {
      * 画面は `isStopStyle` で読み、知らなければ普通に止まる）
      */
     stopStyle?: string | undefined;
+    /**
+     * 変わった動き出し・回転の動き（#640）。止まり方と同じく**文字列で受ける**。古いサーバーは載せない・
+     * 古い画面は読まない（知らない名前・無いときは、いつもの動きで描く）
+     */
+    launchMotion?: string | undefined;
+    spinMotion?: string | undefined;
     spunBy: string;
     /** 回転の全体の長さ（k 人ぶん・`spinDurationMs`） */
     durationMs: number;
@@ -389,7 +421,7 @@ export function toView(state: RouletteState, now: number): RouletteView {
   const press = stored?.press;
   const auto = stored !== null && press !== undefined && press.stop === null ? pressStopOf(stored, now - stored.startedAt) : null;
   const spin = stored !== null && press !== undefined && auto !== null ? withStop({ ...stored, press }, auto) : stored;
-  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length, spin.stopStyle);
+  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length, spin.stopStyle, motionNamesOf(spin));
   return {
     pickCount: state.pickCount,
     mode: state.mode,
@@ -412,6 +444,8 @@ export function toView(state: RouletteState, now: number): RouletteView {
               ? {}
               : { press: { p0: spin.press.p0, rate: spin.press.rate, stop: spin.press.stop === null ? null : { ...spin.press.stop } } }),
             ...(spin.stopStyle === undefined ? {} : { stopStyle: spin.stopStyle }),
+            ...(spin.launchMotion === undefined ? {} : { launchMotion: spin.launchMotion }),
+            ...(spin.spinMotion === undefined ? {} : { spinMotion: spin.spinMotion }),
             spunBy: spin.spunBy,
             durationMs,
             elapsedMs: Math.min(durationMs, Math.max(0, now - spin.startedAt)),

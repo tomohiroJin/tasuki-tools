@@ -706,3 +706,21 @@ S1（見知らぬ第三者の入室）と S9（権限のなりすまし）は変
 - **合言葉は覚えない**（分類「資格情報」。#633 のスコープ外）
 - **境界の検証（`docs/adr/0005`）**: 端末から読む値は外からの入力として、Valibot のスキーマ（配列）で形を検め、
   使えない要素（文字列でない・空・字面の無い・制御文字・100 文字を超える）は 1 つずつ候補から外す。形が違えば候補を空にし、作成は妨げない
+
+## 追記（2026-11-19・#638） — 合言葉の設定を timer から玄関（ルーム）へ移す（Accepted）
+
+[#638](https://github.com/tomohiroJin/tasuki-tools/issues/638) で、合言葉（決定 5）の**設定の口**を timer の画面から玄関のルームの画面（選択画面）へ移す。合言葉が守るのはルーム全体の関門
+（`room-entry.ts`）で、設定の口だけが timer に在った。**決定 5 の下限・MUST の中身は動かさない。** 動くのは置き場と脅威表の射程である。
+
+- **コマンドの置き場**: `room.passphrase.set` は timer のコマンドから、ルーム（ハブ）のコマンド（`@tasuki/room-core` の `HubCommand`）へ移る。
+  ハブの接続が在席しているルームの合言葉を設定・解除する。**コードを持たない**（宛先は接続が決める）。`room.check` と同じく
+  **余剰フィールドを拒む strict** で受ける（脅威 S3）。上限は参加の `room.join` と同じ `MAX_PASSPHRASE` の 1 つ
+- **誰が設定できるか**: 役割は持たないので（#95）、ルームに居る誰でも設定・変更・解除できる（今の timer と同じ）。S3 の受容は変えない
+- **データ分類（決定 1）**: 合言葉の平文は、今までどおりサーバーの保管（`token-store.ts`）にだけ置く。**名簿が運ぶのは「付いているか」の
+  真偽値だけ**（`RosterRoom.passphraseProtected`）で、平文を snapshot・名簿・ログへ出さない。timer の snapshot からは
+  `passphraseProtected` を落とした（印の運び先が名簿へ移ったため）
+- **比較・ログ**: 参加側の比較は定時間のまま（`secure-compare.ts`・`room-entry.ts` の `checkPassphrase`）。ログに合言葉を出さない規律（`docs/adr/0012`）は変わらない
+- **他の道具の接続**: timer・topic・roulette・agenda・checkin の接続から届いた `room.passphrase.set` は `INVALID_COMMAND` で拒む。poker は、スキーマに合わないメッセージを `invalid-message` に畳む（`packages/poker-core/src/protocol.ts`）ので、そちらで拒む
+- **「機能ごと消す」案**: 消すほうが小さいが、公開のルームコードだけで入れる状態を防ぐ手段がほかに無いので、残して移す。移したあとも使われなければ、そのとき消す
+
+配る順と、配布の間に古い timer から設定が失敗する窓については `deploy/README.md` の「合言葉の設定の移設（#638）」に書いた。

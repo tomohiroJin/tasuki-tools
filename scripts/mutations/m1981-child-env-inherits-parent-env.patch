@@ -1,0 +1,12 @@
+diff --git a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+index c758ec3b..608eae5e 100644
+--- a/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
++++ b/apps/tasuki-sync/src/adapters/claude-cli-topic-provider.ts
+@@ -99,6 +99,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
+ 
+       const child = this.spawnFn("claude", args, {
+         env: {
++          ...process.env,
+           // 許可リスト。PATH/HOME は必要（バイナリ解決・内部キャッシュ）。API キーはここだけに渡す。
+           // 親の環境の CLAUDE_CODE_OAUTH_TOKEN・ANTHROPIC_AUTH_TOKEN などは渡さない
+           // （API キーだけで認証させ、クレジット側で精算させる。#459）

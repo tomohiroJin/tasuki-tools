@@ -29,7 +29,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
   const [fillRequest, setFillRequest] = useState<FillRequest | null>(null);
 
   // 玄関へ戻す。抜けた・外されたときは理由を運ぶ（玄関が告知を出す・#290）。
-  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'topic', hubPathFor, redirectTo });
 
   const banner = <ConnectionBanner kind={sync.notice} />;
 

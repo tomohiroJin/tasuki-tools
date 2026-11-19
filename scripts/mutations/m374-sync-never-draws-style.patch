@@ -9,14 +9,13 @@
 #       git apply scripts/mutations/m374-*.patch
 # 復元: git apply -R scripts/mutations/m374-*.patch
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
-index fcf9518..15bd631 100644
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -179,7 +179,6 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+@@ -179,7 +179,6 @@
            randomSettle: random.randomSettle,
            conflicts: conflictsWithExisting,
            // 変わった止まり方（#420）も同じ乱数源から引く（乱数の権威はサーバー。全画面が同じ止まり方になる）
 -          randomStyle: random.randomInt,
+           // 変わった動き（#640・動き出しと回転）も同じ乱数源から引く。止まり方とは別に・独立に引く
+           randomMotion: random.randomInt,
          });
-         if (next.isErr()) {
-           const code = next.error.code;

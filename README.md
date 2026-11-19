@@ -56,7 +56,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer・poker と共用）
   - [`packages/markdown`](packages/markdown/) — お題の本文の Markdown の解析（描画は各アプリ）
 - **特徴**
-  - 手入力・定型バンク・AI 生成（任意・運営者の Claude サブスクで実行・未設定時は定型お題へ安全縮退）の 3 つで作る
+  - 手入力・定型バンク・AI 生成（任意・運営者の Console の API キーで認証し、クレジット切れ・失敗時は定型へ縮退・未設定時は定型お題へ安全縮退）の 3 つで作る
   - お題はルームの持ち物で、timer のセッションをまたいで残る
 - 設計判断: [`docs/adr/0021`](docs/adr/0021-topic-as-shared-context.md)
 

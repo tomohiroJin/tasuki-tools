@@ -1,0 +1,22 @@
+# 変異 2001: 合言葉の保持で前後の空白を落とさない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2001-*.patch
+# 復元: git apply -R scripts/mutations/m2001-*.patch
+#
+# #638。参加側は前後の空白を落として比べるので、空白つきで設定された合言葉は、正しく打っても一致しない。空白だけの設定も解除にならない。
+diff --git a/apps/tasuki-sync/src/application/room-passphrase.ts b/apps/tasuki-sync/src/application/room-passphrase.ts
+index 815a8b65..0533064f 100644
+--- a/apps/tasuki-sync/src/application/room-passphrase.ts
++++ b/apps/tasuki-sync/src/application/room-passphrase.ts
+@@ -24,7 +24,7 @@ import type { TokenStore } from "./token-store.js";
+  * @returns 設定後に合言葉が付いているか
+  */
+ export function applyRoomPassphrase(tokenStore: TokenStore, roomCode: string, raw: string): boolean {
+-  const passphrase = raw.trim();
++  const passphrase = raw;
+   if (passphrase === "") {
+     tokenStore.deletePassphrase(roomCode);
+     return false;

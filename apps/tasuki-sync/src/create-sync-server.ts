@@ -87,7 +87,7 @@ export interface SyncServer {
   /** 実際に bind したポート。`PORT=0` 起動のときはここが正しい値。 */
   readonly port: number;
   /**
-   * AI お題生成が有効か（OAuth トークンと解錠合言葉が**両方**あるときだけ true）。
+   * AI お題生成が有効か（API キーと解錠合言葉が**両方**あるときだけ true）。
    * 起動ログの表示に使う。
    */
   readonly aiReady: boolean;
@@ -149,10 +149,16 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const destroyRoom = late<(roomCode: string) => void>("destroyRoom");
   const toolParts = late<ToolParts>("toolParts");
 
+  // 復帰トークンとパスフレーズの保管。**全道具で 1 個を共有する**（#95 S4a）。別々に持つと
+  // `destroyRoom` / `releaseRoom` が片方しか解放せず、ルームを消してももう片方のトークンが残る。
+  // 名簿の配信が合言葉の印（#638）を引くので、配信より先に作る。
+  const tokens = createTokenStore();
+
   // timer とハブの配信（宛先の選び方を含む）は `adapters/timer-ws-broadcaster.ts`（#367 で組み立てから出した）。
   const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({
     store,
     ws: () => ws.get(),
+    isPassphraseProtected: (roomCode) => tokens.getPassphrase(roomCode) !== undefined,
     // 名簿が変わったら各道具が測り直す（チェックインが席と自動開票を。#406）。表は下で決まる。
     onRosterBroadcast: (roomCode) => {
       for (const part of Object.values(toolParts.get())) part.onRosterBroadcast?.(roomCode);
@@ -163,9 +169,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     config,
     store,
     timers,
-    // 復帰トークンとパスフレーズの保管。**全道具で 1 個を共有する**（#95 S4a）。別々に持つと
-    // `destroyRoom` / `releaseRoom` が片方しか解放せず、ルームを消してももう片方のトークンが残る。
-    tokens: createTokenStore(),
+    tokens,
     clock,
     monotonicClock,
     // レート制限の時刻を読む単調時計と、member.shuffle の乱数（#367）。

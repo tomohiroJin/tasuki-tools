@@ -1,0 +1,21 @@
+# 変異 2091: view-drops-launch-motion
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 決めること 5。動き出しが全員に配られず、画面が動き出しを見せない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2091-*.patch
+# 復元: git apply -R scripts/mutations/m2091-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -449,7 +449,6 @@
+               ? {}
+               : { press: { p0: spin.press.p0, rate: spin.press.rate, stop: spin.press.stop === null ? null : { ...spin.press.stop } } }),
+             ...(spin.stopStyle === undefined ? {} : { stopStyle: spin.stopStyle }),
+-            ...(spin.launchMotion === undefined ? {} : { launchMotion: spin.launchMotion }),
+             ...(spin.spinMotion === undefined ? {} : { spinMotion: spin.spinMotion }),
+             spunBy: spin.spunBy,
+             durationMs,

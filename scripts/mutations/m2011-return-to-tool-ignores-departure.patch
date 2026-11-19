@@ -1,0 +1,21 @@
+# 変異 2011: 道具へ戻す行き先が、退出の告知（?left=）を持つ人にも出る
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/return-to-tool.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2011-*.patch
+# 復元: git apply -R scripts/mutations/m2011-*.patch
+#
+# #638。外された人が入り直した直後に外された道具へ戻され、また外される往復になる。
+diff --git a/apps/landing/src/hub/return-to-tool.ts b/apps/landing/src/hub/return-to-tool.ts
+index fefbf2ab..15f65196 100644
+--- a/apps/landing/src/hub/return-to-tool.ts
++++ b/apps/landing/src/hub/return-to-tool.ts
+@@ -21,7 +21,6 @@ export function returnPathFor(href: string): string | null {
+   const url = new URL(href);
+   const code = readRoomParam(href);
+   if (code === null) return null;
+-  if (url.searchParams.has(DEPARTURE_PARAM)) return null;
+   const from = url.searchParams.get(RETURN_PARAM);
+   const tool = TOOLS.find((candidate) => candidate.id === from);
+   if (tool === undefined) return null;

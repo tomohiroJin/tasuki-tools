@@ -5,7 +5,11 @@
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
-const TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+const TOKEN = process.env.ANTHROPIC_API_KEY;
+if (!TOKEN) {
+  console.error("ANTHROPIC_API_KEY が未設定です（apps/tasuki-sync/.env を確認）");
+  process.exit(1);
+}
 const results = JSON.parse(readFileSync("/tmp/tasuki-quality-results.json", "utf8"));
 
 function judge(language, difficulty, topic) {
@@ -27,7 +31,7 @@ Return ONLY a JSON object (no markdown):
     const child = spawn("claude", [
       "-p", "--output-format", "json", "--model", "sonnet",
       "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--settings", "{}",
-    ], { env: { PATH: process.env.PATH, HOME: process.env.HOME, CLAUDE_CODE_OAUTH_TOKEN: TOKEN }, stdio: ["pipe", "pipe", "pipe"] });
+    ], { env: { PATH: process.env.PATH, HOME: process.env.HOME, ANTHROPIC_API_KEY: TOKEN }, stdio: ["pipe", "pipe", "pipe"] });
     let out = "";
     child.stdout.on("data", (c) => (out += c.toString()));
     child.on("close", (code) => {

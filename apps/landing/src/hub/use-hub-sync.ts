@@ -15,6 +15,8 @@
  * 5. 再接続したら、保存済みの組で入り直す
  * 6. 合言葉を求められたら、画面に入力を促す
  * 7. 入室が混雑で弾かれたら、`joinRetryDelayMs` の間隔で自動的に試み直す
+ * 8. 道具の入口から送り返された人（URL の `?from=`）が入れたら、選択画面へ進まず元の道具へ戻す（#638）
+ * 9. ルームの合言葉を設定・解除する（`room.passphrase.set`。#638）。付いているかは名簿の印で映す
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -29,6 +31,7 @@ import {
 } from '@tasuki/sync-client';
 import type { HubCommand, RosterRoom } from '@tasuki/room-core';
 import { readRoomParam } from './room-param.js';
+import { returnPathFor } from './return-to-tool.js';
 import { departureHubPath, redirectTo } from './departure.js';
 import { classifyHubFrame, planHubError } from './hub-frames.js';
 import {
@@ -36,6 +39,7 @@ import {
   createCommand,
   joinCommand,
   lastJoinOf,
+  passphraseCommand,
   resumeCommand,
   retryCommand,
   type LastJoin,
@@ -78,6 +82,13 @@ export interface HubSync {
   readonly error: string | null;
   /** 合言葉の入力を求められているか。 */
   readonly needsPassphrase: boolean;
+  /**
+   * このルームに合言葉が付いているか（#638）。名簿の印から映す（名簿が届くまで・古いサーバーは null＝まだ分からない）。
+   * 合言葉そのものは持たない・受け取らない。
+   */
+  readonly passphraseProtected: boolean | null;
+  /** 合言葉の設定の失敗の文言（無ければ null）。 */
+  readonly passphraseError: string | null;
   /** 接続の状態。 */
   readonly connection: 'online' | 'reconnecting';
   /** ルームの作成を送って、応答を待っているか（#642 のレビュー）。待つ間は次の作成を送らない。 */
@@ -100,6 +111,8 @@ export interface HubSync {
   joinRoom(displayName: string, passphrase?: string): void;
   /** 前に作ったルーム名の候補から 1 つを消す（#633）。 */
   forgetRoomName(roomName: string): void;
+  /** ルームの合言葉を設定・解除する（#638）。空文字で解除。ルームに居る誰でも実行できる。 */
+  setPassphrase(passphrase: string): void;
 }
 
 export function useHubSync(): HubSync {
@@ -113,6 +126,10 @@ export function useHubSync(): HubSync {
    * サーバー側で競合し、選択画面の名簿がちらつく）。
    */
   const initialCode = useMemo(() => readRoomParam(window.location.href), []);
+  /**
+   * ページ読み込みの時点の URL（道具が運んだ `?from=` を、入れたあとに読む・#638）。以後変わらない。
+   */
+  const initialHref = useMemo(() => window.location.href, []);
 
   /**
    * いま映しているルーム。
@@ -149,6 +166,9 @@ export function useHubSync(): HubSync {
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [topicTitle, setTopicTitle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 合言葉の設定の失敗（入ったあとのエラーは、設定の送信でしか起きない）。次の送信か名簿（成功）で消す。 */
+  const [passphraseError, setPassphraseError] = useState<string | null>(null);
+  const joinedRef = useRef(false);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
   /** 名乗るフォームの初期値と端末の片付け（`use-default-display-name.ts`・#284）。 */
@@ -259,6 +279,7 @@ export function useHubSync(): HubSync {
 
         if (msg.type === 'roster') {
           setRoster(msg.room);
+          setPassphraseError(null);
           return;
         }
         if (msg.type === 'room.created' || msg.type === 'room.joined') {
@@ -269,6 +290,18 @@ export function useHubSync(): HubSync {
             displayName: lastJoinRef.current?.displayName ?? '',
           });
           saveDefaultDisplayName(lastJoinRef.current?.displayName ?? '');
+          // 道具から送り返された人は、通ったら元の道具へ戻す（#638）。**選択画面へ進めない**
+          // （一瞬映ると、戻る先を持つ人に別の画面を見せる）。復帰の組は置いてあるので、道具が復帰できる。
+          // 作成（`room.created`）は戻る理由を持たない。
+          const returnPath = msg.type === 'room.joined' ? returnPathFor(initialHref, msg.code) : null;
+          if (returnPath !== null) {
+            // 退出の道と同じく、先に閉じてから戻る（道具の復帰の接続と、このハブの接続が重ならないように）。
+            cancelRetry();
+            conn.dispose();
+            redirectTo(returnPath);
+            return;
+          }
+          joinedRef.current = true;
           setJoined(true);
           setResuming(false);
           setGone(false);
@@ -343,7 +376,9 @@ export function useHubSync(): HubSync {
           case 'ignore':
             return;
           case 'show':
-            setError(intent.message);
+            // 入ったあとのエラーは合言葉の設定の失敗である。入る前の画面の `error` と混ぜない。
+            if (joinedRef.current) setPassphraseError(intent.message);
+            else setError(intent.message);
             return;
         }
       },
@@ -388,7 +423,7 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName, settleCreate]);
+  }, [initialCode, initialHref, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName, settleCreate]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
@@ -426,6 +461,14 @@ export function useHubSync(): HubSync {
     [code, send, cancelRetry, resetRetry],
   );
 
+  const setPassphrase = useCallback(
+    (passphrase: string) => {
+      setPassphraseError(null);
+      send(passphraseCommand(passphrase));
+    },
+    [send],
+  );
+
   return {
     code,
     joined,
@@ -438,10 +481,14 @@ export function useHubSync(): HubSync {
     recentRoomNames,
     error,
     needsPassphrase,
+    // 名簿が届くまで・印の無い名簿（古いサーバー）は null（まだ分からない）。false と取り違えると、付いている合言葉を黙って上書きする。
+    passphraseProtected: roster?.passphraseProtected ?? null,
+    passphraseError,
     connection,
     creating,
     createRoom,
     joinRoom,
     forgetRoomName,
+    setPassphrase,
   };
 }

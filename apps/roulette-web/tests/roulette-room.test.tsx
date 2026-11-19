@@ -321,7 +321,7 @@ describe('入り方と戻り方', () => {
     render(<App />);
     // Then
     expect(ScriptedWebSocket.instances).toHaveLength(0);
-    expect(redirectTo).toHaveBeenCalledWith('/?room=R1');
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=roulette');
   });
 
   it('Given 入れた / When 抜けた知らせが届く / Then 理由を持って玄関へ戻る', () => {

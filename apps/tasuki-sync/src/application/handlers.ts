@@ -53,7 +53,6 @@ import { createRoomJoinHandler, type JoinResult } from "./command-handlers/room-
 export type { CreateResult } from "./command-handlers/room-create.js";
 export type { JoinResult } from "./command-handlers/room-join.js";
 import { createTimePingHandler } from "./command-handlers/time-ping.js";
-import { createRoomPassphraseSetHandler } from "./command-handlers/room-passphrase-set.js";
 import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
 import { findRoomByConnId } from "./room-lookup.js";
 import { createScheduleSync } from "./scheduler-sync.js";
@@ -433,9 +432,6 @@ export function makeHandlers(deps: HandlerDeps) {
     if (cmd.command === "participant.remove") {
       return handleParticipantRemove(connId, { state, actor: participant }, cmd, participantRemoveDeps);
     }
-    if (cmd.command === "room.passphrase.set") {
-      return handleRoomPassphraseSet(connId, { state, actor: participant }, cmd);
-    }
 
     const draft = toDomainCommand(cmd, state.timer, deps.random.randomInt);
     if (!draft) {
@@ -577,15 +573,8 @@ export function makeHandlers(deps: HandlerDeps) {
 
   // ─── 専用ハンドラの合成（フェーズ7・パイプライン統合済み）───────────────────
   //
-  // room.passphrase.set は handleCommand の switch から専用ケースを削除し、default（handleRoomCommand・
-  // 共通パイプライン）経由へ合流させた。在室確認とアクター解決は handleRoomCommand
-  // 側で1度だけ行い、その結果（{ room, actor }）を各ハンドラへ ctx として渡す。
-  // 各ハンドラはドメイン処理のみを持つ関数へ縮退済み（FR-152〜154）。
-
-  const handleRoomPassphraseSet = createRoomPassphraseSetHandler({
-    commit,
-    tokenStore,
-  });
+  // 合言葉の設定（`room.passphrase.set`）は #638 でハブの言葉へ移った（`hub-handlers.ts`）。
+  // ここ（timer の共通パイプライン）には無い。
 
   /** connId からルームの状態一式を特定する（参加者として在室しているルーム） */
   function findStateByConnId(connId: string): RoomState | undefined {

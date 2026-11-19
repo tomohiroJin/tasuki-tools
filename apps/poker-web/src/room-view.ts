@@ -2,8 +2,9 @@
  * ルーム画面の判断（#370 で `pages/RoomPage.tsx` から出した。`docs/adr/0015` 決定 1）。
  * React にも I/O にも依存しない。
  */
-import { findSpread, type Card, type ParticipantView, type RoomStateMessage, type SpreadEnd } from '@tasuki/poker-core';
+import { cardKey, findSpread, judgeAgreement, type Card, type ParticipantView, type RoomStateMessage, type SpreadEnd } from '@tasuki/poker-core';
 import type { ConnectionStatus } from '@tasuki/sync-client';
+import type { ResultsEffect } from './effect-copy';
 
 type RoundStatus = RoomStateMessage['round']['status'];
 
@@ -41,6 +42,40 @@ export function seatCardCount(participants: readonly ParticipantView[], votes: R
 /** 切断・再接続中か。操作を受け付けない（送信しても届かないため）。 */
 export function isOffline(status: ConnectionStatus): boolean {
   return status !== 'open';
+}
+
+/**
+ * 開票の演出（#639）。出さないなら null。**開票の瞬間の名簿で一度だけ呼ぶ**（画面は公開へ移った描画で決めて持つ。
+ * 開票の後の入退室・切断で種類を変えない）。優先は 全員一致 > 全員バラバラ > 全員の投票完了。
+ *
+ * - 一致・バラバラの判定は `poker-core` の `judgeAgreement`（数字の札だけ・人数の下限つき）
+ * - 全員の投票完了（'complete'）: 接続中の投票者（見学者を除く）が 2 人以上で、全員が票を出して開票された。
+ *   **全員が出すとサーバーは自動で開票する（FR-008）ので、「全員が出した・まだ開票していない」状態は wire に無い。**
+ *   開票と同時に届いた状態から導く。手動で先に開票した（出していない人が居る）ときは出さない
+ */
+export function resultsEffectOf(
+  round: RoomStateMessage['round'],
+  participants: readonly ParticipantView[],
+): ResultsEffect | null {
+  if (round.status !== 'revealed') return null;
+  // どの演出も、開票の瞬間に票を持つ全員（接続中で見学でない）が出していた回だけ。手動で先に開票した回は出さない
+  const voted = new Set(round.votes.map((v) => v.participantId));
+  const voters = participants.filter((p) => p.connected && !p.spectator);
+  if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
+  // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
+  return judgeAgreement(round.votes) ?? 'complete';
+}
+
+/**
+ * 公開済みの今の票が、見届けた公開の票の中に収まるか（#639）。同じ回の中で票は減りうる（退出で票が消える）が、
+ * 増えたり札が変わったりはしない。収まらなければ別の回の公開済みが投票中を挟まず届いたので、見届けた帯は外す。
+ */
+export function sameRevealRound(seen: ReadonlyMap<string, Card>, round: RoomStateMessage['round']): boolean {
+  if (round.status !== 'revealed') return false;
+  return round.votes.every((v) => {
+    const card = seen.get(v.participantId);
+    return card !== undefined && cardKey(card) === cardKey(v.card);
+  });
 }
 
 /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */

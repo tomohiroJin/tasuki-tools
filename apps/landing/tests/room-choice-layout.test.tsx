@@ -10,7 +10,7 @@ describe('選択画面の情報の区切り', () => {
       { participantId: 'b', displayName: 'いずみ', presence: 'offline' as const, tools: [] },
     ] };
     // When
-    render(<RoomChoice code={roster.code} inviteUrl="https://example.test/?room=ab12" roster={roster} connection="online" topicTitle={null} />);
+    render(<RoomChoice code={roster.code} inviteUrl="https://example.test/?room=ab12" roster={roster} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
     // Then
     expect(within(screen.getByRole('region', { name: '道具を選ぶ' })).getByRole('list', { name: 'ツール' })).toBeVisible();
     const people = within(screen.getByRole('region', { name: '参加者' }));
@@ -33,7 +33,7 @@ describe('どのツールに居るか', () => {
       { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['topic', 'timer'] },
     ] };
     // When
-    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
     // Then
     expect(screen.getByText('Topic Board / TDD Mob Pro Timer にいます')).toBeVisible();
   });
@@ -45,7 +45,7 @@ describe('どのツールに居るか', () => {
       { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['roulette'] },
     ] };
     // When
-    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
     // Then
     expect(screen.getByText('Facilitator Roulette にいます')).toBeVisible();
     expect(screen.queryByText(/roulette にいます/)).toBeNull();
@@ -58,7 +58,7 @@ describe('どのツールに居るか', () => {
       { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['agenda'] },
     ] };
     // When
-    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
     // Then
     expect(screen.getByText('Agenda Timer にいます')).toBeVisible();
     expect(screen.queryByText(/agenda にいます/)).toBeNull();
@@ -71,7 +71,7 @@ describe('どのツールに居るか', () => {
       { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['checkin'] },
     ] };
     // When
-    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
     // Then
     expect(screen.getByText('Check-in Cards にいます')).toBeVisible();
     expect(screen.queryByText(/checkin にいます/)).toBeNull();
@@ -85,7 +85,7 @@ describe('玄関の場のお題', () => {
   it('Given ルームにお題がある / When 選択画面を開く / Then 札の近くにタイトルだけが出る', () => {
     // Given: ルームにお題がある
     // When: 選択画面を開く
-    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={null} connection="online" topicTitle="FizzBuzz" />);
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={null} connection="online" topicTitle="FizzBuzz" passphraseProtected={false} onSetPassphrase={() => undefined} />);
     const tools = within(screen.getByRole('region', { name: '道具を選ぶ' }));
     // Then
     expect(tools.getByText('場のお題')).toBeVisible();
@@ -93,7 +93,7 @@ describe('玄関の場のお題', () => {
   });
 
   it('Given ルームにお題が無い / When 選択画面を開く / Then お題の行は出ない', () => {
-    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={null} connection="online" topicTitle={null} />);
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={null} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
     expect(screen.queryByText('場のお題')).toBeNull();
   });
 });

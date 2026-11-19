@@ -259,20 +259,20 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 2. systemd unit が claude を解決できるよう、`service.tmpl` の `[Service]` に
    `Environment=PATH=/home/<user>/.local/bin:/usr/local/bin:/usr/bin:/bin` を追加する
    （テンプレートを編集してから `setup.sh` を再実行する）
-3. ローカルマシンで `claude setup-token` を実行しトークンを発行
-4. `/opt/tasuki/tasuki-sync.env` に `CLAUDE_CODE_OAUTH_TOKEN` と `AI_UNLOCK_KEY` を追記
+3. Anthropic Console で API キーを発行する（プランに連携した組織・自動チャージは無効。#459。手順は `deploy/README.md` の「AI お題生成を OAuth トークンから API キーへ切り替える」）
+4. `/opt/tasuki/tasuki-sync.env` に `ANTHROPIC_API_KEY` と `AI_UNLOCK_KEY` を追記
    （パーミッション 600 を維持）
 5. `sudo systemctl daemon-reload && sudo systemctl restart tasuki-sync`
-   → 起動ログに「AI お題生成: 有効」が出れば OK
+   → 起動ログの `ai` の行に `enabled=true` が出れば OK（`journalctl -u tasuki-sync` で見る）
 
 ### 運用
 
 - 消費の確認: `/status` の `aiGeneration: { today, total }`（127.0.0.1 限定・`ADMIN_TOKEN` 必須）
-- トークン失効時: 生成は定型バンクへ自動縮退（サービス無停止）。`claude setup-token` で
-  再発行し env を更新 → `sudo systemctl restart tasuki-sync`
-- 一時停止（トークン保持のまま）: env に `AI_DAILY_LIMIT=0` を設定して restart
+- キー失効時・クレジット切れ（`Credit balance is too low`）: 生成は定型バンクへ自動縮退（サービス無停止）。Console で新しいキーを発行するか次の付与を待ち、
+  キーを替えたなら env を更新 → `sudo systemctl restart tasuki-sync`
+- 一時停止（キー保持のまま）: env に `AI_DAILY_LIMIT=0` を設定して restart
   → その日の生成を全面停止（定型へ縮退）
-- 全面無効化（ロールバック）: env の `CLAUDE_CODE_OAUTH_TOKEN`・`AI_UNLOCK_KEY` を消して restart
+- 全面無効化（ロールバック）: env の `ANTHROPIC_API_KEY`・`AI_UNLOCK_KEY` を消して restart
 - メモリ: `claude -p` は約 355MB（実測）。同時実行はアプリ側で 1 に直列化済み
   （VPS 1GB RAM・swap 2GB 前提）
 

@@ -38,7 +38,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
   }, [phase]);
 
   // 玄関へ送る。**判定は同期フック、適用はここ 1 箇所**。
-  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'agenda', hubPathFor, redirectTo });
 
   // 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する）
   if (sync.gone) return <RoomGoneView />;

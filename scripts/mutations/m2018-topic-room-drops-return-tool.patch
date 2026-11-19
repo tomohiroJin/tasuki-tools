@@ -1,0 +1,22 @@
+# 変異 2018: お題ツールが玄関へ送るとき、元の道具を運ばない
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/use-topic-sync.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2018-*.patch
+# 復元: git apply -R scripts/mutations/m2018-*.patch
+#
+# #638。お題ツールの URL から合言葉つきのルームへ入った人が、玄関で通っても戻らない。
+diff --git a/apps/topic-web/src/screens/TopicRoom.tsx b/apps/topic-web/src/screens/TopicRoom.tsx
+index 51a4d649..e8cd4911 100644
+--- a/apps/topic-web/src/screens/TopicRoom.tsx
++++ b/apps/topic-web/src/screens/TopicRoom.tsx
+@@ -29,7 +29,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
+   const [fillRequest, setFillRequest] = useState<FillRequest | null>(null);
+ 
+   // 玄関へ戻す。抜けた・外されたときは理由を運ぶ（玄関が告知を出す・#290）。
+-  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'topic', hubPathFor, redirectTo });
++  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
+ 
+   const banner = <ConnectionBanner kind={sync.notice} />;
+ 
