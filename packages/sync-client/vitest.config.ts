@@ -5,7 +5,10 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     // **`localStorage` を使うテストがあるので jsdom を敷く**（#95 S5b で端末側の
     // 同一性の保存がこのパッケージへ来た）。WebSocket は各テストが差し替えるので、
-    // そちらは実物のグローバル（Node 22 が持つ）にも jsdom にも依存しない。
+    // そちらは実物のグローバル（Node が持つ）にも jsdom にも依存しない。
     environment: 'jsdom',
+    // Node 25 以降はグローバルの `localStorage` を既定で持ち、`--localstorage-file` が無いと
+    // `undefined` を返して jsdom の `localStorage` を覆う（#441）。Web Storage を切って jsdom 側を使う。
+    execArgv: ['--no-experimental-webstorage'],
   },
 });

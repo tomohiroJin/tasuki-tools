@@ -46,6 +46,14 @@ export function joinCommand(code: string, last: LastJoin): HubCommand {
 }
 
 /**
+ * ルームの合言葉を設定・解除する（#638。もと timer のコマンド）。**空文字で解除。**
+ * 宛先は接続が在席しているルームで、コードは載せない。
+ */
+export function passphraseCommand(passphrase: string): HubCommand {
+  return { command: 'room.passphrase.set', passphrase };
+}
+
+/**
  * 混雑で弾かれた後の送り直し。
  *
  * **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである（#274）。

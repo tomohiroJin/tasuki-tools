@@ -1,0 +1,22 @@
+# 変異 2102: web-launch-not-shrunk
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 決めること 3。上限で詰めた動き出しを、画面が表の長さのまま描く（止まる時刻とずれる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2102-*.patch
+# 復元: git apply -R scripts/mutations/m2102-*.patch
+diff --git a/apps/roulette-web/src/spin-motion.ts b/apps/roulette-web/src/spin-motion.ts
+--- a/apps/roulette-web/src/spin-motion.ts
++++ b/apps/roulette-web/src/spin-motion.ts
+@@ -80,7 +80,7 @@
+  */
+ export function launchOffset(motion: LaunchMotion, elapsedMs: number, actualMs: number): number {
+   if (actualMs <= 0) return 0;
+-  return offsetAt(LAUNCH_LEGS[motion], elapsedMs, actualMs / launchLegsMs(motion));
++  return offsetAt(LAUNCH_LEGS[motion], elapsedMs, 1);
+ }
+ 
+ /** 動き出しが終わったときの、開始角からの差（度）。本体はここから始まる */

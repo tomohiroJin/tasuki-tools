@@ -30,6 +30,11 @@ export interface TimerWsBroadcasterDeps {
    */
   ws: () => TimerWsOutbound;
   /**
+   * そのルームに合言葉が付いているか（#638）。名簿に印として載せる（平文は載せない）。
+   * 正本は復帰トークンと同じ保管（`token-store.ts`）で、組み立てが引いて渡す。
+   */
+  isPassphraseProtected: (roomCode: string) => boolean;
+  /**
    * 名簿を配ったあとに呼ぶ（#406）。名簿は `saveRoster` の 1 経路でしか書かれず、その最後に必ず
    * `broadcastRoster` が呼ばれる（`test/save-roster.wiring.test.ts`）ので、ここに口を置けば参加・切断・
    * 退出・ハブへの移動のすべてで「名簿が変わった」を拾える。チェックインが席と自動開票を測り直す。
@@ -95,7 +100,7 @@ export function createTimerWsBroadcaster(deps: TimerWsBroadcasterDeps): {
       if (!room) return;
       deps.ws().to.hub.broadcast(rosterRecipientsOf(roomCode), {
         type: "roster",
-        room: buildRoster(room),
+        room: buildRoster(room, deps.isPassphraseProtected(roomCode)),
       });
       deps.onRosterBroadcast(roomCode);
     },

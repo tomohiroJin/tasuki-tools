@@ -1,0 +1,22 @@
+# 変異 2098: web-ignores-motions-in-angle
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion-screen.test.tsx
+#
+# #640 振る舞い 2。受け取った動きを円盤が描かない（結果の時刻だけが延びる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2098-*.patch
+# 復元: git apply -R scripts/mutations/m2098-*.patch
+diff --git a/apps/roulette-web/src/hooks/use-wheel-rotation.ts b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+--- a/apps/roulette-web/src/hooks/use-wheel-rotation.ts
++++ b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+@@ -79,7 +79,7 @@
+     // 受け取った直後に古い「いま」を使うと経過が負になる。基準の組より前には戻さない
+     angle = settled
+       ? finalAngleOfPicks(picks, n, pointerDeg, a.startDeg)
+-      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg, spin.stopStyle, motionNamesOf(spin));
++      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg, spin.stopStyle);
+   }
+   shown.current = angle;
+   const spinning = spin !== null && !settled;

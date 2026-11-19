@@ -146,7 +146,7 @@ test('Given timer の見出しの行 / When 規則を集める / Then どの書�
 test('Given timer の見出しの行 / When CSS と配線を読む / Then margin-bottom を持たず、各パネルの根が gap で間を持つ（ADR 0035 決定 1・#556）', () => {
   const prim = read('apps/timer-web/src/styles/primitives.css');
   assert.match(prim, /\.panel-stack \{[^}]*gap:\s*var\(--panel-stack-gap, var\(--space-4\)\);/);
-  assert.match(read('apps/timer-web/src/ui/components/PassphrasePanel.tsx'), /<div className="ui-stack panel-stack">/);
+  // PassphrasePanel の根の assert は外した（#638 で timer の合言葉のパネルが消えた。利用者の承認 2026-11-19・変異 1231 も消した）
   assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<div className="ui-stack panel-stack">/);
   assert.match(read('apps/timer-web/src/ui/History.tsx'), /<Card className="ui-stack meter-panel-stack">/);
   assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /交代通知/);

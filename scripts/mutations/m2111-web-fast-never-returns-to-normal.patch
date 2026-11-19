@@ -1,0 +1,22 @@
+# 変異 2111: web-fast-never-returns-to-normal
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 の /code-review。速い回転の縮めた区間の後で本体の時刻がずれ、止まる時刻に当たりの席・位置で止まらない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2111-*.patch
+# 復元: git apply -R scripts/mutations/m2111-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -118,7 +118,7 @@
+   if (spinMotion === 'fast') {
+     // 最初の FAST_SPAN_MS（本体の時間）を、縮める長さだけ短い時間で進める（速くなる）。後ろは普通の速さ
+     const real = FAST_SPAN_MS + SPIN_MOTION_EXTRA_MS.fast;
+-    return sign * base(u < real ? (u * FAST_SPAN_MS) / real : u - real + FAST_SPAN_MS);
++    return sign * base(u < real ? (u * FAST_SPAN_MS) / real : u);
+   }
+   if (spinMotion === 'turnback') {
+     const inserted = SPIN_MOTION_EXTRA_MS.turnback;

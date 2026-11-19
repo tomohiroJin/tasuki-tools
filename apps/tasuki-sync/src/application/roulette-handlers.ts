@@ -23,6 +23,7 @@ import {
   conflictsWithExisting,
   findParticipantByConnId,
   HubCommandSchema,
+  isHubCommand,
   presenceOf,
   type HubCommand,
   type Room,
@@ -66,7 +67,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * ルーレットの接続が受け取る言葉。**ハブの言葉（`room.join` のため）とルーレットのコマンドの和**。
- * ハブの言葉のうち `room.create` / `room.check` も境界は通るが、下の振り分けで拒む。
+ * ハブの言葉のうち `room.join` 以外（`isHubCommand`）も境界は通るが、下の振り分けで既定で拒む。
  */
 const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteCommandSchema]);
 
@@ -180,6 +181,8 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           conflicts: conflictsWithExisting,
           // 変わった止まり方（#420）も同じ乱数源から引く（乱数の権威はサーバー。全画面が同じ止まり方になる）
           randomStyle: random.randomInt,
+          // 変わった動き（#640・動き出しと回転）も同じ乱数源から引く。止まり方とは別に・独立に引く
+          randomMotion: random.randomInt,
         });
         if (next.isErr()) {
           const code = next.error.code;
@@ -310,7 +313,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         return;
       }
       // ルーレットの接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check") {
+      if (isHubCommand(cmd)) {
         fail(connId, "INVALID_COMMAND");
         return;
       }

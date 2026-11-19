@@ -1,0 +1,22 @@
+# 変異 2114: web-turnback-speed-zero
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 の /code-review。差し込みの前後で、1 フレームの間に静止と本体の速さの間を跳ぶ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2114-*.patch
+# 復元: git apply -R scripts/mutations/m2114-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -125,7 +125,7 @@
+     if (u < TURNBACK_AT_MS) return base(u);
+     if (u < TURNBACK_AT_MS + inserted) {
+       // 差し込み前の本体の速さ（度/ms）。差し込みの始まりと終わりをこの速さにつなぐ
+-      const speed = (base(TURNBACK_AT_MS + 1) - base(TURNBACK_AT_MS - 1)) / 2;
++      const speed = 0;
+       return base(TURNBACK_AT_MS) + turnbackOffset(u - TURNBACK_AT_MS, speed);
+     }
+     return base(u - inserted);
