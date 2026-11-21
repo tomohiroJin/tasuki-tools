@@ -295,7 +295,8 @@ Caddy も**本番・E2E・CI を同じ版に揃えて固定**しています。�
 版が違うと、本番でだけ効かない書き方が緑のまま出ます（#434 で 2.6.2 と 2.11.4 の差を踏みました）。
 
 本番の Caddy は他のサイトと共用で、Caddy 公式の apt リポジトリ（`dl.cloudsmith.io/public/caddy/stable`）
-から入れています（2026-10-25 に Debian の 2.6.2 から 2.11.7 へ切り替え）。このリポジトリは
+から入れています（2026-10-25 に Debian の 2.6.2 から 2.11.7 へ切り替え。2.11.9 へ上げたのは #668 で、
+2.11.7 のビルドに使われた Go 1.26.8 に HTTP/2 サーバーの脆弱性が残っていたため）。このリポジトリは
 unattended-upgrades の対象外で、さらに `apt-mark hold caddy` で止めています。他のサイトの作業で
 `apt upgrade` を流しても上がりません。**上げるときは手で**次を済ませます。
 
@@ -312,7 +313,8 @@ unattended-upgrades の対象外で、さらに `apt-mark hold caddy` で止め�
    3. `apt-mark unhold caddy` → `apt-get install -o Dpkg::Options::=--force-confold caddy=<新版>`
       （今の Caddyfile を残す。付けないと設定ファイルの置き換えを対話で聞かれる）→ `apt-mark hold caddy` →
       `systemctl restart caddy`
-   4. 各サイトの状態コードと `pnpm e2e:prod` で確かめる
+   4. 各サイトの状態コードと `pnpm e2e:prod` で確かめる。`caddy build-info | head -1` で、ビルドに使われた Go の版も見る
+      （脆弱性が Caddy 本体でなく Go や `golang.org/x/net` の側にあることがある。#668）
 4. **すぐに** PR をマージする。本番を上げてからマージまでの間は、main の E2E が古い版のままになる。
    その間は Caddy の設定（`deploy/caddy/`）に触る PR をマージしない
 
