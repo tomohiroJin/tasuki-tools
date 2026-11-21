@@ -1,0 +1,14 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+index 6937691c..32345d23 100644
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -60,8 +60,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+   };
+   // 失敗のまま押し直したときは、試みの間だけ文を空にし、終わったら入れ直す。同じ文でも空を挟むので、押すたびに読み上げが流れる。
+   // 成功の後の押し直しは空にしない（浮かぶ札が出たまま文だけ消え、枠と影だけの空の札が描かれる。#653 のレビュー・5 回目）
+-  const copyStatus = attempting && copyState === 'failed' ? ''
+-    : copyState === 'done' ? ESTIMATE_LOG_COPIED
++  const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED
+       : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
+   // 試みが終わって失敗のとき、本体（脇ではスクロールする箱）を頭へ戻す。頭に入った欄の分だけ位置が送られて、
+   // 失敗の文と欄が箱の外へ出るのを防ぐ（#653 のレビュー・3 回目）。フォーカスは動かさない・滑らかなスクロールは使わない

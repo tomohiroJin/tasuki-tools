@@ -19,6 +19,8 @@ export const ESTIMATE_LOG_SHOW_ALL = '記録をすべて見る';
 export const ESTIMATE_LOG_COPY = '記録をコピー';
 export const ESTIMATE_LOG_COPIED = 'コピーしました';
 export const ESTIMATE_LOG_COPY_FAILED = 'コピーできません';
+/** コピーに失敗したとき、手で選んで持ち出す欄の名前（#653） */
+export const ESTIMATE_LOG_MANUAL_COPY = '手動コピー用の Markdown';
 export const ESTIMATE_EXPORT_POINTS = 'ポイント';
 /** 記録の切り替え（#427・設計 D）。`aria-pressed` で状態を示すので、文言は状態によって替えない */
 export const RECORDING_TOGGLE = '記録する';

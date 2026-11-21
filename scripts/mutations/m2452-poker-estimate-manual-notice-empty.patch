@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -114,7 +114,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+         {manualOpen && (
+           <div className="estimate-log-manual">
+             {/* 読み上げは見出しの status が受け持つ。目に見える文は読み上げから隠す（二重に読まれない） */}
+-            <p className="estimate-log-manual-notice" aria-hidden="true">{ESTIMATE_LOG_COPY_FAILED}</p>
++            <p className="estimate-log-manual-notice" aria-hidden="true"></p>
+             <textarea
+               aria-label={ESTIMATE_LOG_MANUAL_COPY}
+               className="ui-input estimate-log-manual-field"

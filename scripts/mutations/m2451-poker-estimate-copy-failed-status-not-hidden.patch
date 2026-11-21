@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+index 368f40ed..24ec2e13 100644
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -68,7 +68,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+               </button>
+               {/* 失敗の知らせは読み上げ（live region）にだけ残し、見た目は隠す。ボタンと見出しの行を動かさない。
+                   目に見える文は、本体の頭の欄の上に置く（live region にしない。読み上げの二重を避ける） */}
+-              <span role="status" className={copyState === 'done' ? 'estimate-log-copy-status' : 'ui-visually-hidden'}>{copyStatus}</span>
++              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden' : 'estimate-log-copy-status'}>{copyStatus}</span>
+             </div>
+           )}
+         </div>

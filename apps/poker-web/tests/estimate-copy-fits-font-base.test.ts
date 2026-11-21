@@ -21,7 +21,7 @@ describe('見積もりの記録の文言は書体の常用の層に収まる', (
       messageForRoundError({ code: 'estimate-open' }),
     ];
     // 対照: 定数が 1 つも拾えないまま空配列で緑に倒れるのを防ぐ
-    expect(constants.length).toBeGreaterThanOrEqual(14);
+    expect(constants.length).toBeGreaterThanOrEqual(15);
     // When / Then
     expect(outsideBase(texts)).toEqual([]);
   });
@@ -42,5 +42,6 @@ describe('見積もりの記録の文言は書体の常用の層に収まる', (
     expect(copy.ESTIMATE_LOG_SHOW_ALL).toBe('記録をすべて見る');
     expect(copy.RECORDING_TOGGLE).toBe('記録する');
     expect(copy.RENAME_GROUP).toBe('アイテム名を変える');
+    expect(copy.ESTIMATE_LOG_MANUAL_COPY).toBe('手動コピー用の Markdown');
   });
 });

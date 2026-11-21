@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -68,7 +68,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+   const bodyRef = useRef<HTMLDivElement>(null);
+   useLayoutEffect(() => {
+     if (copyState === 'failed' && bodyRef.current) bodyRef.current.scrollTop = 0;
+-  }, [copyState, attempts]);
++  }, [copyState]);
+   // 手で選ぶ欄は、失敗で終わった試みで開き、成功で終わった試みで閉じる。記録が変わって state が idle に戻っても開いたまま残し
+   // （選んでいる途中で欄とフォーカスが消えない）、中身はそのときの markdown に差し替わる（#653 の /code-review）。
+   // 失敗した試みの間は state から直接開く（効果を待たずに同じ描画で出す）
