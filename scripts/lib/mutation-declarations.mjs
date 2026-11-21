@@ -259,7 +259,7 @@ const RESERVED_2200_2229 =
 const RESERVED_2400_2429 =
   "**対応表より後に足した変異。** 2400〜2429 は #633（玄関が前に作ったルーム名を覚えて入れ直す）に割り当てた範囲。1970〜1989、2040〜2069、2200〜2229 から振り直した（並行する PR と番号がぶつかったため。#642 のレビュー）。";
 
-const RESERVED_2440_2459 =
+const RESERVED_2440_2469 =
   "**対応表より後に足した変異。** 2440〜2459・2460〜2469 は #653（見積もりの記録のコピーが失敗したとき Markdown を手で選べる欄に出す）に割り当てた範囲。2446〜2449 は枝の中で作りを変えたときに外した（main に入ったことは無い）。";
 
 const RESERVED_2050_2079 =
@@ -12087,7 +12087,7 @@ export const MUTATIONS = [
     patch: "m2440-poker-estimate-copy-failure-not-kept.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653。手で選ぶ前に Markdown の欄が消える。",
+    note: RESERVED_2440_2469 + " " + "#653。手で選ぶ前に Markdown の欄が消える。",
   },
   {
     id: 2441,
@@ -12095,7 +12095,7 @@ export const MUTATIONS = [
     patch: "m2441-poker-estimate-manual-field-on-success.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653。コピーできたのに Markdown の欄が出て、画面が散らかる（EARS 2）。",
+    note: RESERVED_2440_2469 + " " + "#653。コピーできたのに Markdown の欄が出て、画面が散らかる（EARS 2）。",
   },
   {
     id: 2442,
@@ -12103,7 +12103,7 @@ export const MUTATIONS = [
     patch: "m2442-poker-estimate-manual-field-editable.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653。欄の Markdown を打ち間違えて壊したまま持ち出せる。",
+    note: RESERVED_2440_2469 + " " + "#653。欄の Markdown を打ち間違えて壊したまま持ち出せる。",
   },
   {
     id: 2443,
@@ -12111,7 +12111,7 @@ export const MUTATIONS = [
     patch: "m2443-poker-estimate-manual-field-no-select.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653。長い Markdown を手でなぞって選ぶことになり、取りこぼす。",
+    note: RESERVED_2440_2469 + " " + "#653。長い Markdown を手でなぞって選ぶことになり、取りこぼす。",
   },
   {
     id: 2444,
@@ -12119,7 +12119,7 @@ export const MUTATIONS = [
     patch: "m2444-poker-estimate-manual-field-unnamed.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653。読み上げで、何の欄か分からない。",
+    note: RESERVED_2440_2469 + " " + "#653。読み上げで、何の欄か分からない。",
   },
   {
     id: 2445,
@@ -12127,7 +12127,7 @@ export const MUTATIONS = [
     patch: "m2445-poker-estimate-manual-label-outside-font-base.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-copy-fits-font-base.test.ts"],
-    note: RESERVED_2440_2459 + " " + "#653。欄の名前の描画に追加の書体が必要になる。",
+    note: RESERVED_2440_2469 + " " + "#653。欄の名前の描画に追加の書体が必要になる。",
   },
   {
     id: 2450,
@@ -12135,7 +12135,7 @@ export const MUTATIONS = [
     patch: "m2450-poker-estimate-manual-notice-live-twice.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（2 回目）。見出しの行の status と二重に読み上げられる。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（2 回目）。見出しの行の status と二重に読み上げられる。",
   },
   {
     id: 2451,
@@ -12143,7 +12143,7 @@ export const MUTATIONS = [
     patch: "m2451-poker-estimate-copy-failed-status-not-hidden.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（2 回目）。失敗の文が見出しの行のボタンの横に出て、ボタンと見出しの行が動く（幅 390 では次の行へ落ちる）。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（2 回目）。失敗の文が見出しの行のボタンの横に出て、ボタンと見出しの行が動く（幅 390 では次の行へ落ちる）。",
   },
   {
     id: 2452,
@@ -12151,7 +12151,7 @@ export const MUTATIONS = [
     patch: "m2452-poker-estimate-manual-notice-empty.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（2 回目）。読み上げでしか失敗が分からず、見える利用者には欄だけが出る。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（2 回目）。読み上げでしか失敗が分からず、見える利用者には欄だけが出る。",
   },
   {
     id: 2453,
@@ -12159,7 +12159,7 @@ export const MUTATIONS = [
     patch: "m2453-poker-estimate-manual-notice-below-field.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（2 回目）。欄が脇の頭からスクロールの下へ押され、文が欄の何かを説明する形でなくなる。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（2 回目）。欄が脇の頭からスクロールの下へ押され、文が欄の何かを説明する形でなくなる。",
   },
   {
     id: 2454,
@@ -12167,7 +12167,7 @@ export const MUTATIONS = [
     patch: "m2454-poker-estimate-manual-field-outside-body.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（2 回目）。脇では本体でなく札に積まれ、札が低いと欄が札の下へはみ出し、記録の一覧が高さ 0 に潰れる。E2E（`poker-estimate-log.spec.ts` のお題を開いた脇）も同じ作りを見る。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（2 回目）。脇では本体でなく札に積まれ、札が低いと欄が札の下へはみ出し、記録の一覧が高さ 0 に潰れる。E2E（`poker-estimate-log.spec.ts` のお題を開いた脇）も同じ作りを見る。",
   },
   {
     id: 2455,
@@ -12175,7 +12175,7 @@ export const MUTATIONS = [
     patch: "m2455-poker-estimate-copy-failed-body-not-reset.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。本体を少しでもスクロールしてから押すと、頭に入った欄の分だけ位置が送られて、失敗の文と欄が本体の箱の外へ出る。E2E（`poker-estimate-log.spec.ts` の本体をスクロールした脇）も同じ作りを見る。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（3 回目）。本体を少しでもスクロールしてから押すと、頭に入った欄の分だけ位置が送られて、失敗の文と欄が本体の箱の外へ出る。E2E（`poker-estimate-log.spec.ts` の本体をスクロールした脇）も同じ作りを見る。",
   },
   {
     id: 2456,
@@ -12183,7 +12183,7 @@ export const MUTATIONS = [
     patch: "m2456-poker-estimate-copy-success-resets-body.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。成功で記録を読んでいる位置が頭へ飛ぶ。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（3 回目）。成功で記録を読んでいる位置が頭へ飛ぶ。",
   },
   {
     id: 2457,
@@ -12191,7 +12191,7 @@ export const MUTATIONS = [
     patch: "m2457-poker-estimate-copy-failed-focuses-field.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。押したボタンからフォーカスが奪われる（キーボードの利用者が押した位置を失う）。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（3 回目）。押したボタンからフォーカスが奪われる（キーボードの利用者が押した位置を失う）。",
   },
   {
     id: 2458,
@@ -12199,7 +12199,7 @@ export const MUTATIONS = [
     patch: "m2458-poker-estimate-copy-attempts-not-counted.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（4 回目）。失敗のまま本体をスクロールして押し直すと state が変わらず効果が動かず、失敗の文と欄が見えない。E2E（`poker-estimate-log.spec.ts` の押し直し）も同じ作りを見る。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（4 回目）。失敗のまま本体をスクロールして押し直すと state が変わらず効果が動かず、失敗の文と欄が見えない。E2E（`poker-estimate-log.spec.ts` の押し直し）も同じ作りを見る。",
   },
   {
     id: 2459,
@@ -12207,7 +12207,7 @@ export const MUTATIONS = [
     patch: "m2459-poker-estimate-copy-status-not-emptied.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（4 回目）。失敗のままの押し直しで文が変わらず、読み上げが流れない（押すたびに流れる形でなくなる）。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（4 回目）。失敗のままの押し直しで文が変わらず、読み上げが流れない（押すたびに流れる形でなくなる）。",
   },
   {
     id: 2460,
@@ -12215,6 +12215,6 @@ export const MUTATIONS = [
     patch: "m2460-poker-estimate-copy-status-emptied-after-success.patch",
     pkg: "apps/poker-web",
     tests: ["tests/estimate-log.test.tsx"],
-    note: RESERVED_2440_2459 + " " + "#653 のレビュー（5 回目）。成功の後に押し直すと、浮かぶ札が出たまま文だけ消え、枠と影だけの空の札が描かれる。",
+    note: RESERVED_2440_2469 + " " + "#653 のレビュー（5 回目）。成功の後に押し直すと、浮かぶ札が出たまま文だけ消え、枠と影だけの空の札が描かれる。",
   },
 ];

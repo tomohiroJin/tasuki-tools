@@ -343,7 +343,10 @@ describe('EstimateLog', () => {
         render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
         fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
         const field = await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
+        // jsdom の select() は範囲を動かさないことがあるので、setSelectionRange も呼ばれることを見る（iOS Safari 向け）
+        const range = vi.spyOn(field, 'setSelectionRange');
         fireEvent.focus(field);
+        expect(range).toHaveBeenCalledWith(0, field.value.length);
         expect(field.selectionStart).toBe(0);
         expect(field.selectionEnd).toBe(field.value.length);
       });
@@ -365,14 +368,67 @@ describe('EstimateLog', () => {
       }
     });
 
-    it('Given 失敗して欄が出ている / When 記録が増える / Then 古い Markdown の欄は消える', async () => {
+    it('Given 失敗して欄が出ている / When 記録が増える / Then 欄は残り、中身は新しい Markdown になる（読み上げは繰り返さない）', async () => {
       await withoutClipboard(async () => {
         const props = { onSetPoints: vi.fn(), onRenameGroup: vi.fn(), disabled: false };
         const { rerender } = render(<EstimateLog {...props} groups={groups()} />);
         fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
-        await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY });
+        const before = (await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY })) as HTMLTextAreaElement;
+        const oldValue = before.value;
         rerender(<EstimateLog {...props} groups={[...groups(), group(106)]} />);
+        const after = screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
+        expect(after).toBe(before);
+        expect(after.value).not.toBe(oldValue);
+        expect(after.value.length).toBeGreaterThan(oldValue.length);
+        // 目に見える失敗の文は欄と一緒に残り、見出しの status は空になる
+        expect(screen.getAllByText(ESTIMATE_LOG_COPY_FAILED, { selector: 'p' })).toHaveLength(1);
+        expect(screen.getByRole('status').textContent).toBe('');
+      });
+    });
+
+    it('Given 欄にフォーカスがある / When 記録が増える / Then フォーカスは欄に残る', async () => {
+      await withoutClipboard(async () => {
+        const props = { onSetPoints: vi.fn(), onRenameGroup: vi.fn(), disabled: false };
+        const { rerender } = render(<EstimateLog {...props} groups={groups()} />);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        const field = await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY });
+        field.focus();
+        expect(document.activeElement).toBe(field);
+        rerender(<EstimateLog {...props} groups={[...groups(), group(106)]} />);
+        expect(document.activeElement).toBe(screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }));
+      });
+    });
+
+    it('Given 失敗して欄が出ている / When 次の試みが成功する / Then 欄は閉じる', async () => {
+      const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+      const previousExec = Object.getOwnPropertyDescriptor(document, 'execCommand');
+      try {
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+        const execCommand = vi.fn().mockReturnValue(false);
+        Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY });
+        execCommand.mockReturnValue(true);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
         expect(screen.queryByRole('textbox')).toBeNull();
+        expect(screen.queryByText(ESTIMATE_LOG_COPY_FAILED, { selector: 'p' })).toBeNull();
+      } finally {
+        if (previous) Object.defineProperty(navigator, 'clipboard', previous);
+        else Reflect.deleteProperty(navigator, 'clipboard');
+        if (previousExec) Object.defineProperty(document, 'execCommand', previousExec);
+        else Reflect.deleteProperty(document, 'execCommand');
+      }
+    });
+
+    it('Given 失敗の欄 / When 描く / Then 目に見える失敗の文は読み上げから隠す（読み上げは見出しの status が受け持つ）', async () => {
+      await withoutClipboard(async () => {
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY });
+        const notice = screen.getByText(ESTIMATE_LOG_COPY_FAILED, { selector: 'p' });
+        expect(notice.getAttribute('aria-hidden')).toBe('true');
       });
     });
 

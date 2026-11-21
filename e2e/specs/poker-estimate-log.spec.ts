@@ -404,6 +404,50 @@ test.describe('poker は見積もりを記録に残す', () => {
     expect(selected).toBe(value);
   });
 
+  // 実際のマウスのクリック（mousedown → focus → mouseup）の後も、全文が選ばれたままか（focus() だけでは通らない経路）
+  for (const { width, scope } of [
+    { width: 1280, scope: (page: Page) => sideLog(page) },
+    { width: 390, scope: (page: Page) => page.locator('.room-log--foot') },
+  ]) {
+    test(`Given コピーが両方失敗する幅 ${width} の画面 / When 手で選ぶ欄を実際にクリックする / Then 全文が選ばれたままになる（#653）`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await recordItems(page, ['2', '3']);
+      await breakCopy(page);
+      const log = scope(page);
+      await log.getByRole('button', { name: '記録をコピー' }).click();
+      const field = log.getByRole('textbox', { name: '手動コピー用の Markdown' });
+      await expect(field).toBeVisible();
+      await field.click();
+      const range = await field.evaluate((el) => {
+        const area = el as HTMLTextAreaElement;
+        return { start: area.selectionStart, end: area.selectionEnd, length: area.value.length, focused: document.activeElement === area };
+      });
+      expect(range, `クリックの後の選択 ${JSON.stringify(range)}`).toEqual({ start: 0, end: range.length, length: range.length, focused: true });
+      expect(range.length).toBeGreaterThan(0);
+    });
+  }
+
+  // 選んでいる途中に別の人が記録を変えても、欄とフォーカスは消えず、中身が新しい記録になる
+  test('Given 2 人のルームで 1 人目のコピーが両方失敗し欄にフォーカスがある / When 2 人目がいま見積もっているものの名前を変える / Then 1 人目の欄は残り、フォーカスも欄にあり、中身は新しい記録になる（#653）', async ({ page, openPeer }) => {
+    const guest = await openTwo(page, openPeer, 'log-guest-keep');
+    await bothVote(page, guest, '3', '3');
+    await breakCopy(page);
+    const log = sideLog(page);
+    await log.getByRole('button', { name: '記録をコピー' }).click();
+    const field = log.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    await expect(field).toBeVisible();
+    const before = await field.inputValue();
+    expect(before).not.toContain(ITEM);
+    await field.click();
+    await field.evaluate((el) => el.setAttribute('data-keep', 'same-element'));
+    await setItem(guest, ITEM);
+    await expect(field).toHaveValue(new RegExp(ITEM));
+    await expect(field).toHaveAttribute('data-keep', 'same-element');
+    await expect(log.getByText('コピーできません', { exact: true })).toBeVisible();
+    await expect(field).toBeFocused();
+    expect(await field.inputValue()).not.toBe(before);
+  });
+
   test('Given コピーが成功する 1280 の画面 / When 脇の記録からコピー / Then 「コピーしました」だけで、Markdown の欄は出ない（#653）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await recordItems(page, ['2', '3']);

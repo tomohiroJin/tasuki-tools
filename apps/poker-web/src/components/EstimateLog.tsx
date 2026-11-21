@@ -69,6 +69,15 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
   useLayoutEffect(() => {
     if (copyState === 'failed' && bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [copyState, attempts]);
+  // 手で選ぶ欄は、失敗で終わった試みで開き、成功で終わった試みで閉じる。記録が変わって state が idle に戻っても開いたまま残し
+  // （選んでいる途中で欄とフォーカスが消えない）、中身はそのときの markdown に差し替わる（#653 の /code-review）。
+  // 失敗した試みの間は state から直接開く（効果を待たずに同じ描画で出す）
+  const [manualKept, setManualKept] = useState(false);
+  useLayoutEffect(() => {
+    if (copyState === 'failed') setManualKept(true);
+    else if (copyState === 'done') setManualKept(false);
+  }, [copyState]);
+  const manualOpen = copyState === 'failed' || (manualKept && copyState === 'idle');
   const newestFirst = [...groups].reverse();
   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
 
@@ -102,16 +111,21 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
       >
         {/* コピーに失敗したときの欄は本体の頭に置く。脇では本体がスクロールする領域なので、高さは本体のスクロールが受け持ち、
             欄は rows の高さのまま札からはみ出さない（#653 のレビュー・2 回目） */}
-        {copyState === 'failed' && (
+        {manualOpen && (
           <div className="estimate-log-manual">
-            <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
+            {/* 読み上げは見出しの status が受け持つ。目に見える文は読み上げから隠す（二重に読まれない） */}
+            <p className="estimate-log-manual-notice" aria-hidden="true">{ESTIMATE_LOG_COPY_FAILED}</p>
             <textarea
               aria-label={ESTIMATE_LOG_MANUAL_COPY}
-              className="ui-input"
+              className="ui-input estimate-log-manual-field"
               readOnly
               rows={5}
               value={markdown}
-              onFocus={(event) => event.currentTarget.select()}
+              onFocus={(event) => {
+                // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
+                event.currentTarget.select();
+                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
+              }}
             />
           </div>
         )}

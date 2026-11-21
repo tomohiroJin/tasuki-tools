@@ -719,7 +719,7 @@
 }
 
 /* 記録の幅いっぱいに出す。字は 16px を下回らない（iOS の拡大） */
-.estimate-log-manual > textarea {
+.estimate-log-manual-field {
   inline-size: 100%;
   box-sizing: border-box;
   font-size: 1rem; /* scale-exempt: 入力欄の 16px の下限。段（--font-size-xs）は狭い幅で 16px を割る */
