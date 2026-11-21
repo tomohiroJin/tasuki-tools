@@ -19,6 +19,10 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
 
+> **#459（AI お題生成の認証を API キーへ・PR #646）は未配布**。新しい同期サーバーは `ANTHROPIC_API_KEY` だけを読むので、
+> **`deploy.sh timer` の前に、本番の env へキーを置いておく**（置かずに配ると AI は無効になり、定型へ縮退する）。
+> 手順と確かめ方は下の「[AI お題生成を OAuth トークンから API キーへ切り替える](#ai-お題生成を-oauth-トークンから-api-キーへ切り替える459利用者の作業)」。
+
 > **#640（ルーレットの変わった動き）は未配布**（PR のマージ後に配る）。wire に任意の項目（`spin.launchMotion`・`spin.spinMotion`）が増えるだけで、
 > コマンドは増えない。**配る順は roulette-web が先、同期サーバー（timer）が後**（標準と逆。新しい画面は項目が無い回転をいつもの動きで描き、
 > 古い画面は動きを知らないので、同期サーバーを先にすると再読込していない画面が窓に入る）。窓の中身は [`roulette/NOTES.md`](roulette/NOTES.md) の「#640」
@@ -451,15 +455,17 @@ sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここ
    **自動チャージは無効**にする（クレジット切れで生成が止まり、定型へ縮退する。プランへの追加課金は無い）
 2. `ssh -t "$TASUKI_SSH_HOST" 'sudo -e /opt/tasuki/tasuki-sync.env'` で `ANTHROPIC_API_KEY` を**追記する**
    （600 を維持）。`CLAUDE_CODE_OAUTH_TOKEN` の行はまだ消さない。再起動もしない（動いている古い版は旧トークンで動き続ける）。
-   置けたかは、値を出さずに変数名だけで確かめる:
-   `ssh -t "$TASUKI_SSH_HOST" 'sudo ls -l /opt/tasuki/tasuki-sync.env; sudo grep -oE "^(ANTHROPIC_API_KEY|CLAUDE_CODE_OAUTH_TOKEN)=" /opt/tasuki/tasuki-sync.env'`
+   置けたかは、値を出さずに確かめる。値が空でない行を数えるので、どちらも `1` と出ればよい:
+   `ssh -t "$TASUKI_SSH_HOST" 'sudo ls -l /opt/tasuki/tasuki-sync.env; sudo grep -cE "^ANTHROPIC_API_KEY=.+" /opt/tasuki/tasuki-sync.env; sudo grep -cE "^CLAUDE_CODE_OAUTH_TOKEN=.+" /opt/tasuki/tasuki-sync.env'`
    （sudo がパスワードを聞くので、端末の付いたシェルで流す）
 3. #459 を含む同期サーバーを配る（`deploy.sh timer`。ルームが全消滅するので利用者のいない時間帯に。
    ほかのアプリと配る順は、その回の注記に従う）。すでに #459 を含む版が動いているなら `sudo systemctl restart tasuki-sync`
-4. 下の 6 で確かめてから、env の `CLAUDE_CODE_OAUTH_TOKEN` の行を消す（新しい版は読まないので、再起動は要らない）
+4. 下の 6 で確かめてから、env の `CLAUDE_CODE_OAUTH_TOKEN` の行を消す（新しい版は読まないので、再起動は要らない）。
+   消した後で同期サーバーを #459 より前の版へ戻すと（`server.js.bak-*` からの切り戻し）、AI は無効になる
 5. 旧 OAuth トークン（`claude setup-token` で発行したもの）を失効させる
 6. 本番で確かめる:
-   - 起動ログ（`journalctl -u tasuki-sync`）に `ai-legacy-oauth-token-ignored` の警告が出ない
+   - 起動ログ（`journalctl -u tasuki-sync`）の `ai` の行が `enabled=true` である（キーか解錠の合言葉のどちらかが欠けると false）
+   - 起動ログに `ai-legacy-oauth-token-ignored` の警告が出ない
      （出たら旧 `CLAUDE_CODE_OAUTH_TOKEN` だけが残り、`ANTHROPIC_API_KEY` が無い。AI は無効のまま）
    - AI の生成が成功する（お題ツールで解錠して生成する）
    - Console の使用量（クレジット）が減り、プラン側の Claude Code 使用量が増えない
