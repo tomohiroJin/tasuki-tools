@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -67,7 +67,7 @@
+   const bodyRef = useRef<HTMLDivElement>(null);
+   useLayoutEffect(() => {
+     if (copyState === 'failed' && bodyRef.current) bodyRef.current.scrollTop = 0;
+-  }, [copyState, attempts]);
++  }, [copyState]);
+   const newestFirst = [...groups].reverse();
+   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
+

@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -59,8 +59,7 @@
+     });
+   };
+   // 試みの間は文を空にし、終わったら入れ直す。同じ文でも空を挟むので、押すたびに読み上げが流れる
+-  const copyStatus = attempting ? ''
+-    : copyState === 'done' ? ESTIMATE_LOG_COPIED
++  const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED
+       : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
+   // 試みが終わって失敗のとき、本体（脇ではスクロールする箱）を頭へ戻す。頭に入った欄の分だけ位置が送られて、
+   // 失敗の文と欄が箱の外へ出るのを防ぐ（#653 のレビュー・3 回目）。フォーカスは動かさない・滑らかなスクロールは使わない

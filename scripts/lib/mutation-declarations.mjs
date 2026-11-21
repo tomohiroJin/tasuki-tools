@@ -12193,4 +12193,20 @@ export const MUTATIONS = [
     tests: ["tests/estimate-log.test.tsx"],
     note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。押したボタンからフォーカスが奪われる（キーボードの利用者が押した位置を失う）。",
   },
+  {
+    id: 2458,
+    label: "コピーの試みを数えず、失敗のままの押し直しでは記録の本体を頭へ戻さない",
+    patch: "m2458-poker-estimate-copy-attempts-not-counted.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653 のレビュー（4 回目）。失敗のまま本体をスクロールして押し直すと state が変わらず効果が動かず、失敗の文と欄が見えない。E2E（`poker-estimate-log.spec.ts` の押し直し）も同じ作りを見る。",
+  },
+  {
+    id: 2459,
+    label: "コピーの試みの間も、見出しの status の文を空にしない",
+    patch: "m2459-poker-estimate-copy-status-not-emptied.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653 のレビュー（4 回目）。失敗のままの押し直しで文が変わらず、読み上げが流れない（押すたびに流れる形でなくなる）。",
+  },
 ];

@@ -4,7 +4,7 @@
  * wire の束・行は古い順で届く。画面は新しい方を上に出すので、ここで逆順にする。
  * 閉じた束の見出しからは、在室者なら誰でもポイントを入れ直せる（spec §4.3）。
  */
-import { useId, useLayoutEffect, useMemo, useRef } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { EstimateGroupView, NumberCardValue } from '@tasuki/poker-core';
 import { useCopyText } from '@tasuki/invite-ui';
 import {
@@ -47,14 +47,27 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
   const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
   // 失敗の表示は残す（手で選ぶ前に 2 秒で消えない）。記録が変われば自動で idle に戻り、古い Markdown の欄は消える
   const { copy, state: copyState } = useCopyText(markdown, { keepFailure: true });
-  const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED
-    : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
-  // 失敗に変わった直後、本体（脇ではスクロールする箱）を頭へ戻す。頭に入った欄の分だけ位置が送られて、
+  // 1 回の試み（押してから終わるまで）を数える。失敗のまま押し直すと state は変わらないので、
+  // state の変化ではなく試みの完了に反応する（#653 のレビュー・4 回目）
+  const [attempting, setAttempting] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const onCopy = () => {
+    setAttempting(true);
+    void copy().finally(() => {
+      setAttempting(false);
+      setAttempts((n) => n + 1);
+    });
+  };
+  // 試みの間は文を空にし、終わったら入れ直す。同じ文でも空を挟むので、押すたびに読み上げが流れる
+  const copyStatus = attempting ? ''
+    : copyState === 'done' ? ESTIMATE_LOG_COPIED
+      : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
+  // 試みが終わって失敗のとき、本体（脇ではスクロールする箱）を頭へ戻す。頭に入った欄の分だけ位置が送られて、
   // 失敗の文と欄が箱の外へ出るのを防ぐ（#653 のレビュー・3 回目）。フォーカスは動かさない・滑らかなスクロールは使わない
   const bodyRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (copyState === 'failed' && bodyRef.current) bodyRef.current.scrollTop = 0;
-  }, [copyState]);
+  }, [copyState, attempts]);
   const newestFirst = [...groups].reverse();
   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
 
@@ -69,7 +82,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
           {labelledBy === undefined && <h2 id={headingId}>{ESTIMATE_LOG_HEADING}</h2>}
           {groups.length > 0 && (
             <div className="estimate-log-copy">
-              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copy()}>
+              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onCopy}>
                 {ESTIMATE_LOG_COPY}
               </button>
               {/* 失敗の知らせは読み上げ（live region）にだけ残し、見た目は隠す。ボタンと見出しの行を動かさない。

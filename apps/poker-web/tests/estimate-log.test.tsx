@@ -264,6 +264,37 @@ describe('EstimateLog', () => {
       });
     });
 
+    it('Given 失敗した後に本体をスクロールした / When もう一度コピーして失敗する / Then 本体をもう一度頭へ戻す（失敗のままの 2 回目も見せ直す・#653 のレビュー・4 回目）', async () => {
+      await withoutClipboard(async () => {
+        const { container } = render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        const body = container.querySelector('.estimate-log-body') as HTMLElement;
+        let top = 200;
+        Object.defineProperty(body, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+        const button = screen.getByRole('button', { name: ESTIMATE_LOG_COPY });
+        fireEvent.click(button);
+        await waitFor(() => expect(top).toBe(0));
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPY_FAILED));
+        for (let round = 0; round < 2; round += 1) {
+          top = 200;
+          fireEvent.click(button);
+          await waitFor(() => expect(top).toBe(0));
+          await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPY_FAILED));
+        }
+      });
+    });
+
+    it('Given 失敗して知らせが出ている / When もう一度コピーする / Then 試みの間は見出しの status が空で、終わると「コピーできません」に戻る（押すたびに読み上げが流れる）', async () => {
+      await withoutClipboard(async () => {
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        const button = screen.getByRole('button', { name: ESTIMATE_LOG_COPY });
+        fireEvent.click(button);
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPY_FAILED));
+        fireEvent.click(button);
+        expect(screen.getByRole('status').textContent).toBe('');
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPY_FAILED));
+      });
+    });
+
     it('Given 本体をスクロールしてある / When コピーが成功する / Then 本体のスクロールは動かさない', async () => {
       const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
