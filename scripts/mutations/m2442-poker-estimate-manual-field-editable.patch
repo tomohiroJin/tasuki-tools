@@ -1,12 +1,11 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
-index 368f40ed..91b692ba 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -87,7 +87,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -118,7 +118,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
              <textarea
                aria-label={ESTIMATE_LOG_MANUAL_COPY}
-               className="ui-input"
+               className="ui-input estimate-log-manual-field"
 -              readOnly
                rows={5}
                value={markdown}
-               onFocus={(event) => event.currentTarget.select()}
+               onFocus={(event) => {

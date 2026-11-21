@@ -1,12 +1,15 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
-index 368f40ed..e4d20ec5 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -90,7 +90,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -121,11 +121,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
                readOnly
                rows={5}
                value={markdown}
--              onFocus={(event) => event.currentTarget.select()}
+-              onFocus={(event) => {
+-                // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
+-                event.currentTarget.select();
+-                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
+-              }}
              />
            </div>
          )}

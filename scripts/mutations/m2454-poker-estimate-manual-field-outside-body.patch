@@ -1,41 +1,50 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
-index 368f40ed..1d6511e5 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -73,6 +73,19 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -102,6 +102,24 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
            )}
          </div>
        )}
-+      {copyState === 'failed' && (
++      {manualOpen && (
 +        <div className="estimate-log-manual">
-+          <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
++          {/* 読み上げは見出しの status が受け持つ。目に見える文は読み上げから隠す（二重に読まれない） */}
++          <p className="estimate-log-manual-notice" aria-hidden="true">{ESTIMATE_LOG_COPY_FAILED}</p>
 +          <textarea
 +            aria-label={ESTIMATE_LOG_MANUAL_COPY}
-+            className="ui-input"
++            className="ui-input estimate-log-manual-field"
 +            readOnly
 +            rows={5}
 +            value={markdown}
-+            onFocus={(event) => event.currentTarget.select()}
++            onFocus={(event) => {
++              // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
++              event.currentTarget.select();
++              event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
++            }}
 +          />
 +        </div>
 +      )}
        {/* スクロールする置き場所では、フォーカスを受ける領域を札（`.ui-reader`）の子にする。
            輪の色を変える部品の規則は子孫にだけ効き、札そのものには効かない */}
        <div
-@@ -81,19 +94,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -111,24 +129,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
        >
          {/* コピーに失敗したときの欄は本体の頭に置く。脇では本体がスクロールする領域なので、高さは本体のスクロールが受け持ち、
              欄は rows の高さのまま札からはみ出さない（#653 のレビュー・2 回目） */}
--        {copyState === 'failed' && (
+-        {manualOpen && (
 -          <div className="estimate-log-manual">
--            <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
+-            {/* 読み上げは見出しの status が受け持つ。目に見える文は読み上げから隠す（二重に読まれない） */}
+-            <p className="estimate-log-manual-notice" aria-hidden="true">{ESTIMATE_LOG_COPY_FAILED}</p>
 -            <textarea
 -              aria-label={ESTIMATE_LOG_MANUAL_COPY}
--              className="ui-input"
+-              className="ui-input estimate-log-manual-field"
 -              readOnly
 -              rows={5}
 -              value={markdown}
--              onFocus={(event) => event.currentTarget.select()}
+-              onFocus={(event) => {
+-                // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
+-                event.currentTarget.select();
+-                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
+-              }}
 -            />
 -          </div>
 -        )}

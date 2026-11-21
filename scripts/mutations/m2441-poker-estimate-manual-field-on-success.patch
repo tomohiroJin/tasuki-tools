@@ -1,13 +1,12 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
-index 368f40ed..a920f47f 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -81,7 +81,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
-       >
-         {/* コピーに失敗したときの欄は本体の頭に置く。脇では本体がスクロールする領域なので、高さは本体のスクロールが受け持ち、
-             欄は rows の高さのまま札からはみ出さない（#653 のレビュー・2 回目） */}
--        {copyState === 'failed' && (
-+        {copyState !== 'idle' && (
-           <div className="estimate-log-manual">
-             <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
-             <textarea
+@@ -77,7 +77,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+     if (copyState === 'failed') setManualKept(true);
+     else if (copyState === 'done') setManualKept(false);
+   }, [copyState]);
+-  const manualOpen = copyState === 'failed' || (manualKept && copyState === 'idle');
++  const manualOpen = copyState !== 'idle' || (manualKept && copyState === 'idle');
+   const newestFirst = [...groups].reverse();
+   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
+ 

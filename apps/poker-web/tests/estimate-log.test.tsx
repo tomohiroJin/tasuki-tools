@@ -414,6 +414,9 @@ describe('EstimateLog', () => {
         await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
         expect(screen.queryByRole('textbox')).toBeNull();
         expect(screen.queryByText(ESTIMATE_LOG_COPY_FAILED, { selector: 'p' })).toBeNull();
+        // 「コピーしました」が 2 秒で消えて state が idle に戻っても、閉じた欄は開き直さない
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(''), { timeout: 3500 });
+        expect(screen.queryByRole('textbox')).toBeNull();
       } finally {
         if (previous) Object.defineProperty(navigator, 'clipboard', previous);
         else Reflect.deleteProperty(navigator, 'clipboard');

@@ -1,20 +1,19 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
-index 368f40ed..fc74e830 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -83,7 +83,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
-             欄は rows の高さのまま札からはみ出さない（#653 のレビュー・2 回目） */}
-         {copyState === 'failed' && (
+@@ -114,7 +114,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+         {manualOpen && (
            <div className="estimate-log-manual">
--            <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
+             {/* 読み上げは見出しの status が受け持つ。目に見える文は読み上げから隠す（二重に読まれない） */}
+-            <p className="estimate-log-manual-notice" aria-hidden="true">{ESTIMATE_LOG_COPY_FAILED}</p>
              <textarea
                aria-label={ESTIMATE_LOG_MANUAL_COPY}
-               className="ui-input"
-@@ -92,6 +91,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
-               value={markdown}
-               onFocus={(event) => event.currentTarget.select()}
+               className="ui-input estimate-log-manual-field"
+@@ -127,6 +126,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+                 event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
+               }}
              />
-+            <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
++            <p className="estimate-log-manual-notice" aria-hidden="true">{ESTIMATE_LOG_COPY_FAILED}</p>
            </div>
          )}
          {groups.length === 0 ? (

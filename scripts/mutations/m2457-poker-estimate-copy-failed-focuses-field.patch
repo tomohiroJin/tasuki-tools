@@ -1,12 +1,12 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -66,7 +66,7 @@
+@@ -67,7 +67,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
    // 失敗の文と欄が箱の外へ出るのを防ぐ（#653 のレビュー・3 回目）。フォーカスは動かさない・滑らかなスクロールは使わない
    const bodyRef = useRef<HTMLDivElement>(null);
    useLayoutEffect(() => {
 -    if (copyState === 'failed' && bodyRef.current) bodyRef.current.scrollTop = 0;
 +    if (copyState === 'failed' && bodyRef.current) { bodyRef.current.scrollTop = 0; bodyRef.current.querySelector('textarea')?.focus(); }
    }, [copyState, attempts]);
-   const newestFirst = [...groups].reverse();
-   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
+   // 手で選ぶ欄は、失敗で終わった試みで開き、成功で終わった試みで閉じる。記録が変わって state が idle に戻っても開いたまま残し
+   // （選んでいる途中で欄とフォーカスが消えない）、中身はそのときの markdown に差し替わる（#653 の /code-review）。
