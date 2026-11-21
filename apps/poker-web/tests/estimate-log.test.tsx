@@ -362,6 +362,8 @@ describe('EstimateLog', () => {
           expect(screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY })).toBeTruthy();
           await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
           expect(screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY })).toBeTruthy();
+          // 見出しの status の失敗の文も 2 秒で消さない（欄とそろえて残す）
+          expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPY_FAILED);
         });
       } finally {
         vi.useRealTimers();

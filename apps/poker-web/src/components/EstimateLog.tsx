@@ -45,7 +45,7 @@ export interface EstimateLogProps {
 export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
   const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
-  // 失敗の表示は残す（手で選ぶ前に 2 秒で消えない）。記録が変われば自動で idle に戻り、古い Markdown の欄は消える
+  // 失敗の表示は残す（手で選ぶ前に 2 秒で消えない）。記録が変わると state は idle に戻るが、手で選ぶ欄は下の manualOpen が残す
   const { copy, state: copyState } = useCopyText(markdown, { keepFailure: true });
   // 1 回の試み（押してから終わるまで）を数える。失敗のまま押し直すと state は変わらないので、
   // state の変化ではなく試みの完了に反応する（#653 のレビュー・4 回目）
