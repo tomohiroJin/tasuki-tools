@@ -186,7 +186,13 @@ describe('EstimateLog', () => {
     }
   });
 
-  describe('コピーが失敗したとき（#653）', () => {
+  /**
+   * 記録のコピーが失敗したとき、Markdown を手で選べる欄に出す（#653）。
+   * 押し直し・スクロール・読み上げの局面は、敵対的レビューの 2〜5 回目で足した。
+   *
+   * @requirements #653
+   */
+  describe('コピーが失敗したとき', () => {
     const expected = (hh: string) => [
       '## 見積もりの記録',
       '### 見積もり 105\n見積もり中\n- 1 回め ' + hh + ' 5×4',
@@ -264,7 +270,7 @@ describe('EstimateLog', () => {
       });
     });
 
-    it('Given 失敗した後に本体をスクロールした / When もう一度コピーして失敗する / Then 本体をもう一度頭へ戻す（失敗のままの 2 回目も見せ直す・#653 のレビュー・4 回目）', async () => {
+    it('Given 失敗した後に本体をスクロールした / When もう一度コピーして失敗する / Then 本体をもう一度頭へ戻す（失敗のままの 2 回目も見せ直す）', async () => {
       await withoutClipboard(async () => {
         const { container } = render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
         const body = container.querySelector('.estimate-log-body') as HTMLElement;
@@ -312,7 +318,7 @@ describe('EstimateLog', () => {
       }
     });
 
-    it('Given 成功して「コピーしました」が出ている / When もう一度コピーする / Then 試みの間も文を空にしない（空の浮かぶ知らせを描かない・#653 のレビュー・5 回目）', async () => {
+    it('Given 成功して「コピーしました」が出ている / When もう一度コピーする / Then 試みの間も文を空にしない（空の浮かぶ知らせを描かない）', async () => {
       const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
       try {
