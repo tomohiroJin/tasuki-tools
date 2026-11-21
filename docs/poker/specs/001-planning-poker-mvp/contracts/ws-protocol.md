@@ -291,7 +291,7 @@ revealed 後の例:
 | `table-not-player` | ゲームのプレイヤーでない | table-exchange（#403） |
 | `table-exchanged` | チェンジは 1 回だけ（済んだ・開いたあと） | table-exchange（#403） |
 | `table-no-game` | ゲームが無い | table-exchange, table-deal, table-close（#403） |
-| `table-in-play` | ゲームの最中（見積もりの操作）・チェンジの最中（もう一度） | vote, reveal, revote, next-item, next-round, table-deal（#403） |
+| `table-in-play` | ゲームの最中（見積もりの操作）・チェンジの最中（`table-deal`） | vote, reveal, revote, next-item, next-round, table-deal（#403） |
 | `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
 | `server-busy` | ルーム数が上限に達している | create-room（#63） |
 | `rate-limited` | 入室失敗が続き、レート制限に掛かった | join-room（[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103)・[#147](https://github.com/tomohiroJin/tasuki-tools/issues/147)） |
