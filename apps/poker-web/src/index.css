@@ -706,12 +706,22 @@
   pointer-events: none;
 }
 
-/* コピーに失敗したときだけ出る、手で選ぶ欄。記録の幅いっぱいに出す */
+/* 失敗の知らせは欄を出している間ずっと残る。浮かせると欄の頭に重なるので、流れの中に置く（#653 のレビュー） */
+.estimate-log-copy-status--failed {
+  position: static;
+  margin-block-start: var(--space-1);
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+/* コピーに失敗したときだけ出る、手で選ぶ欄。記録の幅いっぱいに出す。
+   脇の縦いっぱいの置き場所でも rows の高さを保つ（縮めない）。字は 16px を下回らない（iOS の拡大） */
 .estimate-log-manual {
   inline-size: 100%;
   box-sizing: border-box;
+  flex-shrink: 0;
   margin-block: var(--space-2);
-  font-size: var(--font-size-xs);
+  font-size: 1rem; /* scale-exempt: 入力欄の 16px の下限。段（--font-size-xs）は狭い幅で 16px を割る */
   text-align: start;
 }
 

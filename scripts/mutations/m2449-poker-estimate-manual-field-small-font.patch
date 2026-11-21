@@ -1,0 +1,8 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -723,3 +723,3 @@
+   margin-block: var(--space-2);
+-  font-size: 1rem; /* scale-exempt: 入力欄の 16px の下限。段（--font-size-xs）は狭い幅で 16px を割る */
++  font-size: var(--font-size-xs);
+   text-align: start;

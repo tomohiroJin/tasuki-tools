@@ -66,7 +66,8 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
               <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copy()}>
                 {ESTIMATE_LOG_COPY}
               </button>
-              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden' : 'estimate-log-copy-status'}>{copyStatus}</span>
+              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden'
+                : copyState === 'failed' ? 'estimate-log-copy-status estimate-log-copy-status--failed' : 'estimate-log-copy-status'}>{copyStatus}</span>
             </div>
           )}
         </div>

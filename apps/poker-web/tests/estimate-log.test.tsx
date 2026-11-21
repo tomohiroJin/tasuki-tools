@@ -222,6 +222,8 @@ describe('EstimateLog', () => {
         const field = screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
         expect(field.value).toBe(expected(hhmm(AT)));
         expect(field.readOnly).toBe(true);
+        // 欄を出している間、知らせは浮かせず流れの中に置く（欄の頭に重ならない）。成功の知らせは浮かせたまま
+        expect(screen.getByRole('status').className).toContain('estimate-log-copy-status--failed');
       });
     });
 
@@ -272,6 +274,7 @@ describe('EstimateLog', () => {
         fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
         await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
         expect(screen.queryByRole('textbox')).toBeNull();
+        expect(screen.getByRole('status').className).not.toContain('--failed');
       } finally {
         if (previous) Object.defineProperty(navigator, 'clipboard', previous);
         else Reflect.deleteProperty(navigator, 'clipboard');

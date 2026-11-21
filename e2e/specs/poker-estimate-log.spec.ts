@@ -307,7 +307,31 @@ test.describe('poker は見積もりを記録に残す', () => {
     }
   }
 
-  test('Given コピーが両方失敗する 1280 の画面 / When 脇の記録からコピー / Then Markdown を選べる欄が出て、成功のときは出ない（#653）', async ({ page }) => {
+  /** 二つの箱が交わる面積（px²）。交わらなければ 0。知らせは pointer-events: none なので、箱どうしで測る。 */
+  async function overlapArea(a: Locator, b: Locator): Promise<number> {
+    const boxA = await a.boundingBox();
+    const boxB = await b.boundingBox();
+    if (!boxA || !boxB) throw new Error('箱が測れない');
+    const w = Math.min(boxA.x + boxA.width, boxB.x + boxB.width) - Math.max(boxA.x, boxB.x);
+    const h = Math.min(boxA.y + boxA.height, boxB.y + boxB.height) - Math.max(boxA.y, boxB.y);
+    return Math.max(0, w) * Math.max(0, h);
+  }
+
+  /** 失敗の知らせが出ている間、知らせと手動コピーの欄が重ならず、欄が rows の分の高さを保つ。 */
+  async function expectNoticeClearOfField(scope: Locator): Promise<void> {
+    await scope.getByRole('button', { name: '記録をコピー' }).click();
+    const notice = scope.getByRole('status');
+    await expect(notice).toHaveText('コピーできません');
+    const field = scope.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    await expect(field).toBeVisible();
+    expect(await overlapArea(notice, field)).toBe(0);
+    // rows={5} に見合う高さ（脇で縮んで 1 行しか見えない、が起きない）
+    const fieldBox = await field.boundingBox();
+    const lineHeight = await field.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.2);
+    expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(lineHeight * 5);
+  }
+
+  test('Given コピーが両方失敗する 1280 の画面 / When 脇の記録からコピー / Then Markdown を選べる欄が出て、押す前は出ない（#653）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await recordItems(page, ['2', '3']);
     await breakCopy(page);
@@ -316,11 +340,47 @@ test.describe('poker は見積もりを記録に残す', () => {
     await log.getByRole('button', { name: '記録をコピー' }).click();
     await expect(log.getByRole('status')).toHaveText('コピーできません');
     const field = log.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    await expect(field).toBeVisible();
     const value = await field.inputValue();
     expect(value.split('\n').filter((line) => line.startsWith('### '))).toEqual(['### 見積もり 2', '### 見積もり 1']);
     await field.focus();
     const selected = await field.evaluate((el) => (el as HTMLTextAreaElement).value.slice((el as HTMLTextAreaElement).selectionStart, (el as HTMLTextAreaElement).selectionEnd));
     expect(selected).toBe(value);
+  });
+
+  test('Given コピーが成功する 1280 の画面 / When 脇の記録からコピー / Then 「コピーしました」だけで、Markdown の欄は出ない（#653）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await recordItems(page, ['2', '3']);
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } });
+    });
+    const log = sideLog(page);
+    await log.getByRole('button', { name: '記録をコピー' }).click();
+    await expect(log.getByRole('status')).toHaveText('コピーしました');
+    await expect(log.getByRole('textbox', { name: '手動コピー用の Markdown' })).toHaveCount(0);
+  });
+
+  test('Given コピーが両方失敗する 1280×700・10 束の画面 / When 脇の記録からコピー / Then 知らせが欄に重ならず、欄は縮まない（#653）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await recordItems(page, ['1', '2', '3', '5', '8', '13', '1', '2', '3', '5']);
+    await breakCopy(page);
+    await expectNoticeClearOfField(sideLog(page));
+  });
+
+  test('Given コピーが両方失敗する幅 390 の画面 / When 足の記録からコピー / Then 知らせが欄に重ならない（#653）', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await recordItems(page, ['2', '3']);
+    await breakCopy(page);
+    await expectNoticeClearOfField(page.locator('.room-log--foot'));
+  });
+
+  test('Given コピーが両方失敗する幅 390 の画面 / When 記録のシートからコピー / Then 知らせが欄に重ならない（#653）', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await recordItems(page, ['2', '3', '5', '8']);
+    await page.getByRole('button', { name: '記録をすべて見る' }).click();
+    const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
+    await breakCopy(page);
+    await expectNoticeClearOfField(drawer);
   });
 
   test('Given コピーが両方失敗する幅 390 の画面 / When 記録のシートからコピー / Then シートの中に Markdown を選べる欄が出る（#653）', async ({ page }) => {
