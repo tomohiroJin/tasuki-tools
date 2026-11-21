@@ -463,7 +463,7 @@ sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここ
    ほかのアプリと配る順は、その回の注記に従う）。すでに #459 を含む版が動いているなら `sudo systemctl restart tasuki-sync`
 4. 本番で確かめる（**5・6 へ進む前に**。ここで AI が無効なら、旧トークンが残っているうちに旧版へ戻せる）:
    - 起動ログ（`journalctl -u tasuki-sync`）の `ai` の行が `enabled=true` である（キーか解錠の合言葉のどちらかが欠けると false）。
-     `enabled=false` で `ai-legacy-oauth-token-ignored` の警告も出ていたら、キーの行が無いか値が空のまま配っている（2 をやり直す）
+     `enabled=false` で `ai-legacy-oauth-token-ignored` の警告も出ていたら、キーの行が無いか値が空のまま配っている（2 をやり直し、新しい版はもう動いているので `sudo systemctl restart tasuki-sync` で読み直させる）
    - AI の生成が成功する（お題ツールで解錠して生成する。キーの値そのものの誤り・失効は、ここでしか分からない）
    - Console の使用量（クレジット）が減り、プラン側の Claude Code 使用量が増えない
    - Console の自動チャージが無効（または意図した上限）である
