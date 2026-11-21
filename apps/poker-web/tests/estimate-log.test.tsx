@@ -4,7 +4,7 @@
  * @requirements #93
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { EstimateGroupView } from '@tasuki/poker-core';
 import { EstimateLog } from '../src/components/EstimateLog';
 import {
@@ -242,9 +242,9 @@ describe('EstimateLog', () => {
         await withoutClipboard(async () => {
           render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
           fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
-          await vi.advanceTimersByTimeAsync(100);
+          await act(async () => { await vi.advanceTimersByTimeAsync(100); });
           expect(screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY })).toBeTruthy();
-          await vi.advanceTimersByTimeAsync(5000);
+          await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
           expect(screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY })).toBeTruthy();
         });
       } finally {
