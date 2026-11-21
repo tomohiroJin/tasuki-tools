@@ -103,7 +103,7 @@
   **札も順列もクライアントからは受け取らない**。プレイヤーが全員済んだら、サーバーが全員の手と役を開く。接続の切れた人は 20 秒だけ待ち、戻らなければ待たずに開く
 - `table-deal`: 開いたあと、いまの投票者で配り直す
 - `table-close`: ゲームを終え、見積もりを投票中（票なし）へ戻す。誰でも、最中でも送れる
-- ゲームの最中は `vote` / `reveal` / `revote` / `next-item` / `next-round` を `table-in-play` で拒む（受けるのは `set-item` / `set-points` / `set-recording` / `set-group-item` / `set-spectator` / `table-*`。同期サーバーの `ALLOWED_DURING_GAME`）
+- ゲームの最中は `vote` / `reveal` / `revote` / `next-item` / `next-round` を `table-in-play` で拒む（受けるのは `set-item` / `set-points` / `set-recording` / `set-group-item` / `set-spectator` / `table-*`（同期サーバーの `ALLOWED_DURING_GAME`）と、ガードを通らない `remove-participant`）
 - 違反: `table-not-player`（プレイヤーでない人の exchange）、`table-exchanged`（2 回目の exchange・開いたあとの exchange）、
   `table-no-game`（ゲームが無いときの exchange / deal / close）、`table-in-play`（チェンジの最中の deal）、`not-joined`、`room-not-found`。状態は変わらない
 - 退出・片付けで名簿から外れた人は、プレイヤーからも外す（手は捨て札へ）。最後のプレイヤーが外れたら見積もりへ戻す
