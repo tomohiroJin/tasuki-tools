@@ -58,8 +58,9 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
       setAttempts((n) => n + 1);
     });
   };
-  // 試みの間は文を空にし、終わったら入れ直す。同じ文でも空を挟むので、押すたびに読み上げが流れる
-  const copyStatus = attempting ? ''
+  // 失敗のまま押し直したときは、試みの間だけ文を空にし、終わったら入れ直す。同じ文でも空を挟むので、押すたびに読み上げが流れる。
+  // 成功の後の押し直しは空にしない（浮かぶ札が出たまま文だけ消え、枠と影だけの空の札が描かれる。#653 のレビュー・5 回目）
+  const copyStatus = attempting && copyState === 'failed' ? ''
     : copyState === 'done' ? ESTIMATE_LOG_COPIED
       : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
   // 試みが終わって失敗のとき、本体（脇ではスクロールする箱）を頭へ戻す。頭に入った欄の分だけ位置が送られて、

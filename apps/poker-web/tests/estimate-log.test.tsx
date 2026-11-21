@@ -312,6 +312,26 @@ describe('EstimateLog', () => {
       }
     });
 
+    it('Given 成功して「コピーしました」が出ている / When もう一度コピーする / Then 試みの間も文を空にしない（空の浮かぶ知らせを描かない・#653 のレビュー・5 回目）', async () => {
+      const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
+      try {
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        const button = screen.getByRole('button', { name: ESTIMATE_LOG_COPY });
+        fireEvent.click(button);
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
+        fireEvent.click(button);
+        // 浮かぶ札（estimate-log-copy-status）が出ている間に文だけ空になると、枠と影だけの空の札が描かれる
+        const status = screen.getByRole('status');
+        expect(status.className).toBe('estimate-log-copy-status');
+        expect(status.textContent).toBe(ESTIMATE_LOG_COPIED);
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
+      } finally {
+        if (previous) Object.defineProperty(navigator, 'clipboard', previous);
+        else Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    });
+
     it('Given 失敗した欄 / When フォーカスする / Then 全文が選択される', async () => {
       await withoutClipboard(async () => {
         render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
