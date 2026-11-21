@@ -1,0 +1,9 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+index 0cb1c678..c91b9e22 100644
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -73,3 +73,3 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+       )}
+-      {copyState === 'failed' && (
++      {copyState !== 'idle' && (
+         <textarea

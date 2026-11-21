@@ -706,6 +706,15 @@
   pointer-events: none;
 }
 
+/* コピーに失敗したときだけ出る、手で選ぶ欄。記録の幅いっぱいに出す */
+.estimate-log-manual {
+  inline-size: 100%;
+  box-sizing: border-box;
+  margin-block: var(--space-2);
+  font-size: var(--font-size-xs);
+  text-align: start;
+}
+
 .estimate-log-empty {
   margin: 0;
   color: var(--coal-soft);

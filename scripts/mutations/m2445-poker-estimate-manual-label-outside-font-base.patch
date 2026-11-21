@@ -1,0 +1,9 @@
+diff --git a/apps/poker-web/src/estimate-copy.ts b/apps/poker-web/src/estimate-copy.ts
+index 1d511d96..5c2578da 100644
+--- a/apps/poker-web/src/estimate-copy.ts
++++ b/apps/poker-web/src/estimate-copy.ts
+@@ -22,3 +22,3 @@ export const ESTIMATE_LOG_COPY_FAILED = 'コピーできません';
+ /** コピーに失敗したとき、手で選んで持ち出す欄の名前（#653） */
+-export const ESTIMATE_LOG_MANUAL_COPY = '手動コピー用の Markdown';
++export const ESTIMATE_LOG_MANUAL_COPY = '手動コピー用の点 Markdown';
+ export const ESTIMATE_EXPORT_POINTS = 'ポイント';

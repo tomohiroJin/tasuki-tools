@@ -14,6 +14,7 @@ import {
   ESTIMATE_LOG_COPY_FAILED,
   ESTIMATE_LOG_EMPTY,
   ESTIMATE_LOG_HEADING,
+  ESTIMATE_LOG_MANUAL_COPY,
   ESTIMATE_NO_POINTS,
   ESTIMATE_OPEN,
   RENAME_GROUP,
@@ -44,7 +45,8 @@ export interface EstimateLogProps {
 export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
   const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
-  const { copy, state: copyState } = useCopyText(markdown);
+  // 失敗の表示は残す（手で選ぶ前に 2 秒で消えない）。記録が変われば自動で idle に戻り、古い Markdown の欄は消える
+  const { copy, state: copyState } = useCopyText(markdown, { keepFailure: true });
   const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED
     : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
   const newestFirst = [...groups].reverse();
@@ -68,6 +70,16 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
             </div>
           )}
         </div>
+      )}
+      {copyState === 'failed' && (
+        <textarea
+          aria-label={ESTIMATE_LOG_MANUAL_COPY}
+          className="ui-input estimate-log-manual"
+          readOnly
+          rows={5}
+          value={markdown}
+          onFocus={(event) => event.currentTarget.select()}
+        />
       )}
       {/* スクロールする置き場所では、フォーカスを受ける領域を札（`.ui-reader`）の子にする。
           輪の色を変える部品の規則は子孫にだけ効き、札そのものには効かない */}

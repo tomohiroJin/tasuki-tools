@@ -287,6 +287,54 @@ test.describe('poker は見積もりを記録に残す', () => {
     ]);
   });
 
+  /** Clipboard API も従来のコピー（execCommand）も失敗する画面にする。 */
+  async function breakCopy(page: Page): Promise<void> {
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
+      document.execCommand = () => false;
+    });
+  }
+
+  async function recordTwoItems(page: Page): Promise<void> {
+    await createRoom(page, HOST);
+    await turnRecordingOn(page);
+    for (const card of ['2', '3']) {
+      await chooseCard(page, card);
+      await expect(resultsSection(page)).toBeVisible();
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+      await expect(resultsSection(page)).toHaveCount(0);
+    }
+  }
+
+  test('Given コピーが両方失敗する 1280 の画面 / When 脇の記録からコピー / Then Markdown を選べる欄が出て、成功のときは出ない（#653）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await recordTwoItems(page);
+    await breakCopy(page);
+    const log = sideLog(page);
+    await expect(log.getByRole('textbox', { name: '手動コピー用の Markdown' })).toHaveCount(0);
+    await log.getByRole('button', { name: '記録をコピー' }).click();
+    await expect(log.getByRole('status')).toHaveText('コピーできません');
+    const field = log.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    const value = await field.inputValue();
+    expect(value.split('\n').filter((line) => line.startsWith('### '))).toEqual(['### 見積もり 2', '### 見積もり 1']);
+    await field.focus();
+    const selected = await field.evaluate((el) => (el as HTMLTextAreaElement).value.slice((el as HTMLTextAreaElement).selectionStart, (el as HTMLTextAreaElement).selectionEnd));
+    expect(selected).toBe(value);
+  });
+
+  test('Given コピーが両方失敗する幅 390 の画面 / When 記録のシートからコピー / Then シートの中に Markdown を選べる欄が出る（#653）', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await recordTwoItems(page);
+    await page.getByRole('button', { name: '記録をすべて見る' }).click();
+    const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
+    await breakCopy(page);
+    await drawer.getByRole('button', { name: '記録をコピー' }).click();
+    await expect(drawer.getByRole('status')).toHaveText('コピーできません');
+    const field = drawer.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    await expect(field).toBeVisible();
+    expect((await field.inputValue()).split('\n').filter((line) => line.startsWith('### '))).toEqual(['### 見積もり 2', '### 見積もり 1']);
+  });
+
   test('Given 幅 1280・高さ 700 / When 開票と次のアイテムへを 10 回くり返す / Then 手札も脇も画面に収まり、記録は脇の中でスクロールする', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 700 });
     await createRoom(page, HOST);

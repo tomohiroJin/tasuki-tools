@@ -1,8 +1,13 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+index 0cb1c678..92449fe6 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -45,3 +45,3 @@
+@@ -44,7 +44,7 @@ export interface EstimateLogProps {
+ 
+ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
    const headingId = useId();
 -  const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
 +  const markdown = useMemo(() => estimateLogMarkdown(limit === undefined ? groups : groups.slice(-limit)), [groups, limit]);
-   const { copy, state: copyState } = useCopyText(markdown);
+   // 失敗の表示は残す（手で選ぶ前に 2 秒で消えない）。記録が変われば自動で idle に戻り、古い Markdown の欄は消える
+   const { copy, state: copyState } = useCopyText(markdown, { keepFailure: true });
+   const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED

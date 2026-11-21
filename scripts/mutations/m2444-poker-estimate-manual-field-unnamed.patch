@@ -1,0 +1,8 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+index 0cb1c678..2adac56c 100644
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -75,3 +75,2 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+         <textarea
+-          aria-label={ESTIMATE_LOG_MANUAL_COPY}
+           className="ui-input estimate-log-manual"

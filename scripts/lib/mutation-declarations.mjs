@@ -259,6 +259,9 @@ const RESERVED_2200_2229 =
 const RESERVED_2400_2429 =
   "**対応表より後に足した変異。** 2400〜2429 は #633（玄関が前に作ったルーム名を覚えて入れ直す）に割り当てた範囲。1970〜1989、2040〜2069、2200〜2229 から振り直した（並行する PR と番号がぶつかったため。#642 のレビュー）。";
 
+const RESERVED_2440_2459 =
+  "**対応表より後に足した変異。** 2440〜2459 は #653（見積もりの記録のコピーが失敗したとき Markdown を手で選べる欄に出す）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12077,5 +12080,53 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/scenario-builder.test.tsx"],
     note: "#636 のレビュー。上限に収まる最大の回数が選べない。",
+  },
+  {
+    id: 2440,
+    label: "見積もりの記録のコピー失敗を 2 秒で消す（失敗の表示を残さない）",
+    patch: "m2440-poker-estimate-copy-failure-not-kept.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653。手で選ぶ前に Markdown の欄が消える。",
+  },
+  {
+    id: 2441,
+    label: "見積もりの記録の手動コピー欄を、成功したときにも出す",
+    patch: "m2441-poker-estimate-manual-field-on-success.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653。コピーできたのに Markdown の欄が出て、画面が散らかる（EARS 2）。",
+  },
+  {
+    id: 2442,
+    label: "見積もりの記録の手動コピー欄を読み取り専用にしない",
+    patch: "m2442-poker-estimate-manual-field-editable.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653。欄の Markdown を打ち間違えて壊したまま持ち出せる。",
+  },
+  {
+    id: 2443,
+    label: "見積もりの記録の手動コピー欄にフォーカスしても全文を選択しない",
+    patch: "m2443-poker-estimate-manual-field-no-select.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653。長い Markdown を手でなぞって選ぶことになり、取りこぼす。",
+  },
+  {
+    id: 2444,
+    label: "見積もりの記録の手動コピー欄に名前を付けない",
+    patch: "m2444-poker-estimate-manual-field-unnamed.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653。読み上げで、何の欄か分からない。",
+  },
+  {
+    id: 2445,
+    label: "手動コピー欄の名前に書体の base 層にない字の「点」を加える",
+    patch: "m2445-poker-estimate-manual-label-outside-font-base.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-copy-fits-font-base.test.ts"],
+    note: RESERVED_2440_2459 + " " + "#653。欄の名前の描画に追加の書体が必要になる。",
   },
 ];

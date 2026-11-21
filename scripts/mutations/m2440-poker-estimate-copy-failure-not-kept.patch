@@ -1,0 +1,9 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+index 0cb1c678..ceccc536 100644
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -48,3 +48,3 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+   // 失敗の表示は残す（手で選ぶ前に 2 秒で消えない）。記録が変われば自動で idle に戻り、古い Markdown の欄は消える
+-  const { copy, state: copyState } = useCopyText(markdown, { keepFailure: true });
++  const { copy, state: copyState } = useCopyText(markdown);
+   const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED
