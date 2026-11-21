@@ -919,11 +919,12 @@ describe("ハブ・お題・ルーレットへの送り出し", () => {
  *
  * アプリの上限（`maxMessageBytes`）を超えても上限内なら、エラーフレームを返して接続を保つ（上のテスト）。
  * フレームの上限を超えると、**メッセージ層へ届く前に Bun が接続を切る**。閉じ方をここで固定する
- * （2026-10-13 に Bun 1.4 で実測: クライアントには 1006（close フレームの無い切断）として見える。
- * `ws-adapter.ts` の `maxPayloadLength` のコメントにある「1006 切断」と同じ）。
+ * Bun 1.4.4 から、クライアントには close 1009（Message Too Big）が届く（#668 で実測。
+ * Bun 1.4.3 までは close フレームの無い 1006 だった。2026-10-13 に Bun 1.4 で実測）。
+ * `ws-adapter.ts` の `maxPayloadLength` のコメントと同じ。
  */
 describe("フレームの上限を超えたとき", () => {
-  it("Given 既定の上限（128KB） / When それを超えるフレームを送る / Then 1006 で切れ、メッセージ層は呼ばれない", async () => {
+  it("Given 既定の上限（128KB） / When それを超えるフレームを送る / Then 1009 で切れ、メッセージ層は呼ばれない", async () => {
     // Given
     let called = false;
     const ws = await connect({
@@ -935,7 +936,7 @@ describe("フレームの上限を超えたとき", () => {
     // When
     ws.send("x".repeat(128 * 1024 + 1));
     // Then
-    expect(await closed).toBe(1006);
+    expect(await closed).toBe(1009);
     expect(called).toBe(false);
   });
 });

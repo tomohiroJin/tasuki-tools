@@ -63,7 +63,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 本番（VPS）と手元の Bun に揃えて固定する（版が上がると振る舞いが変わる。例: 1.4.4 で上限超えの close が 1006 → 1009。#668）。
           # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
           bun-version: ${{ steps.toolchain.outputs.bun }}
 
@@ -117,7 +117,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 本番（VPS）と手元の Bun に揃えて固定する（版が上がると振る舞いが変わる。例: 1.4.4 で上限超えの close が 1006 → 1009。#668）。
           # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
           bun-version: ${{ steps.toolchain.outputs.bun }}
 
@@ -206,7 +206,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 本番（VPS）と手元の Bun に揃えて固定する（版が上がると振る舞いが変わる。例: 1.4.4 で上限超えの close が 1006 → 1009。#668）。
           # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
           bun-version: ${{ steps.toolchain.outputs.bun }}
 
@@ -315,7 +315,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 本番（VPS）と手元の Bun に揃えて固定する（版が上がると振る舞いが変わる。例: 1.4.4 で上限超えの close が 1006 → 1009。#668）。
           # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
           bun-version: ${{ steps.toolchain.outputs.bun }}
 
@@ -378,7 +378,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 本番（VPS）と手元の Bun に揃えて固定する（版が上がると振る舞いが変わる。例: 1.4.4 で上限超えの close が 1006 → 1009。#668）。
           # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
           bun-version: ${{ steps.toolchain.outputs.bun }}
 

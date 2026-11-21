@@ -266,7 +266,7 @@ export class WsAdapter {
           // ⚠ **統合で timer 側の実効値が下がる。** 旧実装は指定せず Bun の既定
           // （16MB）に委ねており、64KB〜16MB のフレームには MESSAGE_TOO_LARGE を
           // 返して接続を保っていた。今後その帯域のうち maxFrameBytes（既定 128KB）
-          // より上は 1006 切断になる。アプリの制限 64KB の遥か上で、正当なコマンドが
+          // より上は close 1009 で切れる（Bun 1.4.3 までは close フレームの無い 1006。#668）。アプリの制限 64KB の遥か上で、正当なコマンドが
           // この範囲に入ることはないため許容する。
           maxPayloadLength: options.maxFrameBytes,
           open: (ws) => this.handleOpen(ws),
