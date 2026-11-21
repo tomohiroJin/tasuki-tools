@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -74,7 +74,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+   // 失敗した試みの間は state から直接開く（効果を待たずに同じ描画で出す）
+   const [manualKept, setManualKept] = useState(false);
+   useLayoutEffect(() => {
+-    if (copyState === 'failed') setManualKept(true);
++    if (copyState === 'failed') setManualKept(false);
+     else if (copyState === 'done') setManualKept(false);
+   }, [copyState]);
+   const manualOpen = copyState === 'failed' || (manualKept && copyState === 'idle');

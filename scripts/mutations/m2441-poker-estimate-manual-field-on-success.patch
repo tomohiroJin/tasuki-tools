@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -77,7 +77,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+     if (copyState === 'failed') setManualKept(true);
+     else if (copyState === 'done') setManualKept(false);
+   }, [copyState]);
+-  const manualOpen = copyState === 'failed' || (manualKept && copyState === 'idle');
++  const manualOpen = copyState !== 'idle' || (manualKept && copyState === 'idle');
+   const newestFirst = [...groups].reverse();
+   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
+ 
