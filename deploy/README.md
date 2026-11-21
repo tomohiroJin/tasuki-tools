@@ -19,14 +19,14 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
 
-> **#459（AI お題生成の認証を API キーへ・PR #646）は未配布**。新しい同期サーバーは `ANTHROPIC_API_KEY` だけを読むので、
-> **`deploy.sh timer` の前に、本番の env へキーを置いておく**（置かずに配ると AI は無効になり、定型へ縮退する）。
-> 手順と確かめ方は下の「[AI お題生成を OAuth トークンから API キーへ切り替える](#ai-お題生成を-oauth-トークンから-api-キーへ切り替える459利用者の作業)」。
-
-> **#640（ルーレットの変わった動き）は未配布**（PR のマージ後に配る）。wire に任意の項目（`spin.launchMotion`・`spin.spinMotion`）が増えるだけで、
-> コマンドは増えない。**配る順は roulette-web が先、同期サーバー（timer）が後**（標準と逆。新しい画面は項目が無い回転をいつもの動きで描き、
-> 古い画面は動きを知らないので、同期サーバーを先にすると再読込していない画面が窓に入る）。窓の中身は [`roulette/NOTES.md`](roulette/NOTES.md) の「#640」
-> （窓の間は、動きが当たった回で古い画面の円盤が跳ぶ・出る時刻がずれることがある。当たる人は変わらない。再読込で直る）。
+> **#459（AI お題生成の認証を API キーへ）・#638（合言葉の設定を玄関へ）・#640（ルーレットの変わった動き）・#634・#635 ほか、v4.6.1 以降の 21 PR は 2026-11-22 にまとめて配った**（`v4.7.0`）。
+> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。wire が変わった PR の配る順の決まりをすべて満たすよう、
+> **roulette → timer → landing → topic → checkin → agenda → poker** の順に流した
+> （#640 は roulette-web が先・同期サーバーが後〔[`roulette/NOTES.md`](roulette/NOTES.md) の「#640」〕、#638 は timer → landing を続けて〔下の「合言葉の設定の移設」〕、
+> #634（`topic.generate` の `category`）と #635（checkin のやり方 12 種）は同期サーバーが先）。
+> #459 は、配る前に本番の env へ `ANTHROPIC_API_KEY` を追記し、旧 `CLAUDE_CODE_OAUTH_TOKEN` を残したまま配った（下の「[AI お題生成を OAuth トークンから API キーへ切り替える](#ai-お題生成を-oauth-トークンから-api-キーへ切り替える459利用者の作業)」の手順 2〜4）。
+> 起動ログの `ai enabled=true`・本番での AI の生成・Console の使用量（反映は数分遅れた）を確かめてから、旧トークンの行を消して失効させた（手順 5・6）。
+> 8787 の接続 0 本の時間帯に流し、7 本のハッシュ一致・NRestarts=0・`/ws` 426・e2e:prod 62 passed。配布のコマンドは人が端末で流した（手元の設定の deny のため）。
 
 > **#482（アーキテクチャと設計原則の見直し）・#595（名簿の欄の IME の Enter・PR #627）ほか、v4.6.0 以降の 29 PR は 2026-11-18 にまとめて配った**（`v4.6.1`）。
 > 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。wire は `packages/*-core/src` のスキーマに差分が無く、
