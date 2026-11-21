@@ -442,13 +442,23 @@ sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここ
 リポジトリは `CLAUDE_CODE_OAUTH_TOKEN` を読まなくなった。本番で次を**利用者が**行う
 （Claude はサーバーの env を触らない）。決定の記録は `docs/adr/0012` の追記（2026-11-19・#459）。
 
+⚠ **切り替わるのは、#459（PR #646）を含む同期サーバーを配ったときである。** それより前の版（`v4.6.1` まで）は
+`CLAUDE_CODE_OAUTH_TOKEN` だけを読み、`ANTHROPIC_API_KEY` を読まない。古い版のまま旧トークンの行を消して
+`systemctl restart` だけを流すと、**AI は無効になる**。新しい版は旧トークンを読まず、子プロセスにも渡さないので、
+2 本を並べて置いても害は無い。そこで、キーを先に足し、旧トークンは新しい版を配って確かめてから消す。
+
 1. Anthropic Console で、Max（または Team）プランに連携した組織の API キーを発行する。
    **自動チャージは無効**にする（クレジット切れで生成が止まり、定型へ縮退する。プランへの追加課金は無い）
-2. `ssh -t "$TASUKI_SSH_HOST" 'sudo -e /opt/tasuki/tasuki-sync.env'` で `ANTHROPIC_API_KEY` を追記し、
-   `CLAUDE_CODE_OAUTH_TOKEN` の行を消す（600 を維持）
-3. `sudo systemctl restart tasuki-sync`（ルームが全消滅するので利用者のいない時間帯に）
-4. 旧 OAuth トークン（`claude setup-token` で発行したもの）を失効させる
-5. 本番で確かめる:
+2. `ssh -t "$TASUKI_SSH_HOST" 'sudo -e /opt/tasuki/tasuki-sync.env'` で `ANTHROPIC_API_KEY` を**追記する**
+   （600 を維持）。`CLAUDE_CODE_OAUTH_TOKEN` の行はまだ消さない。再起動もしない（動いている古い版は旧トークンで動き続ける）。
+   置けたかは、値を出さずに変数名だけで確かめる:
+   `ssh -t "$TASUKI_SSH_HOST" 'sudo ls -l /opt/tasuki/tasuki-sync.env; sudo grep -oE "^(ANTHROPIC_API_KEY|CLAUDE_CODE_OAUTH_TOKEN)=" /opt/tasuki/tasuki-sync.env'`
+   （sudo がパスワードを聞くので、端末の付いたシェルで流す）
+3. #459 を含む同期サーバーを配る（`deploy.sh timer`。ルームが全消滅するので利用者のいない時間帯に。
+   ほかのアプリと配る順は、その回の注記に従う）。すでに #459 を含む版が動いているなら `sudo systemctl restart tasuki-sync`
+4. 下の 6 で確かめてから、env の `CLAUDE_CODE_OAUTH_TOKEN` の行を消す（新しい版は読まないので、再起動は要らない）
+5. 旧 OAuth トークン（`claude setup-token` で発行したもの）を失効させる
+6. 本番で確かめる:
    - 起動ログ（`journalctl -u tasuki-sync`）に `ai-legacy-oauth-token-ignored` の警告が出ない
      （出たら旧 `CLAUDE_CODE_OAUTH_TOKEN` だけが残り、`ANTHROPIC_API_KEY` が無い。AI は無効のまま）
    - AI の生成が成功する（お題ツールで解錠して生成する）
