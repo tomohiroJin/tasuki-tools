@@ -295,10 +295,11 @@ test.describe('poker は見積もりを記録に残す', () => {
     });
   }
 
-  async function recordTwoItems(page: Page): Promise<void> {
+  /** 記録を `cards` の数だけ閉じた束で作る（1 枚ごとに開票して次のアイテムへ）。 */
+  async function recordItems(page: Page, cards: readonly string[]): Promise<void> {
     await createRoom(page, HOST);
     await turnRecordingOn(page);
-    for (const card of ['2', '3']) {
+    for (const card of cards) {
       await chooseCard(page, card);
       await expect(resultsSection(page)).toBeVisible();
       await page.getByRole('button', { name: '次のアイテムへ' }).click();
@@ -308,7 +309,7 @@ test.describe('poker は見積もりを記録に残す', () => {
 
   test('Given コピーが両方失敗する 1280 の画面 / When 脇の記録からコピー / Then Markdown を選べる欄が出て、成功のときは出ない（#653）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await recordTwoItems(page);
+    await recordItems(page, ['2', '3']);
     await breakCopy(page);
     const log = sideLog(page);
     await expect(log.getByRole('textbox', { name: '手動コピー用の Markdown' })).toHaveCount(0);
@@ -324,7 +325,8 @@ test.describe('poker は見積もりを記録に残す', () => {
 
   test('Given コピーが両方失敗する幅 390 の画面 / When 記録のシートからコピー / Then シートの中に Markdown を選べる欄が出る（#653）', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await recordTwoItems(page);
+    // シートの入口（記録をすべて見る）は、足に出す数（FOOT_LOG_LIMIT = 3）より多いときだけ出る
+    await recordItems(page, ['2', '3', '5', '8']);
     await page.getByRole('button', { name: '記録をすべて見る' }).click();
     const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
     await breakCopy(page);
@@ -332,7 +334,10 @@ test.describe('poker は見積もりを記録に残す', () => {
     await expect(drawer.getByRole('status')).toHaveText('コピーできません');
     const field = drawer.getByRole('textbox', { name: '手動コピー用の Markdown' });
     await expect(field).toBeVisible();
-    expect((await field.inputValue()).split('\n').filter((line) => line.startsWith('### '))).toEqual(['### 見積もり 2', '### 見積もり 1']);
+    // 足の 3 束だけでなく、シートが持つ全部の束が入る
+    expect((await field.inputValue()).split('\n').filter((line) => line.startsWith('### '))).toEqual([
+      '### 見積もり 4', '### 見積もり 3', '### 見積もり 2', '### 見積もり 1',
+    ]);
   });
 
   test('Given 幅 1280・高さ 700 / When 開票と次のアイテムへを 10 回くり返す / Then 手札も脇も画面に収まり、記録は脇の中でスクロールする', async ({ page }) => {
