@@ -12169,4 +12169,28 @@ export const MUTATIONS = [
     tests: ["tests/estimate-log.test.tsx"],
     note: RESERVED_2440_2459 + " " + "#653 のレビュー（2 回目）。脇では本体でなく札に積まれ、札が低いと欄が札の下へはみ出し、記録の一覧が高さ 0 に潰れる。E2E（`poker-estimate-log.spec.ts` のお題を開いた脇）も同じ作りを見る。",
   },
+  {
+    id: 2455,
+    label: "コピーが失敗に変わったとき、記録の本体を頭へ戻さない",
+    patch: "m2455-poker-estimate-copy-failed-body-not-reset.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。本体を少しでもスクロールしてから押すと、頭に入った欄の分だけ位置が送られて、失敗の文と欄が本体の箱の外へ出る。E2E（`poker-estimate-log.spec.ts` の本体をスクロールした脇）も同じ作りを見る。",
+  },
+  {
+    id: 2456,
+    label: "コピーが成功したときも、記録の本体を頭へ戻す",
+    patch: "m2456-poker-estimate-copy-success-resets-body.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。成功で記録を読んでいる位置が頭へ飛ぶ。",
+  },
+  {
+    id: 2457,
+    label: "コピーが失敗に変わったとき、フォーカスを欄へ移す",
+    patch: "m2457-poker-estimate-copy-failed-focuses-field.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2440_2459 + " " + "#653 のレビュー（3 回目）。押したボタンからフォーカスが奪われる（キーボードの利用者が押した位置を失う）。",
+  },
 ];

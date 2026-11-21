@@ -248,6 +248,39 @@ describe('EstimateLog', () => {
       });
     });
 
+    it('Given 本体をスクロールしてある / When コピーが失敗する / Then 本体を頭へ戻し、フォーカスは押したボタンに残す（失敗の文と欄が箱の外へ送られない）', async () => {
+      await withoutClipboard(async () => {
+        const { container } = render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        const body = container.querySelector('.estimate-log-body') as HTMLElement;
+        // jsdom は scrollTop を持ち上げない。値を持つ窓口に差し替える
+        let top = 200;
+        Object.defineProperty(body, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+        const button = screen.getByRole('button', { name: ESTIMATE_LOG_COPY });
+        button.focus();
+        fireEvent.click(button);
+        await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY });
+        expect(top).toBe(0);
+        expect(document.activeElement).toBe(button);
+      });
+    });
+
+    it('Given 本体をスクロールしてある / When コピーが成功する / Then 本体のスクロールは動かさない', async () => {
+      const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
+      try {
+        const { container } = render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        const body = container.querySelector('.estimate-log-body') as HTMLElement;
+        let top = 200;
+        Object.defineProperty(body, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
+        expect(top).toBe(200);
+      } finally {
+        if (previous) Object.defineProperty(navigator, 'clipboard', previous);
+        else Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    });
+
     it('Given 失敗した欄 / When フォーカスする / Then 全文が選択される', async () => {
       await withoutClipboard(async () => {
         render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);

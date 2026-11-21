@@ -338,7 +338,6 @@ test.describe('poker は見積もりを記録に残す', () => {
     const field = body.getByRole('textbox', { name: '手動コピー用の Markdown' });
     await expect(field).toBeVisible();
     expect(await overlapArea(message, field)).toBe(0);
-    await field.scrollIntoViewIfNeeded();
     const fieldBox = await field.boundingBox();
     const bodyBox = await body.boundingBox();
     const cardBox = await scope.boundingBox();
@@ -436,6 +435,44 @@ test.describe('poker は見積もりを記録に残す', () => {
       // 本体が 0 に潰れれば、欄が本体の箱に収まらず落ちる
       await expectManualFieldInCard(sideLog(page));
     });
+  }
+
+  /** 要素の見える高さ（px）。本体（スクロールする箱）で切る。scrollIntoView は呼ばない。 */
+  async function visibleHeightInBody(body: Locator, target: Locator): Promise<number> {
+    const bodyBox = await body.boundingBox();
+    const box = await target.boundingBox();
+    if (!bodyBox || !box) throw new Error('箱が測れない');
+    return Math.max(0, Math.min(box.y + box.height, bodyBox.y + bodyBox.height) - Math.max(box.y, bodyBox.y));
+  }
+
+  // 本体を少しでもスクロールしてから押すと、頭に入った欄の分だけ位置が送られて、失敗が見えなかった（#653 のレビュー・3 回目）
+  for (const { height, cards, topic } of [
+    { height: 700, cards: ['1', '2', '3', '5', '8', '13', '1', '2', '3', '5'], topic: false },
+    { height: 800, cards: ['1', '2', '3', '5', '8', '13', '1', '2', '3', '5'], topic: true },
+  ]) {
+    for (const scrollTop of [1, 200]) {
+      test(`Given 脇の記録の本体を ${scrollTop}px スクロールした 1280×${height}${topic ? '・お題あり' : ''} / When コピーが両方失敗する / Then スクロールせずに、失敗の文と欄が本体の中に見える（#653）`, async ({ page, openPeer }) => {
+        await page.setViewportSize({ width: 1280, height });
+        if (topic) await recordWithTopic(page, openPeer, cards);
+        else await recordItems(page, cards);
+        await breakCopy(page);
+        const log = sideLog(page);
+        const body = log.locator('.estimate-log-body');
+        await body.evaluate((el, by) => { el.scrollTop = by; }, scrollTop);
+        expect(await body.evaluate((el) => el.scrollTop), '押す前に本体がスクロールしている').toBeGreaterThan(0);
+        await log.getByRole('button', { name: '記録をコピー' }).click();
+        await expect(log.getByRole('status')).toHaveText('コピーできません');
+        const message = body.getByText('コピーできません', { exact: true });
+        const field = body.getByRole('textbox', { name: '手動コピー用の Markdown' });
+        await expect(field).toBeVisible();
+        const lineHeight = await field.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.2);
+        const seenMessage = await visibleHeightInBody(body, message);
+        const seenField = await visibleHeightInBody(body, field);
+        const messageLine = await message.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.2);
+        expect(seenMessage, `文の見える高さ ${seenMessage}px`).toBeGreaterThanOrEqual(messageLine);
+        expect(seenField, `欄の見える高さ ${seenField}px`).toBeGreaterThanOrEqual(lineHeight);
+      });
+    }
   }
 
   for (const width of [390, 1025, 1280]) {
