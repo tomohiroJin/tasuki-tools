@@ -282,7 +282,8 @@ Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovat
 2. **CI**: Renovate の PR が `toolchain.json` の `bun` を上げる（`renovate.json` の `customManagers`）。`@types/bun` も同じ PR に入る
 3. **本番**（root が要る・**人のいない時間に**。同期サーバーの再起動でルームが消える）:
    1. 公式の配布物（GitHub Releases の `bun-linux-x64.zip`）を `SHASUMS256.txt` と照合して取得する
-   2. 今の `/usr/local/bin/bun` を `/usr/local/bin/bun-<旧版>` へ退避し、新しい実体に入れ替える（入れ替えだけで再起動はしない）
+   2. 今の `/usr/local/bin/bun` を `/usr/local/bin/bun-<旧版>` へ退避し、新しい実体に `install -m 755 <新しい実体> /usr/local/bin/bun` で
+      入れ替える（入れ替えだけで再起動はしない。動いている実体へ `cp` で上書きすると `Text file busy` で失敗する）
    3. `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` で、手元の新しい Bun でバンドルし直して再起動する。
       **手元の作業ツリーの同期サーバーと timer の画面がそのまま配られる**ので、配る元は「本番に出ている中身 ＋ Bun の変更だけ」の
       コミットにする（未配布の変更を混ぜない）。試験と E2E はソースを `bun run` で起動していて、バンドルを起動しないので、
@@ -291,8 +292,14 @@ Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovat
    4. `/proc/<PID>/exe --version` で動いている版を確かめ、`pnpm e2e:prod` を流す
 4. PR をマージする
 
-切り戻しは、退避した `/usr/local/bin/bun-<旧版>` を `sudo install -m 755 /usr/local/bin/bun-<旧版> /usr/local/bin/bun` で戻して
-（`cp` は同期サーバーが動いている間は `Text file busy` で失敗する。`install` は消してから作り直すので通る。#668 で確かめた） `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` です。
+切り戻しは、退避した実体と、`deploy.sh` が退避した前の `server.js` の両方を戻して再起動します。
+
+1. `sudo install -m 755 /usr/local/bin/bun-<旧版> /usr/local/bin/bun`（`cp` は同期サーバーが動いている間は
+   `Text file busy` で失敗する。`install` は消してから作り直すので通る。#668 で確かめた）
+2. `cp -p /opt/tasuki/server.js.bak-<日時> /opt/tasuki/server.js`（`deploy.sh` が配る前に作った退避。旧い Bun で作ったバンドル）
+3. `sudo systemctl restart tasuki-sync` → `/proc/<PID>/exe --version` で旧版を確かめる
+
+`deploy.sh timer` で戻さないこと。手元の Bun（新しい版）と手元の作業ツリーでバンドルし直すので、前の状態には戻らない（#668 の /code-review）。
 
 ## Caddy を上げる
 
