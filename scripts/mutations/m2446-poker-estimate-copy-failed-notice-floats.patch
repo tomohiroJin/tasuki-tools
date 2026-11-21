@@ -1,8 +1,0 @@
-diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
---- a/apps/poker-web/src/components/EstimateLog.tsx
-+++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -69,3 +69,3 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
-               <span role="status" className={copyStatus === '' ? 'ui-visually-hidden'
--                : copyState === 'failed' ? 'estimate-log-copy-status estimate-log-copy-status--failed' : 'estimate-log-copy-status'}>{copyStatus}</span>
-+                : 'estimate-log-copy-status'}>{copyStatus}</span>
-             </div>

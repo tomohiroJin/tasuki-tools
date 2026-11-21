@@ -1,8 +1,12 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
-index 0cb1c678..adfdd207 100644
+index 368f40ed..e4d20ec5 100644
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -80,3 +80,2 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
-           value={markdown}
--          onFocus={(event) => event.currentTarget.select()}
-         />
+@@ -90,7 +90,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+               readOnly
+               rows={5}
+               value={markdown}
+-              onFocus={(event) => event.currentTarget.select()}
+             />
+           </div>
+         )}

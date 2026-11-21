@@ -7,6 +7,7 @@
 import { expect, test } from '../fixtures/test';
 import type { Locator, Page } from '@playwright/test';
 import { chooseCard, createRoom, joinRoom, resultsSection, turnRecordingOn } from '../support/poker';
+import { joinTopicTool, setTopic } from '../support/topic';
 
 const HOST = 'log-a';
 const GUEST = 'log-b';
@@ -298,6 +299,11 @@ test.describe('poker は見積もりを記録に残す', () => {
   /** 記録を `cards` の数だけ閉じた束で作る（1 枚ごとに開票して次のアイテムへ）。 */
   async function recordItems(page: Page, cards: readonly string[]): Promise<void> {
     await createRoom(page, HOST);
+    await recordInto(page, cards);
+  }
+
+  /** 作ったルームで記録を入れ、`cards` の数だけ閉じた束を作る。 */
+  async function recordInto(page: Page, cards: readonly string[]): Promise<void> {
     await turnRecordingOn(page);
     for (const card of cards) {
       await chooseCard(page, card);
@@ -317,18 +323,69 @@ test.describe('poker は見積もりを記録に残す', () => {
     return Math.max(0, w) * Math.max(0, h);
   }
 
-  /** 失敗の知らせが出ている間、知らせと手動コピーの欄が重ならず、欄が rows の分の高さを保つ。 */
-  async function expectNoticeClearOfField(scope: Locator): Promise<void> {
+  /**
+   * 失敗の後、目に見える知らせと手動コピーの欄が、記録の本体の頭に出る。
+   * 欄は rows の分の高さを保ち、知らせと重ならず、記録の札（`scope`）の外へはみ出さない。
+   * 脇では本体がスクロールするので、欄までスクロールしてから、本体の箱・札の箱の中に収まることを測る。
+   */
+  async function expectManualFieldInCard(scope: Locator): Promise<void> {
     await scope.getByRole('button', { name: '記録をコピー' }).click();
-    const notice = scope.getByRole('status');
-    await expect(notice).toHaveText('コピーできません');
-    const field = scope.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    // 読み上げ用の知らせ（見た目は隠す）は見出しの行に残る
+    await expect(scope.getByRole('status')).toHaveText('コピーできません');
+    const body = scope.locator('.estimate-log-body');
+    const message = body.getByText('コピーできません', { exact: true });
+    await expect(message).toBeVisible();
+    const field = body.getByRole('textbox', { name: '手動コピー用の Markdown' });
     await expect(field).toBeVisible();
-    expect(await overlapArea(notice, field)).toBe(0);
-    // rows={5} に見合う高さ（脇で縮んで 1 行しか見えない、が起きない）
+    expect(await overlapArea(message, field)).toBe(0);
+    await field.scrollIntoViewIfNeeded();
     const fieldBox = await field.boundingBox();
+    const bodyBox = await body.boundingBox();
+    const cardBox = await scope.boundingBox();
+    if (!fieldBox || !bodyBox || !cardBox) throw new Error('箱が測れない');
+    // rows={5} に見合う高さ（脇で縮んで 1 行しか見えない、が起きない）
     const lineHeight = await field.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.2);
-    expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(lineHeight * 5);
+    expect(fieldBox.height).toBeGreaterThanOrEqual(lineHeight * 5);
+    // 字は 16px を下回らない（iOS Safari は 16px 未満の欄にフォーカスすると画面を拡大する）
+    expect(await field.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    // 本体が潰れない（脇で札が低くなると、本体は欄より低くなってよいが、欄の大半が見える高さは残る）
+    expect(bodyBox.height).toBeGreaterThanOrEqual(lineHeight * 3);
+    // 欄の見える部分（本体の箱で切った分）は札の中に収まる（1px の丸めは許す）。
+    // シートは札の外（ダイアログ）がスクロールするので、本体の箱と札の箱は直接は比べない
+    const visibleTop = Math.max(fieldBox.y, bodyBox.y);
+    const visibleBottom = Math.min(fieldBox.y + fieldBox.height, bodyBox.y + bodyBox.height);
+    expect(fieldBox.y).toBeGreaterThanOrEqual(bodyBox.y - 1);
+    expect(visibleTop).toBeGreaterThanOrEqual(cardBox.y - 1);
+    expect(visibleBottom).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+  }
+
+  /** 押す前と失敗の後で、「記録をコピー」と見出しの行が動かない（x・y・見出しの行の高さ。誤差 1px）。 */
+  async function expectCopyButtonStays(scope: Locator): Promise<void> {
+    const button = scope.getByRole('button', { name: '記録をコピー' });
+    const head = scope.locator('.ui-section-head').first();
+    // 押すと Playwright がボタンを画面へスクロールするので、ページの座標（スクロール量を足した値）で測る
+    const measure = async () => ({
+      button: await button.evaluate((el) => { const r = el.getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY }; }),
+      head: await head.evaluate((el) => el.getBoundingClientRect().height),
+    });
+    const before = await measure();
+    await button.click();
+    await expect(scope.getByRole('status')).toHaveText('コピーできません');
+    await expect(scope.getByRole('textbox', { name: '手動コピー用の Markdown' })).toBeVisible();
+    const after = await measure();
+    expect(Math.abs(after.button.x - before.button.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.button.y - before.button.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.head - before.head)).toBeLessThanOrEqual(1);
+  }
+
+  /** お題を掲げた同じルームで、記録を作る（お題の札が上に来て、脇の記録の札が低くなる）。 */
+  async function recordWithTopic(page: Page, openPeer: (label: string) => Promise<{ page: Page }>, cards: readonly string[]): Promise<void> {
+    const url = await createRoom(page, HOST);
+    const topic = await openPeer('log-topic');
+    await joinTopicTool(topic.page, url, 'log-t');
+    await setTopic(topic.page, 'FizzBuzz', Array.from({ length: 30 }, (_, i) => `本文の行 ${i + 1}`).join('\n\n'));
+    await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+    await recordInto(page, cards);
   }
 
   test('Given コピーが両方失敗する 1280 の画面 / When 脇の記録からコピー / Then Markdown を選べる欄が出て、押す前は出ない（#653）', async ({ page }) => {
@@ -360,18 +417,41 @@ test.describe('poker は見積もりを記録に残す', () => {
     await expect(log.getByRole('textbox', { name: '手動コピー用の Markdown' })).toHaveCount(0);
   });
 
-  test('Given コピーが両方失敗する 1280×700・10 束の画面 / When 脇の記録からコピー / Then 知らせが欄に重ならず、欄は縮まない（#653）', async ({ page }) => {
+  test('Given コピーが両方失敗する 1280×700・10 束の画面 / When 脇の記録からコピー / Then 知らせが欄に重ならず、欄は縮まず札の中に収まる（#653）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 700 });
     await recordItems(page, ['1', '2', '3', '5', '8', '13', '1', '2', '3', '5']);
     await breakCopy(page);
-    await expectNoticeClearOfField(sideLog(page));
+    await expectManualFieldInCard(sideLog(page));
   });
+
+  // お題の札が上に来て脇の記録の札が低くなる。欄が札の下へはみ出し、記録の一覧が高さ 0 になった（#653 のレビュー・2 回目）
+  for (const { height, cards } of [
+    { height: 700, cards: ['1', '2', '3', '5', '8', '13', '1', '2', '3', '5'] },
+    { height: 800, cards: ['2', '3'] },
+  ]) {
+    test(`Given お題を開いた 1280×${height}・${cards.length} 束でコピーが両方失敗する / When 脇の記録からコピー / Then 知らせが欄に重ならず、欄は札の中に収まり、記録の一覧は潰れない（#653）`, async ({ page, openPeer }) => {
+      await page.setViewportSize({ width: 1280, height });
+      await recordWithTopic(page, openPeer, cards);
+      await breakCopy(page);
+      // 本体が 0 に潰れれば、欄が本体の箱に収まらず落ちる
+      await expectManualFieldInCard(sideLog(page));
+    });
+  }
+
+  for (const width of [390, 1025, 1280]) {
+    test(`Given コピーが両方失敗する幅 ${width} の画面 / When 記録をコピー / Then 「記録をコピー」と見出しの行は押す前と同じ位置にある（#653）`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await recordItems(page, ['2', '3']);
+      await breakCopy(page);
+      await expectCopyButtonStays(width >= 1024 ? sideLog(page) : page.locator('.room-log--foot'));
+    });
+  }
 
   test('Given コピーが両方失敗する幅 390 の画面 / When 足の記録からコピー / Then 知らせが欄に重ならない（#653）', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await recordItems(page, ['2', '3']);
     await breakCopy(page);
-    await expectNoticeClearOfField(page.locator('.room-log--foot'));
+    await expectManualFieldInCard(page.locator('.room-log--foot'));
   });
 
   test('Given コピーが両方失敗する幅 390 の画面 / When 記録のシートからコピー / Then 知らせが欄に重ならない（#653）', async ({ page }) => {
@@ -380,7 +460,7 @@ test.describe('poker は見積もりを記録に残す', () => {
     await page.getByRole('button', { name: '記録をすべて見る' }).click();
     const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
     await breakCopy(page);
-    await expectNoticeClearOfField(drawer);
+    await expectManualFieldInCard(drawer);
   });
 
   test('Given コピーが両方失敗する幅 390 の画面 / When 記録のシートからコピー / Then シートの中に Markdown を選べる欄が出る（#653）', async ({ page }) => {

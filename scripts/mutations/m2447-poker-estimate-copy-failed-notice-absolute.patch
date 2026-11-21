@@ -1,8 +1,0 @@
-diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
---- a/apps/poker-web/src/index.css
-+++ b/apps/poker-web/src/index.css
-@@ -710,3 +710,3 @@
- .estimate-log-copy-status--failed {
--  position: static;
-+  position: absolute;
-   margin-block-start: var(--space-1);

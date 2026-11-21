@@ -222,8 +222,29 @@ describe('EstimateLog', () => {
         const field = screen.getByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
         expect(field.value).toBe(expected(hhmm(AT)));
         expect(field.readOnly).toBe(true);
-        // 欄を出している間、知らせは浮かせず流れの中に置く（欄の頭に重ならない）。成功の知らせは浮かせたまま
-        expect(screen.getByRole('status').className).toContain('estimate-log-copy-status--failed');
+      });
+    });
+
+    it('Given 両方のコピーが失敗 / When 記録をコピー / Then 欄と目に見える知らせは記録の本体の頭、見出しの行の status は見た目だけ隠す', async () => {
+      await withoutClipboard(async () => {
+        const { container } = render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        const field = await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY });
+        const body = container.querySelector('.estimate-log-body') as HTMLElement;
+        const list = body.querySelector('ol') as HTMLElement;
+        const notice = within(body).getByText(ESTIMATE_LOG_COPY_FAILED);
+        // 本体の中・束の並びより前（欄は札の頭に積まれず、見出しの行にも入らない）
+        expect(body.contains(field)).toBe(true);
+        expect(notice.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(field.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        // 読み上げは見出しの行の status が受け持つ（見た目は隠す。ボタンと見出しの行を動かさない）
+        const status = screen.getByRole('status');
+        expect(status.textContent).toBe(ESTIMATE_LOG_COPY_FAILED);
+        expect(status.className).toContain('ui-visually-hidden');
+        expect(body.contains(status)).toBe(false);
+        // 目に見える文は live region にしない（読み上げの二重を避ける）
+        expect(notice.closest('[role="status"], [aria-live]')).toBeNull();
+        expect(screen.getAllByRole('status')).toHaveLength(1);
       });
     });
 
@@ -274,7 +295,8 @@ describe('EstimateLog', () => {
         fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
         await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ESTIMATE_LOG_COPIED));
         expect(screen.queryByRole('textbox')).toBeNull();
-        expect(screen.getByRole('status').className).not.toContain('--failed');
+        // 成功の知らせは見た目を出す（失敗のときだけ見た目を隠す）
+        expect(screen.getByRole('status').className).not.toContain('ui-visually-hidden');
       } finally {
         if (previous) Object.defineProperty(navigator, 'clipboard', previous);
         else Reflect.deleteProperty(navigator, 'clipboard');

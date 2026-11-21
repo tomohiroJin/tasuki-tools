@@ -66,21 +66,12 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
               <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copy()}>
                 {ESTIMATE_LOG_COPY}
               </button>
-              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden'
-                : copyState === 'failed' ? 'estimate-log-copy-status estimate-log-copy-status--failed' : 'estimate-log-copy-status'}>{copyStatus}</span>
+              {/* 失敗の知らせは読み上げ（live region）にだけ残し、見た目は隠す。ボタンと見出しの行を動かさない。
+                  目に見える文は、本体の頭の欄の上に置く（live region にしない。読み上げの二重を避ける） */}
+              <span role="status" className={copyState === 'done' ? 'estimate-log-copy-status' : 'ui-visually-hidden'}>{copyStatus}</span>
             </div>
           )}
         </div>
-      )}
-      {copyState === 'failed' && (
-        <textarea
-          aria-label={ESTIMATE_LOG_MANUAL_COPY}
-          className="ui-input estimate-log-manual"
-          readOnly
-          rows={5}
-          value={markdown}
-          onFocus={(event) => event.currentTarget.select()}
-        />
       )}
       {/* スクロールする置き場所では、フォーカスを受ける領域を札（`.ui-reader`）の子にする。
           輪の色を変える部品の規則は子孫にだけ効き、札そのものには効かない */}
@@ -88,6 +79,21 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
         className="estimate-log-body"
         {...(scrollable ? { role: 'region', tabIndex: 0, 'aria-labelledby': labelledBy ?? headingId } : {})}
       >
+        {/* コピーに失敗したときの欄は本体の頭に置く。脇では本体がスクロールする領域なので、高さは本体のスクロールが受け持ち、
+            欄は rows の高さのまま札からはみ出さない（#653 のレビュー・2 回目） */}
+        {copyState === 'failed' && (
+          <div className="estimate-log-manual">
+            <p className="estimate-log-manual-notice">{ESTIMATE_LOG_COPY_FAILED}</p>
+            <textarea
+              aria-label={ESTIMATE_LOG_MANUAL_COPY}
+              className="ui-input"
+              readOnly
+              rows={5}
+              value={markdown}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+          </div>
+        )}
         {groups.length === 0 ? (
           <p className="estimate-log-empty">{ESTIMATE_LOG_EMPTY}</p>
         ) : (
