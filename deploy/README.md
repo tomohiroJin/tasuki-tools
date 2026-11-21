@@ -286,11 +286,13 @@ Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovat
    3. `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` で、手元の新しい Bun でバンドルし直して再起動する。
       **手元の作業ツリーの同期サーバーと timer の画面がそのまま配られる**ので、配る元は「本番に出ている中身 ＋ Bun の変更だけ」の
       コミットにする（未配布の変更を混ぜない）。試験と E2E はソースを `bun run` で起動していて、バンドルを起動しないので、
-      配る前に新しい Bun で `bun build` したバンドルを手元で 1 回起動して接続を確かめる（#668 のレビュー）
+      配る前に新しい Bun で `bun build` したバンドルを手元で 1 回起動して接続を確かめる（#668 のレビュー）。
+      流す直前に `ssh <ホスト別名> "ss -Htn state established '( sport = :8787 )' | wc -l"` で WS が 0 本なのを見る
    4. `/proc/<PID>/exe --version` で動いている版を確かめ、`pnpm e2e:prod` を流す
 4. PR をマージする
 
-切り戻しは、退避した `/usr/local/bin/bun-<旧版>` を `sudo cp -p` で戻して `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` です。
+切り戻しは、退避した `/usr/local/bin/bun-<旧版>` を `sudo install -m 755 /usr/local/bin/bun-<旧版> /usr/local/bin/bun` で戻して
+（`cp` は同期サーバーが動いている間は `Text file busy` で失敗する。`install` は消してから作り直すので通る。#668 で確かめた） `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` です。
 
 ## Caddy を上げる
 
