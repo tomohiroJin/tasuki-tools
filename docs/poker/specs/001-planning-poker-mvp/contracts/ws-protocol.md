@@ -96,14 +96,14 @@
 ```
 
 - **入口のコマンドは無い。** ゲームは見積もりの操作だけで始まる: 投票者（接続中で見学でない人）の全員が ☕ を出した開票が起き、
-  `revote`（再投票）のあと、続く開票も全員 ☕ だったときに、サーバーがその投票者（最大 10 人）へ 5 枚ずつ配る。
+  `revote`（再投票。互換の `next-round` も同じ）のあと、続く開票も全員 ☕ だったときに、サーバーがその投票者（最大 10 人）へ 5 枚ずつ配る。
   間に `next-item`（次のアイテムへ）や全員 ☕ でない開票が入ると数え直す。判定は開票・切断・退出のどの経路でも行う（設計正本 `docs/superpowers/specs/2026-10-28-poker-card-table-design.md` §4）
 - 前提: join 済みで名簿に居ること
 - `table-exchange`: 手の位置（0〜4・重複なし・0〜5 個）を捨て、同じ位置へ山から引く。空（0 個）も受け、1 枚も替えずに済ませる（これも 1 回に数える）。1 人 1 回。
   **札も順列もクライアントからは受け取らない**。プレイヤーが全員済んだら、サーバーが全員の手と役を開く。接続の切れた人は 20 秒だけ待ち、戻らなければ待たずに開く
 - `table-deal`: 開いたあと、いまの投票者で配り直す
 - `table-close`: ゲームを終え、見積もりを投票中（票なし）へ戻す。誰でも、最中でも送れる
-- ゲームの最中は `vote` / `reveal` / `revote` / `next-item` / `next-round` を `table-in-play` で拒む（アイテム名・記録・見学の切り替えは受ける）
+- ゲームの最中は `vote` / `reveal` / `revote` / `next-item` / `next-round` を `table-in-play` で拒む（受けるのは `set-item` / `set-points` / `set-recording` / `set-group-item` / `set-spectator` / `table-*`。同期サーバーの `ALLOWED_DURING_GAME`）
 - 違反: `table-not-player`（プレイヤーでない人の exchange）、`table-exchanged`（2 回目の exchange・開いたあとの exchange）、
   `table-no-game`（ゲームが無いときの exchange / deal / close）、`table-in-play`（チェンジの最中の deal）、`not-joined`、`room-not-found`。状態は変わらない
 - 退出・片付けで名簿から外れた人は、プレイヤーからも外す（手は捨て札へ）。最後のプレイヤーが外れたら見積もりへ戻す
@@ -114,7 +114,7 @@
 { "type": "set-item", "item": "PROJ-1" }
 ```
 
-- 前提: join 済み。**voting 中でも revealed 中でも受ける**。`item` は 120 文字まで（`MAX_ESTIMATE_ITEM`）。前後の空白は削られ（長さは削ったあとで数える）、不可視文字・双方向制御文字は取り除かれる。空文字も受ける（空可。アイテム名を付けていない状態を表す）
+- 前提: join 済み。**voting 中でも revealed 中でも受ける**。`item` は 120 文字まで（`MAX_ESTIMATE_ITEM`）。前後の空白は削られ（長さは削ったあとで数える）、不可視文字・双方向制御文字は取り除かれる（空可。空はアイテム名を付けていない状態）
 - revealed 中は、いま見ている開票の行（open の束の最後の行）の名前にも写る。閉じた束は変わらない
 - 全員の `room-state.estimate.item` が変わる
 
