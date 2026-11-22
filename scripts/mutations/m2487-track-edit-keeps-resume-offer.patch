@@ -1,0 +1,22 @@
+# 変異 2487: track-edit-keeps-resume-offer
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 手直しの後も、再開の問いかけを残す。対象の区切りが変わった後に、古い問いかけが残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2487-*.patch
+# 復元: git apply -R scripts/mutations/m2487-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -17,7 +17,7 @@
+ 
+ /** 手直しの後の状態。 */
+ function edited(s: TrackState, patch: { segments: readonly Segment[]; nextSeq?: number }): TrackState {
+-  return { ...s, ...patch, undo: null, resumeOffer: false, rev: s.rev + 1 };
++  return { ...s, ...patch, undo: null, resumeOffer: s.resumeOffer, rev: s.rev + 1 };
+ }
+ 
+ const replaceAt = (segments: readonly Segment[], index: number, segment: Segment): Segment[] =>

@@ -1,0 +1,22 @@
+# 変異 2471: track-same-label-with-back-switches
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 同じ作業名でも、さかのぼりが付いていれば切り替える。設計 §4.3。同じ名前の区切りが 2 つ並ぶ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2471-*.patch
+# 復元: git apply -R scripts/mutations/m2471-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -77,7 +77,7 @@
+   const label = labelFor(input.kind, input.label);
+   if (label === null) return fail("TRACK_INVALID_LABEL");
+   const running = runningOf(s.segments);
+-  if (running !== undefined && running.kind === input.kind && running.label === label) return ok(s);
++  if (running !== undefined && running.kind === input.kind && running.label === label && input.backMin === undefined) return ok(s);
+ 
+   const t = input.now - s.epochMono - (input.backMin ?? 0) * MS_PER_MIN;
+   let startMs = t;

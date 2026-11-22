@@ -1,0 +1,22 @@
+# 変異 2491: track-markdown-label-not-escaped
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/markdown.test.ts
+#
+# #476 Markdown で作業名の記号を逃がさない（表が崩れる）。FR-25。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2491-*.patch
+# 復元: git apply -R scripts/mutations/m2491-*.patch
+diff --git a/packages/track-core/src/markdown.ts b/packages/track-core/src/markdown.ts
+--- a/packages/track-core/src/markdown.ts
++++ b/packages/track-core/src/markdown.ts
+@@ -77,7 +77,7 @@
+ }
+ 
+ const nameOf = (segment: Pick<SegmentView, "kind" | "label">): string =>
+-  segment.kind === "break" ? MARKDOWN_TEXT.break : segment.label === "" ? MARKDOWN_TEXT.unnamed : escapeLabel(segment.label);
++  segment.kind === "break" ? MARKDOWN_TEXT.break : segment.label === "" ? MARKDOWN_TEXT.unnamed : segment.label;
+ 
+ /** うちわけを Markdown にする。`tzOffsetMin` は UTC からの進み（分。日本時間は 540）。 */
+ export function toMarkdown(view: TrackView, nowMs: number, tzOffsetMin: number): string {

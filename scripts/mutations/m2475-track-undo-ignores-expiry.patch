@@ -1,0 +1,22 @@
+# 変異 2475: track-undo-ignores-expiry
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 取り消しが期限を見ない。FR-21。10 秒を過ぎても巻き戻せる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2475-*.patch
+# 復元: git apply -R scripts/mutations/m2475-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -111,7 +111,7 @@
+  */
+ export function undo(s: TrackState, input: { rev: number; now: number }): TrackState {
+   const slot = s.undo;
+-  if (slot === null || slot.rev !== input.rev || input.now >= slot.expiresAt) return s;
++  if (slot === null || slot.rev !== input.rev) return s;
+   return { ...s, segments: slot.segments, resumeOffer: slot.resumeOffer, undo: null, rev: s.rev + 1 };
+ }
+ 

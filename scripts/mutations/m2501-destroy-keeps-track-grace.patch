@@ -1,0 +1,21 @@
+# 変異 2501: destroy-keeps-track-grace
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/destroy-room.test.ts
+#
+# #476 ルーム破棄でうちわけの全員切断の猶予を止めない。消えたルームの予約が残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2501-*.patch
+# 復元: git apply -R scripts/mutations/m2501-*.patch
+diff --git a/apps/tasuki-sync/src/application/destroy-room.ts b/apps/tasuki-sync/src/application/destroy-room.ts
+--- a/apps/tasuki-sync/src/application/destroy-room.ts
++++ b/apps/tasuki-sync/src/application/destroy-room.ts
+@@ -143,7 +143,6 @@
+     scheduler?.clear(roomCode);
+     agendaDeadlines.clear(roomCode);
+     checkinGrace.clearRoom(roomCode);
+-    trackAutoStop.clearRoom(roomCode);
+     // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
+     // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
+     topicGenerator.cancel(roomCode);

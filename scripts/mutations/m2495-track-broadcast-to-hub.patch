@@ -1,0 +1,23 @@
+# 変異 2495: track-broadcast-to-hub
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/track-handlers.test.ts
+#   - apps/tasuki-sync/test/live-ws.track.test.ts
+#
+# #476 うちわけの写しを、うちわけの接続でなくハブの接続へ配る。宛先はうちわけの接続だけ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2495-*.patch
+# 復元: git apply -R scripts/mutations/m2495-*.patch
+diff --git a/apps/tasuki-sync/src/application/track-broadcast.ts b/apps/tasuki-sync/src/application/track-broadcast.ts
+--- a/apps/tasuki-sync/src/application/track-broadcast.ts
++++ b/apps/tasuki-sync/src/application/track-broadcast.ts
+@@ -52,7 +52,7 @@
+       const room = deps.store.get(roomCode);
+       const state = deps.tracks.get(roomCode);
+       if (room === undefined || state === undefined) return; // ルームが消えた・まだ誰も開いていない
+-      deps.send(connectionsIn(room, TOOL_TRACK), frameOf(state));
++      deps.send(connectionsIn(room, null), frameOf(state));
+     },
+     sendCurrent(connId, roomCode) {
+       // ルームが消えていたら状態を置かない（置くと、破棄の後始末が済んだルームに状態だけが残る）。

@@ -1,0 +1,22 @@
+# 変異 2504: track-keys-in-editable
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/keys.test.ts
+#
+# #476 入力欄にフォーカスがあるときもキーを拾う。FR-26。作業名に数字を打つと切り替わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2504-*.patch
+# 復元: git apply -R scripts/mutations/m2504-*.patch
+diff --git a/apps/track-web/src/keys.ts b/apps/track-web/src/keys.ts
+--- a/apps/track-web/src/keys.ts
++++ b/apps/track-web/src/keys.ts
+@@ -29,7 +29,7 @@
+ const IME_KEY_CODE = 229;
+ 
+ export function keyActionOf(event: KeyInput, context: KeyContext): KeyAction | null {
+-  if (context.editable || context.dialogOpen) return null;
++  if (context.dialogOpen) return null;
+   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return null;
+   if (event.isComposing || event.keyCode === IME_KEY_CODE) return null;
+   if (/^[1-9]$/.test(event.key)) return { type: 'candidate', index: Number(event.key) - 1 };

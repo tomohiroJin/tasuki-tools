@@ -1,0 +1,22 @@
+# 変異 2483: track-split-allows-short-tail
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 分割で、後半が 1 秒を下回る位置を通す。不変条件 3。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2483-*.patch
+# 復元: git apply -R scripts/mutations/m2483-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -111,7 +111,7 @@
+   const label = labelFor(input.kind, input.label);
+   if (label === null) return fail("TRACK_INVALID_LABEL");
+   const end = segment.endMs ?? input.now - s.epochMono;
+-  if (input.atMs < segment.startMs + MIN_SEGMENT_MS || input.atMs > end - MIN_SEGMENT_MS) return fail("TRACK_INVALID_RANGE");
++  if (input.atMs < segment.startMs + MIN_SEGMENT_MS || input.atMs > end) return fail("TRACK_INVALID_RANGE");
+   if (s.segments.length >= MAX_SEGMENTS) return fail("TRACK_FULL");
+   const head: Segment = { ...segment, endMs: input.atMs, autoClosed: false };
+   // 終わりは後半の持ち物なので、切断で閉じた印は後半が引き継ぐ

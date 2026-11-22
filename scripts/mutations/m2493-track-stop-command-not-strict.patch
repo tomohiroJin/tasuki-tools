@@ -1,0 +1,22 @@
+# 変異 2493: track-stop-command-not-strict
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/schemas.test.ts
+#
+# #476 track.stop が余計な項目（誰が押したか）を通す。ADR 0038 決定 2・8。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2493-*.patch
+# 復元: git apply -R scripts/mutations/m2493-*.patch
+diff --git a/packages/track-core/src/schemas.ts b/packages/track-core/src/schemas.ts
+--- a/packages/track-core/src/schemas.ts
++++ b/packages/track-core/src/schemas.ts
+@@ -31,7 +31,7 @@
+ // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
+ export const TrackCommandSchema = v.variant("command", [
+   v.strictObject({ command: v.literal("track.start"), label: labelStr, kind, backMin }),
+-  v.strictObject({ command: v.literal("track.stop"), backMin }),
++  v.object({ command: v.literal("track.stop"), backMin }),
+   v.strictObject({ command: v.literal("track.undo"), rev: v.pipe(v.number(), v.integer(), v.minValue(0)) }),
+   v.strictObject({ command: v.literal("track.segment.set"), id: segmentId, label: labelStr, kind }),
+   v.strictObject({ command: v.literal("track.segment.adjust"), id: segmentId, edge: v.picklist(["start", "end"]), atMs: positionMs }),

@@ -1,0 +1,22 @@
+# 変異 2494: track-handlers-broadcast-noop
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/track-handlers.test.ts
+#
+# #476 変わらない操作（同じ作業名の押し直し・古い取り消し）も全員へ配る。ADR 0038 決定 6。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2494-*.patch
+# 復元: git apply -R scripts/mutations/m2494-*.patch
+diff --git a/apps/tasuki-sync/src/application/track-handlers.ts b/apps/tasuki-sync/src/application/track-handlers.ts
+--- a/apps/tasuki-sync/src/application/track-handlers.ts
++++ b/apps/tasuki-sync/src/application/track-handlers.ts
+@@ -145,7 +145,7 @@
+       return;
+     }
+     // 変わらなければ（同じ参照）配らず、送り主にだけいまの状態を返す（連打・古い画面の押下を全員へ配らない）。
+-    if (result.value === stored) {
++    if (result.value === null) {
+       broadcaster.sendCurrent(connId, room.code);
+       return;
+     }

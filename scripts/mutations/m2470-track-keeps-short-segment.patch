@@ -1,0 +1,22 @@
+# 変異 2470: track-keeps-short-segment
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 1 秒に満たない区切りを残す（候補の連打で区切りが増える）。設計 §4.3「短すぎる区切りは残さない」・J11。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2470-*.patch
+# 復元: git apply -R scripts/mutations/m2470-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -63,7 +63,7 @@
+ /** 計測中の区切りを `t` で閉じた列。**最短の長さに満たない区切りは残さない**（閉じずに捨てる）。 */
+ function closeRunning(segments: readonly Segment[], running: Segment, t: number, autoClosed: boolean): Segment[] {
+   const rest = segments.slice(0, -1);
+-  return t - running.startMs < MIN_SEGMENT_MS ? rest : [...rest, { ...running, endMs: t, autoClosed }];
++  return t - running.startMs < 0 ? rest : [...rest, { ...running, endMs: t, autoClosed }];
+ }
+ 
+ /**

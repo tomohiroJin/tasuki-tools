@@ -1,0 +1,21 @@
+# 変異 2472: track-start-backdate-unchecked
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 計測中の区切りの始まりを越えるさかのぼりを拒まない（開始・切り替え）。FR-16。前の区切りが黙って消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2472-*.patch
+# 復元: git apply -R scripts/mutations/m2472-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -83,7 +83,6 @@
+   let startMs = t;
+   let kept: readonly Segment[] = s.segments;
+   if (running !== undefined) {
+-    if (input.backMin !== undefined && t <= running.startMs) return fail("TRACK_BACKDATE_TOO_FAR");
+     kept = closeRunning(s.segments, running, t, false);
+     // 捨てた（短すぎた）なら、その始まりを引き継ぐ
+     if (kept.length < s.segments.length) startMs = running.startMs;

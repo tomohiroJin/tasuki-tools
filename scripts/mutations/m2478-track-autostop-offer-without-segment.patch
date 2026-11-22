@@ -1,0 +1,22 @@
+# 変異 2478: track-autostop-offer-without-segment
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 短すぎて捨てた区切りでも、再開の問いかけを立てる。尋ねる対象の区切りが無い問いかけが出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2478-*.patch
+# 復元: git apply -R scripts/mutations/m2478-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -123,7 +123,7 @@
+   const running = runningOf(s.segments);
+   if (running === undefined) return s;
+   const segments = closeRunning(s.segments, running, input.at - s.epochMono, true);
+-  return { ...s, segments, undo: null, resumeOffer: segments.length === s.segments.length, rev: s.rev + 1 };
++  return { ...s, segments, undo: null, resumeOffer: true, rev: s.rev + 1 };
+ }
+ 
+ /** 再開の問いかけを下ろす。 */

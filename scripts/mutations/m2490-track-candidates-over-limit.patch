@@ -1,0 +1,22 @@
+# 変異 2490: track-candidates-over-limit
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/projection.test.ts
+#
+# #476 候補を上限より 1 件多く出す。数字キー 1〜9 に収まらない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2490-*.patch
+# 復元: git apply -R scripts/mutations/m2490-*.patch
+diff --git a/packages/track-core/src/projection.ts b/packages/track-core/src/projection.ts
+--- a/packages/track-core/src/projection.ts
++++ b/packages/track-core/src/projection.ts
+@@ -91,7 +91,7 @@
+   const seen = new Set<string>();
+   const out: Candidate[] = [];
+   const push = (label: string, source: Candidate["source"]): void => {
+-    if (seen.has(label) || out.length >= MAX_CANDIDATES) return;
++    if (seen.has(label) || out.length > MAX_CANDIDATES) return;
+     seen.add(label);
+     out.push({ label, source, pinned: pinned.has(label) });
+   };

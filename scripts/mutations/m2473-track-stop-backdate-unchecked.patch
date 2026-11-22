@@ -1,0 +1,21 @@
+# 変異 2473: track-stop-backdate-unchecked
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 計測中の区切りの始まりを越えるさかのぼりを拒まない（停止）。FR-16。区切りが黙って消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2473-*.patch
+# 復元: git apply -R scripts/mutations/m2473-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -101,7 +101,6 @@
+   const running = runningOf(s.segments);
+   if (running === undefined) return ok(s);
+   const t = input.now - s.epochMono - (input.backMin ?? 0) * MS_PER_MIN;
+-  if (input.backMin !== undefined && t <= running.startMs) return fail("TRACK_BACKDATE_TOO_FAR");
+   return ok(timed(s, "stop", input.now, { segments: closeRunning(s.segments, running, t, false) }));
+ }
+ 

@@ -1,0 +1,21 @@
+# 変異 2499: track-autostop-fires-without-recheck
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/track-auto-stop.test.ts
+#
+# #476 猶予の発火の時点で、誰かが戻っていても閉じる。古い予約の誤発火。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2499-*.patch
+# 復元: git apply -R scripts/mutations/m2499-*.patch
+diff --git a/apps/tasuki-sync/src/application/track-auto-stop.ts b/apps/tasuki-sync/src/application/track-auto-stop.ts
+--- a/apps/tasuki-sync/src/application/track-auto-stop.ts
++++ b/apps/tasuki-sync/src/application/track-auto-stop.ts
+@@ -65,7 +65,6 @@
+   function expired(roomCode: string, since: number): void {
+     pending.delete(roomCode);
+     // 発火の時点でもう一度確かめる（名簿の知らせより先に予約が来る・古い予約が残る場合がある）
+-    if (!shouldStop(roomCode)) return;
+     const state = deps.tracks.get(roomCode);
+     if (state === undefined) return;
+     const next = autoStop(state, { at: since });

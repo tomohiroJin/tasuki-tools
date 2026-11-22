@@ -365,6 +365,8 @@
 .track-segment-edit {
   flex: none;
   margin-inline-start: auto;
+  /* 2 字の控えのボタンは、字と横の余白だけでは押せる幅（2.75rem＝44px）に 1px 届かない */
+  min-inline-size: 2.75rem;
 }
 
 /* ── 直す・抜けを足す ─────────────────────────────────────── */

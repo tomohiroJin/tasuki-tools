@@ -1,0 +1,22 @@
+# 変異 2484: track-insert-keeps-fragment
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 上書きで、1 秒に満たない前の端切れを残す。J11。分単位の入力と ms の境界のずれで、見えない区切りが残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2484-*.patch
+# 復元: git apply -R scripts/mutations/m2484-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -156,7 +156,7 @@
+     // 重なった区切り。前の残りは元の番号を保ち、後ろの残りは（前の残りがあれば）新しい番号を取る
+     const hasHead = g.startMs < input.startMs;
+     if (hasHead) {
+-      if (input.startMs - g.startMs < MIN_SEGMENT_MS) from = g.startMs;
++      if (input.startMs - g.startMs < 0) from = g.startMs;
+       else before.push({ ...g, endMs: input.startMs, autoClosed: false });
+     }
+     // 計測中の残りは、長さに関わらず（「いま」まで足したときも）計測中のまま続ける
