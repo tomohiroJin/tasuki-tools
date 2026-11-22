@@ -22,12 +22,15 @@ import {
   COPY_MANUAL_FIELD,
   DISMISS_BUTTON,
   EDGE_END,
+  EDGE_OUT_OF_RANGE,
+  EDGE_SET_BUTTON,
   EDGE_START,
   EDIT_APPLY_BUTTON,
   EDIT_KIND_FIELD,
   EDIT_NAME_FIELD,
   FOOTNOTE,
   INSERT_BUTTON,
+  INSERT_CANCEL,
   INSERT_END_FIELD,
   INSERT_ERROR_ORDER,
   INSERT_ERROR_TIME,
@@ -57,10 +60,12 @@ import {
   announceStarted,
   backOption,
   editLabel,
+  edgeTimeLabel,
   longRunningText,
   pinLabel,
   resumeOfferText,
   stepLabel,
+  unnamedPrompt,
   stepText,
   tabTitle,
   undoRemaining,
@@ -398,6 +403,67 @@ describe('時系列と手直し', () => {
     const timeline = openReview();
     fireEvent.click(timeline.getByRole('button', { name: REMOVE_BUTTON }));
     expect(sentCommands()).toEqual([{ command: 'track.segment.remove', id: 'g-1' }]);
+    // 消した行の欄は外れるので、フォーカスは時系列の見出しへ移る（body に落とさない）
+    expect(document.activeElement).toBe(timeline.getByRole('heading', { name: TIMELINE_HEADING }));
+  });
+
+  it('Given 止まっている画面を開いたまま 10 分経つ / When 最後の区切りを開く / Then 終わりを後ろへ動かすボタンが押せる（描いた時点の「いま」を使い回さない）', () => {
+    // Build は 30〜45 分で止まり、写しの「いま」も 45 分。描き直しは起きない
+    const view = trackView({ nowMs: 45 * MIN, segments: [seg('g-1', 'work', 'Review', 0, 30 * MIN), seg('g-2', 'work', 'Build', 30 * MIN, 45 * MIN)] });
+    renderRoom(view);
+    nowMs += 10 * MIN;
+    fireEvent.click(button(editLabel(`${clock(view, 30 * MIN)}–${clock(view, 45 * MIN)}`, 'Build')));
+    const timeline = within(region(TIMELINE_HEADING));
+    expect(timeline.getByRole('button', { name: stepLabel(EDGE_END, stepText('+', 5)) })).toBeEnabled();
+  });
+
+  it('Given 終わりが「いま」と同じ区切りを開いている / When 開いたまま 1 分経つ / Then 終わりの +1 分が押せるようになる', () => {
+    vi.useFakeTimers();
+    const view = trackView({ nowMs: 45 * MIN, segments: [seg('g-1', 'work', 'Review', 0, 30 * MIN), seg('g-2', 'work', 'Build', 30 * MIN, 45 * MIN)] });
+    renderRoom(view);
+    fireEvent.click(button(editLabel(`${clock(view, 30 * MIN)}–${clock(view, 45 * MIN)}`, 'Build')));
+    const plusOne = (): HTMLElement => within(region(TIMELINE_HEADING)).getByRole('button', { name: stepLabel(EDGE_END, stepText('+', 1)) });
+    expect(plusOne()).toBeDisabled();
+    nowMs += MIN;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(plusOne()).toBeEnabled();
+  });
+
+  it('Given 閉じた区切りを開いた / When 終わりの時刻を入れて合わせる / Then その時刻の位置へ終わりを動かす', () => {
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_END)), { target: { value: clock(view, 20 * MIN) } });
+    fireEvent.click(within(timeline.getByRole('group', { name: EDGE_END })).getByRole('button', { name: EDGE_SET_BUTTON }));
+    expect(sentCommands()).toEqual([{ command: 'track.segment.adjust', id: 'g-1', edge: 'end', atMs: 20 * MIN }]);
+  });
+
+  it('Given 閉じた区切りを開いた / When 動かせない時刻を入れて合わせる / Then 送らず、動かせないと知らせる', () => {
+    // Review 0〜30 分。始まりを終わりより後の時刻（40 分）へは動かせない
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 40 * MIN) } });
+    fireEvent.click(within(timeline.getByRole('group', { name: EDGE_START })).getByRole('button', { name: EDGE_SET_BUTTON }));
+    expect(sentCommands()).toEqual([]);
+    expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
+  });
+
+  it('Given 名前のない区切りが 2 つ / When 画面を描く / Then 件数を添えて、名前を付けるよう促す', () => {
+    const view = trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', '', 0, 10 * MIN), seg('g-2', 'work', 'Build', 10 * MIN, 20 * MIN), seg('g-3', 'work', '', 20 * MIN, 30 * MIN)] });
+    renderRoom(view);
+    expect(within(region(TIMELINE_HEADING)).getByText(unnamedPrompt(2))).toBeInTheDocument();
+  });
+
+  it('Given 名前のない区切りが無い（休憩はある） / When 画面を描く / Then 促しは出さない', () => {
+    renderRoom(stoppedTrack());
+    expect(document.querySelector('.track-unnamed-prompt')).toBeNull();
+    expect(region(TIMELINE_HEADING)).toBeInTheDocument();
+  });
+
+  it('Given 抜けを足す欄を開いた / When やめる / Then 欄が閉じ、フォーカスは開いたボタンへ返る', () => {
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(INSERT_BUTTON));
+    fireEvent.click(button(INSERT_CANCEL));
+    expect(document.activeElement).toBe(button(INSERT_BUTTON));
   });
 
   it('Given 閉じた区切りを開いた / When 区切りの中の時刻と後半の名前を入れて分ける / Then その位置で分割を送る', () => {

@@ -3,7 +3,7 @@
  * 名前なしの作業と、全員の切断で閉じた区切り（`autoClosed`）は目立たせる（後から直す対象）。
  * 見出しの行の［抜けを足す］で、区切りを後から足す欄を開く。
  */
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { TrackView } from '@tasuki/track-core';
 import {
   AUTO_CLOSED_MARK,
@@ -14,6 +14,7 @@ import {
   TIMELINE_EMPTY,
   TIMELINE_HEADING,
   editLabel,
+  unnamedPrompt,
 } from '../copy';
 import type { TrackActions } from '../hooks/use-track-sync';
 import { isUnnamed, nameOf, rangeTextOf } from '../track-view';
@@ -34,12 +35,18 @@ export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions
   const insertId = useId();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [inserting, setInserting] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const insertButtonRef = useRef<HTMLButtonElement>(null);
+  const unnamedCount = view.segments.filter(isUnnamed).length;
 
   return (
     <section className="track-timeline ui-stack" aria-labelledby={headingId}>
       <div className="ui-section-head">
-        <h2 id={headingId}>{TIMELINE_HEADING}</h2>
+        <h2 id={headingId} ref={headingRef} tabIndex={-1}>
+          {TIMELINE_HEADING}
+        </h2>
         <button
+          ref={insertButtonRef}
           type="button"
           className="ui-button ui-button--secondary ui-button--sm"
           aria-expanded={inserting}
@@ -57,10 +64,16 @@ export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions
             tzOffsetMin={tzOffsetMin}
             canOperate={canOperate}
             onInsert={actions.insertSegment}
-            onClose={() => setInserting(false)}
+            // 欄が外れるので、開いたボタンへフォーカスを返す
+            onClose={() => {
+              setInserting(false);
+              insertButtonRef.current?.focus();
+            }}
           />
         </div>
       )}
+      {/* 名前のない区切りは時系列の順のまま目立たせ、件数で名前を付けるよう促す（FR-20） */}
+      {unnamedCount > 0 && <p className="ui-note track-unnamed-prompt">{unnamedPrompt(unnamedCount)}</p>}
       {view.segments.length === 0 ? (
         <p className="ui-note">{TIMELINE_EMPTY}</p>
       ) : (
@@ -98,6 +111,11 @@ export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions
                     tzOffsetMin={tzOffsetMin}
                     canOperate={canOperate}
                     actions={actions}
+                    // 消した行は外れるので、時系列の見出しへフォーカスを移す
+                    onRemoved={() => {
+                      setEditingId(null);
+                      headingRef.current?.focus();
+                    }}
                   />
                 )}
               </li>

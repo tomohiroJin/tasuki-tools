@@ -75,11 +75,15 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(nowName(page)).toHaveText('実装');
     await expect(candidate(page, '設計')).toBeVisible();
     await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[2-9]/);
-    // 入力欄からフォーカスを外してから押す（入力中の数字は拾わない）
+    // 入力欄からフォーカスを外してから押す（入力中の数字は拾わない）。
+    // 押すのは「設計」の番号。いま計測中の「実装」の番号を押しても何も起きないので、キーが効いたことにならない
     await page.getByRole('heading', { level: 1, name: 'うちわけ', exact: true }).click();
-    const first = (await page.getByRole('list', { name: '候補' }).locator('.track-candidate-label').first().textContent()) ?? '';
-    await page.keyboard.press('1');
-    await expect(nowName(b)).toHaveText(first);
+    const labels = await page.getByRole('list', { name: '候補' }).locator('.track-candidate-label').allTextContents();
+    const designIndex = labels.indexOf('設計');
+    expect(designIndex, `候補に「設計」がある（${labels.join(',')}）`).toBeGreaterThanOrEqual(0);
+    await expect(nowName(b)).toHaveText('実装');
+    await page.keyboard.press(String(designIndex + 1));
+    await expect(nowName(b)).toHaveText('設計');
 
     // When / Then その5: A が「休憩にする」→ 両方の画面で休憩になり、うちわけの表の「休憩」の行が進む
     await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[2-9]/);
@@ -146,14 +150,18 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await openTrackTool(page, 'e2e-track-reload');
     await startWork(page, '調べもの');
     await expect(nowName(page)).toHaveText('調べもの');
-    await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[2-9]/);
+    // 再読み込みの前に 4 秒以上計っておく（0 から数え直す実装と、続きから数える実装で、直後の値が分かれるように）
+    await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[4-9]/);
 
     // When
     await page.reload();
 
-    // Then: 0 に戻らず、続きから数えている
+    // Then: 0 に戻らず、続きから数えている。**再読み込みの後に最初に描かれた経過**が 4 秒以上（待って追いつくのを許さない）
     await expect(nowName(page)).toHaveText('調べもの');
-    await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[2-9]|0:00:[1-5]\d/);
+    const firstShown = (await nowPanel(page).locator('.track-digits').textContent()) ?? '';
+    const match = /^0:00:(\d{2})$/.exec(firstShown);
+    expect(match, `経過の表示が読める（${firstShown}）`).not.toBeNull();
+    expect(Number(match![1]), '再読み込みの直後の経過（秒）').toBeGreaterThanOrEqual(4);
     await expect(segments(page)).toHaveCount(1);
     await expect(switchPanel(page).getByRole('button', { name: '切り替える', exact: true })).toBeVisible();
   });

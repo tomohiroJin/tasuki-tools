@@ -169,7 +169,9 @@
   border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ivory);
-  font: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
   font-size: var(--font-size-sm);
   text-align: start;
   cursor: pointer;
@@ -365,8 +367,8 @@
 .track-segment-edit {
   flex: none;
   margin-inline-start: auto;
-  /* 2 字の控えのボタンは、字と横の余白だけでは押せる幅（2.75rem＝44px）に 1px 届かない */
-  min-inline-size: 2.75rem;
+  /* 2 字の控えのボタンは、字と横の余白だけでは押せる幅（44px）に 1px 届かない */
+  min-inline-size: var(--tap-target);
 }
 
 /* ── 直す・抜けを足す ─────────────────────────────────────── */
@@ -407,6 +409,20 @@
   gap: var(--space-3);
 }
 .track-edge-steps .ui-button {
+  white-space: nowrap;
+}
+/* 時刻を入れて合わせる欄。欄は縮められる幅を持ち、ボタンは折らない */
+.track-edge-set {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.track-edge-set .ui-input {
+  inline-size: auto;
+  min-inline-size: 0;
+}
+.track-edge-set .ui-button {
   white-space: nowrap;
 }
 .track-editor-danger,

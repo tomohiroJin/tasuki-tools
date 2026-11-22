@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertRangeOf, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
+import { edgePositionOf, insertRangeOf, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
 import { EPOCH_WALL_MS, MIN, seg } from './support/track-states';
 
 const HOUR = 60 * MIN;
@@ -117,5 +117,23 @@ describe('分ける時刻の位置', () => {
   it('Given 日付をまたぐ閉じた区切り / When 前日の側の時刻を入れる / Then 区切りの終わりより前の直近として読む', () => {
     const overnight = seg('g-3', 'work', 'Build', 13 * HOUR + 30 * MIN, 14 * HOUR + 30 * MIN);
     expect(splitPositionOf('23:45', overnight, 20 * HOUR, EPOCH_WALL_MS, JST)).toBe(13 * HOUR + 45 * MIN);
+  });
+});
+
+describe('始まり・終わりを合わせる時刻', () => {
+  // 動かせる範囲は 10:10:00〜10:40:20（位置 10 分〜40 分 20 秒）
+  const range = { minMs: 10 * MIN, maxMs: 40 * MIN + 20_000 };
+
+  it('Given 範囲の中の時刻 / When 位置を求める / Then その分ちょうどの位置になる', () => {
+    expect(edgePositionOf('10:25', range, EPOCH_WALL_MS, JST)).toBe(25 * MIN);
+    expect(edgePositionOf('10:10', range, EPOCH_WALL_MS, JST)).toBe(10 * MIN);
+    expect(edgePositionOf('10:40', range, EPOCH_WALL_MS, JST)).toBe(40 * MIN);
+  });
+
+  it('Given 範囲の外・読めない時刻・範囲が無い / When 位置を求める / Then 合わせられない', () => {
+    expect(edgePositionOf('10:09', range, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePositionOf('10:41', range, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePositionOf('', range, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePositionOf('10:25', null, EPOCH_WALL_MS, JST)).toBeNull();
   });
 });

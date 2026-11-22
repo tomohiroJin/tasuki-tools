@@ -117,10 +117,22 @@ describe('手元の時計', () => {
     expect(result.current.nowMs).toBe(2000);
   });
 
-  it('Given 動きを減らさない設定 / When 時間が進む / Then 1 秒の間隔の描き直しは使わない', () => {
-    renderHook(() => useTrackClock(RUNNING, 10_000, false));
-    expect(vi.getTimerCount()).toBe(0);
-    expect(rafCallbacks.size).toBe(1);
+  it('Given 裏のタブ（rAF が呼ばれない） / When 時間が進む / Then 間隔の見張りで、秒が変わったときに描き直す', () => {
+    // 隠れた文書では rAF が呼ばれない。タブの題（1 分ごと）を進めるには、タイマーの見張りが要る
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useTrackClock(RUNNING, 10_000, false);
+    });
+    const before = renders;
+    nowMs += 3 * MIN;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.nowMs).toBe(1000 + 3 * MIN);
+    // 秒が変わらなければ、見張りが回っても描き直さない
+    const after = renders;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(renders).toBe(after);
+    expect(after).toBe(before + 1);
   });
 
   it('Given 計測中 / When 止まった写しに替わる / Then 予約を取り消す', () => {
@@ -134,6 +146,7 @@ describe('手元の時計', () => {
     const raf = renderHook(() => useTrackClock(RUNNING, 10_000, false));
     raf.unmount();
     expect(rafCallbacks.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
     const slow = renderHook(() => useTrackClock(RUNNING, 10_000, true));
     slow.unmount();
     expect(vi.getTimerCount()).toBe(0);

@@ -77,3 +77,14 @@ export function splitPositionOf(value: string, segment: Pick<SegmentView, 'start
   const atMs = positionBefore(clock, endMs, epochWallMs, tzOffsetMin);
   return atMs >= segment.startMs + MIN_SEGMENT_MS && atMs <= endMs - MIN_SEGMENT_MS ? atMs : null;
 }
+
+/**
+ * 始まり・終わりを合わせる時刻の位置。動かせる範囲の上限より前の直近の時刻として読み、範囲に入る位置だけを返す（それ以外は null）。
+ * 範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求めたものを渡す。
+ */
+export function edgePositionOf(value: string, range: { minMs: number; maxMs: number } | null, epochWallMs: number, tzOffsetMin: number): number | null {
+  const clock = parseClock(value);
+  if (clock === null || range === null) return null;
+  const atMs = positionBefore(clock, range.maxMs, epochWallMs, tzOffsetMin);
+  return atMs >= range.minMs ? atMs : null;
+}

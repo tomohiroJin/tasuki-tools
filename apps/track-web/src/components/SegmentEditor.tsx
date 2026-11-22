@@ -2,17 +2,19 @@
  * 区切りを直す（#476・FR-7・FR-17・設計 §4.3「手直しの制約」）。時系列の行の中に開く。
  *
  * - 名前と種類（作業／休憩）の付け替え
- * - 始まりと終わりの ±1 分・±5 分。動かせる範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求め、
+ * - 始まりと終わりを、時刻の入力か ±1 分・±5 分で動かす。動かせる範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求め、
  *   範囲に収める（使い切った所で止まる）。その向きへ動かせないボタンは押せない。計測中の区切りの終わりは出さない
  * - 途中で分ける（分ける時刻と後半の作業名）
  * - 消す（計測中は出さない）
  *
  * 止まっている間は画面を描き直さないので、押した瞬間の「いま」（`getNow`）で範囲を取り直してから送る。
  */
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { MAX_LABEL_INPUT, adjustRangeOf, type SegmentEdge, type SegmentKind, type SegmentView, type TrackView } from '@tasuki/track-core';
 import {
   EDGE_END,
+  EDGE_OUT_OF_RANGE,
+  EDGE_SET_BUTTON,
   EDGE_START,
   EDIT_APPLY_BUTTON,
   EDIT_KIND_FIELD,
@@ -25,14 +27,17 @@ import {
   SPLIT_NAME_FIELD,
   SPLIT_OUT_OF_RANGE,
   SPLIT_TIME_FIELD,
+  edgeTimeLabel,
   stepLabel,
   stepText,
 } from '../copy';
 import type { TrackActions } from '../hooks/use-track-sync';
-import { splitPositionOf } from '../time-input';
+import { edgePositionOf, splitPositionOf } from '../time-input';
 import { clockOf, steppedEdge } from '../track-view';
 
 const MS_PER_MIN = 60_000;
+/** 開いている間の描き直しの間隔。止まっている間は画面が描き直さないので、押せる・押せないを古いまま残さない */
+const OPEN_TICK_MS = 1000;
 /** ± のボタンの刻み（分）。並びは左から */
 const STEPS = [-5, -1, 1, 5] as const;
 
@@ -44,9 +49,11 @@ interface Props {
   tzOffsetMin: number;
   canOperate: boolean;
   actions: TrackActions;
+  /** 区切りを消した後に呼ぶ（欄が外れるので、フォーカスの行き先を親が決める） */
+  onRemoved: () => void;
 }
 
-export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOperate, actions }: Props) {
+export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOperate, actions, onRemoved }: Props) {
   const nameId = useId();
   const kindId = useId();
   const splitTimeId = useId();
@@ -57,6 +64,16 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
   const [splitTime, setSplitTime] = useState('');
   const [splitLabel, setSplitLabel] = useState('');
   const [splitError, setSplitError] = useState(false);
+  const [edgeTime, setEdgeTime] = useState<Record<SegmentEdge, string>>({ start: '', end: '' });
+  const [edgeError, setEdgeError] = useState<SegmentEdge | null>(null);
+  const edgeErrorId = useId();
+  // 開いている間は 1 秒ごとに描き直す（「いま」が上限の端は、時間が経つと動かせるようになる）
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), OPEN_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+  const liveNow = Math.max(nowMs, getNow());
 
   const applyName = (event: FormEvent): void => {
     event.preventDefault();
@@ -71,6 +88,15 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
   const step = (edge: SegmentEdge, minutes: number): void => {
     const target = targetOf(edge, minutes, getNow());
     if (target !== null) actions.adjustSegment(segment.id, edge, target);
+  };
+  const setEdge = (edge: SegmentEdge, event: FormEvent): void => {
+    event.preventDefault();
+    if (!canOperate) return;
+    const atMs = edgePositionOf(edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, getNow()), view.epochWallMs, tzOffsetMin);
+    setEdgeError(atMs === null ? edge : null);
+    if (atMs === null) return;
+    actions.adjustSegment(segment.id, edge, atMs);
+    setEdgeTime((prev) => ({ ...prev, [edge]: '' }));
   };
 
   const split = (event: FormEvent): void => {
@@ -128,7 +154,7 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
                   type="button"
                   className="ui-button ui-button--secondary ui-button--sm"
                   aria-label={stepLabel(name, text)}
-                  disabled={!canOperate || targetOf(edge, minutes, nowMs) === null}
+                  disabled={!canOperate || targetOf(edge, minutes, liveNow) === null}
                   onClick={() => step(edge, minutes)}
                 >
                   {text}
@@ -136,6 +162,28 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
               );
             })}
           </span>
+          <form className="track-edge-set" noValidate onSubmit={(event) => setEdge(edge, event)}>
+            <input
+              className="ui-input"
+              type="time"
+              aria-label={edgeTimeLabel(name)}
+              value={edgeTime[edge]}
+              aria-invalid={edgeError === edge}
+              aria-describedby={edgeError === edge ? edgeErrorId : undefined}
+              onChange={(event) => {
+                setEdgeTime((prev) => ({ ...prev, [edge]: event.target.value }));
+                setEdgeError(null);
+              }}
+            />
+            <button type="submit" className="ui-button ui-button--secondary ui-button--sm" disabled={!canOperate}>
+              {EDGE_SET_BUTTON}
+            </button>
+          </form>
+          {edgeError === edge && (
+            <p id={edgeErrorId} className="track-form-error ui-note ui-note--error" role="alert">
+              {EDGE_OUT_OF_RANGE}
+            </p>
+          )}
         </div>
       ))}
 
@@ -179,7 +227,11 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
 
       {segment.endMs !== null && (
         <div className="track-editor-danger">
-          <button type="button" className="ui-button ui-button--danger ui-button--sm" disabled={!canOperate} onClick={() => actions.removeSegment(segment.id)}>
+          <button type="button" className="ui-button ui-button--danger ui-button--sm" disabled={!canOperate} onClick={() => {
+              actions.removeSegment(segment.id);
+              onRemoved();
+            }}
+          >
             {REMOVE_BUTTON}
           </button>
         </div>

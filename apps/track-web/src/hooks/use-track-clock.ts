@@ -6,6 +6,7 @@
  *
  * - **描き直すのは、表示する秒が変わるときだけ**（agenda-web の `use-local-clock` と同じ考え方）。
  *   `requestAnimationFrame` で見張り、経過と合計の秒（`shownSecondsKey`）が変わった回だけ描き直す
+ * - 裏のタブでは rAF が呼ばれないので、1 秒の間隔でも同じ見張りを回す（タブの題を進めるため）
  * - 動きを減らす設定では 1 秒ごと（rAF は使わない）
  * - **計測していないときは予約を持たない**（動かないものを見張らない）。取り消しの残りは `use-undo-seconds` が別に数える
  * - 外したら予約を取り消す
@@ -18,6 +19,9 @@ import { secondPhasesOf, shownSecondsKey } from '../track-view';
 
 /** 動きを減らす設定での描き直しの間隔 */
 const REDUCED_MOTION_TICK_MS = 1000;
+
+/** 裏のタブ（rAF が止まる）のための見張りの間隔 */
+const BACKGROUND_TICK_MS = 1000;
 
 const positionOf = (view: TrackView, receivedAt: number): number => Math.floor(advanceNow(view, performance.now() - receivedAt));
 
@@ -54,14 +58,23 @@ export function useTrackClock(view: TrackView, receivedAt: number, reducedMotion
       const id = setInterval(redraw, REDUCED_MOTION_TICK_MS);
       return () => clearInterval(id);
     }
-    let frameId = 0;
-    const loop = (): void => {
+    const check = (): void => {
       const { view: v, receivedAt: at, phases: p } = latest.current;
       if (keyOf(v, at, p) !== shownRef.current) redraw();
+    };
+    let frameId = 0;
+    const loop = (): void => {
+      check();
       frameId = requestAnimationFrame(loop);
     };
     frameId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frameId);
+    // 裏のタブでは rAF が呼ばれない。タブの題（別のタブを見ているときに役に立つ）を進めるため、タイマーでも見張る
+    // （裏では間引かれるが、題は 1 分ごとなので足りる）。描き直すのは、表と同じく秒が変わったときだけ
+    const backgroundId = setInterval(check, BACKGROUND_TICK_MS);
+    return () => {
+      cancelAnimationFrame(frameId);
+      clearInterval(backgroundId);
+    };
   }, [animated, reducedMotion]);
 
   const getNow = useCallback((): number => positionOf(latest.current.view, latest.current.receivedAt), []);
