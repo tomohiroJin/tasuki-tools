@@ -33,27 +33,40 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(minutes / 60)}:${pad2(minutes % 60)}`;
 }
 
-/** 壁時計の時刻を、時間帯をずらした「見かけの UTC」の日付にする。 */
-const shifted = (wallMs: number, tzOffsetMin: number): Date => new Date(wallMs + tzOffsetMin * MS_PER_MIN);
+/** その時間帯での日の通し番号（1970-01-01 を 0 とする。日付をまたぐかの判定にも使う）。 */
+const dayOf = (wallMs: number, tzOffsetMin: number): number => Math.floor((wallMs + tzOffsetMin * MS_PER_MIN) / MS_PER_DAY);
+
+/**
+ * 日の通し番号を暦の年月日にする（先発グレゴリオ暦。Howard Hinnant の days-to-civil の手順）。
+ * `Date` を使わないのは、ドメインが環境に触らないことを機械で確かめられる形に保つため（`scripts/audit-domain-side-effects.mjs`）。
+ */
+function civilOf(day: number): { year: number; month: number; date: number } {
+  const z = day + 719_468;
+  const era = Math.floor(z / 146_097);
+  const dayOfEra = z - era * 146_097;
+  const yearOfEra = Math.floor((dayOfEra - Math.floor(dayOfEra / 1_460) + Math.floor(dayOfEra / 36_524) - Math.floor(dayOfEra / 146_096)) / 365);
+  const dayOfYear = dayOfEra - (365 * yearOfEra + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100));
+  const shiftedMonth = Math.floor((5 * dayOfYear + 2) / 153);
+  const month = shiftedMonth < 10 ? shiftedMonth + 3 : shiftedMonth - 9;
+  return { year: yearOfEra + era * 400 + (month <= 2 ? 1 : 0), month, date: dayOfYear - Math.floor((153 * shiftedMonth + 2) / 5) + 1 };
+}
 
 /** 壁時計の時刻を HH:MM にする（分未満は切り捨て）。 */
 export function formatClock(wallMs: number, tzOffsetMin: number): string {
-  const d = shifted(wallMs, tzOffsetMin);
-  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  const local = wallMs + tzOffsetMin * MS_PER_MIN;
+  const minuteOfDay = Math.floor((local - dayOf(wallMs, tzOffsetMin) * MS_PER_DAY) / MS_PER_MIN);
+  return `${pad2(Math.floor(minuteOfDay / 60))}:${pad2(minuteOfDay % 60)}`;
 }
 
 const formatDate = (wallMs: number, tzOffsetMin: number): string => {
-  const d = shifted(wallMs, tzOffsetMin);
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  const { year, month, date } = civilOf(dayOf(wallMs, tzOffsetMin));
+  return `${year}-${pad2(month)}-${pad2(date)}`;
 };
 
 const formatMonthDay = (wallMs: number, tzOffsetMin: number): string => {
-  const d = shifted(wallMs, tzOffsetMin);
-  return `${pad2(d.getUTCMonth() + 1)}/${pad2(d.getUTCDate())}`;
+  const { month, date } = civilOf(dayOf(wallMs, tzOffsetMin));
+  return `${pad2(month)}/${pad2(date)}`;
 };
-
-/** その時間帯での日の通し番号（日付をまたぐかの判定に使う）。 */
-const dayOf = (wallMs: number, tzOffsetMin: number): number => Math.floor((wallMs + tzOffsetMin * MS_PER_MIN) / MS_PER_DAY);
 
 /**
  * 作業名を Markdown の本文として安全にする。表の区切り（`|`）と、強調・リンク・見出し・HTML に読まれる記号を逃がす。

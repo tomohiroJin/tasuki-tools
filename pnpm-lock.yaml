@@ -587,6 +587,79 @@ importers:
         specifier: ^4.1.11
         version: 4.1.12(@types/node@26.6.6)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.8(@types/node@26.6.6))
 
+  apps/track-web:
+    dependencies:
+      '@tasuki/invite-ui':
+        specifier: workspace:*
+        version: link:../../packages/invite-ui
+      '@tasuki/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../../packages/room-core
+      '@tasuki/sync-client':
+        specifier: workspace:*
+        version: link:../../packages/sync-client
+      '@tasuki/topic-core':
+        specifier: workspace:*
+        version: link:../../packages/topic-core
+      '@tasuki/track-core':
+        specifier: workspace:*
+        version: link:../../packages/track-core
+      '@tasuki/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@tasuki/web-kit':
+        specifier: workspace:*
+        version: link:../../packages/web-kit
+      react:
+        specifier: ^19.1.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.3.1(react@19.3.1)
+      valibot:
+        specifier: ^1.4.1
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      '@tasuki/dev-hub-redirect':
+        specifier: workspace:*
+        version: link:../../packages/dev-hub-redirect
+      '@tasuki/test-css':
+        specifier: workspace:*
+        version: link:../../packages/test-css
+      '@testing-library/jest-dom':
+        specifier: ^7.0.0
+        version: 7.0.1(@testing-library/dom@10.4.2)(vitest@4.1.12)
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/node':
+        specifier: ^26.1.2
+        version: 26.6.6
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.5
+        version: 6.3.0(vite@8.3.8(@types/node@26.6.6))
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.1.3
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.2.0
+        version: 8.3.8(@types/node@26.6.6)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.12(@types/node@26.6.6)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.8(@types/node@26.6.6))
+
   e2e:
     dependencies:
       '@tasuki/agenda-web':
@@ -610,6 +683,9 @@ importers:
       '@tasuki/topic-web':
         specifier: workspace:*
         version: link:../apps/topic-web
+      '@tasuki/track-web':
+        specifier: workspace:*
+        version: link:../apps/track-web
     devDependencies:
       '@playwright/test':
         specifier: 1.65.1

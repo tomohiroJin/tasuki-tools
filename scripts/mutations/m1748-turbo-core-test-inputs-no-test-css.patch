@@ -10,4 +10,4 @@ index 559df966..aa02d7c7 100644
 +      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css"],
        "outputs": ["coverage/**"]
      },
-     "@tasuki/checkin-core#test": {
+     "@tasuki/track-core#test": {

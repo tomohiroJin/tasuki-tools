@@ -37,7 +37,7 @@ import path from "node:path";
 import ts from "typescript";
 
 /**
- * 「web の端末 I/O」の層に入るファイル（`docs/adr/0015` 追記の実測の 14 本）。**名指しの宣言**で、字面からは決めない。
+ * 「web の端末 I/O」の層に入るファイル（`docs/adr/0015` 追記の実測の 14 本と、その後に足した道具のぶん）。**名指しの宣言**で、字面からは決めない。
  * 純粋な値と I/O が同じファイルにあるときは、純粋な側を別のファイルへ分けて純粋判断の層に置く（例: `roulette-web/src/regulars-rules.ts`）。
  * 実在しなくなった行は監査が落とす（{@link findStaleIoFiles}）。新しく I/O のファイルを足したら、ここへ足す。
  */
@@ -50,6 +50,8 @@ export const WEB_IO_FILES = new Set([
   "apps/roulette-web/src/router.ts",
   "apps/roulette-web/src/storage/regulars.ts",
   "apps/topic-web/src/router.ts",
+  "apps/track-web/src/platform/timezone.ts",
+  "apps/track-web/src/router.ts",
   "apps/landing/src/hub/departure.ts",
   "apps/timer-web/src/platform/location.ts",
   "apps/timer-web/src/platform/notify.ts",

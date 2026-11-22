@@ -31,6 +31,36 @@ describe("formatClock", () => {
   });
 });
 
+describe("見出しの日付（暦の計算）", () => {
+  /** その日の正午（UTC）から 1 分だけ計った記録の見出し */
+  const headingOf = (wallMs: number): string => {
+    const s = must(stop(must(start({ ...empty(), epochWallMs: wallMs }, { label: "x", kind: "work", now: at(0) })), { now: at(1) }));
+    const view = toView(s, at(1));
+    return toMarkdown(view, view.nowMs, 0).split("\n")[0]!;
+  };
+
+  it.each([
+    ["うるう日", Date.UTC(2028, 1, 29, 12), "2028-02-29"],
+    ["うるう年でない年の 3 月 1 日", Date.UTC(2027, 2, 1, 12), "2027-03-01"],
+    ["400 で割れる年のうるう日", Date.UTC(2000, 1, 29, 12), "2000-02-29"],
+    ["100 で割れる年の 3 月 1 日", Date.UTC(2100, 2, 1, 12), "2100-03-01"],
+    ["大みそか", Date.UTC(2026, 11, 31, 12), "2026-12-31"],
+    ["元日", Date.UTC(2027, 0, 1, 12), "2027-01-01"],
+    ["1970 年より前", Date.UTC(1969, 11, 31, 12), "1969-12-31"],
+  ])("%s を正しい年月日で出す", (_name, wallMs, expected) => {
+    expect(headingOf(wallMs)).toBe(`## うちわけ（${expected} 12:00–12:01）`);
+  });
+
+  it("5 年ぶんの毎日について、標準の暦の計算と一致する", () => {
+    const DAY = 24 * 60 * 60_000;
+    const from = Date.UTC(2024, 0, 1, 12);
+    for (let i = 0; i < 366 * 5; i++) {
+      const wallMs = from + i * DAY;
+      expect(headingOf(wallMs)).toContain(new Date(wallMs).toISOString().slice(0, 10));
+    }
+  });
+});
+
 describe("toMarkdown", () => {
   it("表（作業名・合計・割合）と時系列の一覧を出す", () => {
     // sample(): 設計 0-10・実装 10-30・休憩 30-40・（隙間）・実装 50-（計測中）。壁時計は 10:00 JST 始まり

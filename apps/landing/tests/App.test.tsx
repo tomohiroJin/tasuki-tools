@@ -222,14 +222,14 @@ describe('選択画面', () => {
     }
   });
 
-  it('Given 玄関の札 / When 並びを読む / Then timer → poker → roulette → topic → agenda → checkin の順になる', () => {
+  it('Given 玄関の札 / When 並びを読む / Then timer → poker → roulette → topic → agenda → checkin → track の順になる', () => {
     // Given（準備）: 札の定義（TOOLS）が玄関の並びの正本
 
     // When（操作）: ID の並びを読む
     const ids = TOOLS.map((tool) => tool.id);
 
     // Then: 使う流れの順（交代 → 見積もり → 進行 → お題 → 予定 → 始終）
-    expect(ids).toEqual(['timer', 'poker', 'roulette', 'topic', 'agenda', 'checkin']);
+    expect(ids).toEqual(['timer', 'poker', 'roulette', 'topic', 'agenda', 'checkin', 'track']);
   });
 
   it('Given 玄関の札 / When 選択画面を描く / Then 札のリンクが同じ順で並ぶ', () => {
@@ -247,7 +247,7 @@ describe('選択画面', () => {
       .getAllByRole('link')
       .map((link) => link.getAttribute('href'));
 
-    // Then: 公開パスの順が timer → poker → roulette → topic → agenda → checkin
+    // Then: 公開パスの順が timer → poker → roulette → topic → agenda → checkin → track
     const room = `?room=${encodeURIComponent('朝会モブ-a1b2')}`;
     expect(hrefs).toEqual([
       `/timer/${room}`,
@@ -256,6 +256,7 @@ describe('選択画面', () => {
       `/topic/${room}`,
       `/agenda/${room}`,
       `/checkin/${room}`,
+      `/track/${room}`,
     ]);
   });
 

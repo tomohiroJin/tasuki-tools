@@ -15,4 +15,5 @@ export const LOCATIONS: Readonly<Record<ToolId, { readonly app: string; readonly
   roulette: { app: 'roulette-web', deploy: 'roulette' },
   agenda: { app: 'agenda-web', deploy: 'agenda' },
   checkin: { app: 'checkin-web', deploy: 'checkin' },
+  track: { app: 'track-web', deploy: 'track' },
 };

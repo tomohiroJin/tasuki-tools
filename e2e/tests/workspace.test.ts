@@ -40,7 +40,7 @@ describe('e2e パッケージの登録', () => {
       typeof pkg === 'object' && pkg !== null && 'dependencies' in pkg
         ? (pkg as { dependencies: Record<string, string> }).dependencies
         : {};
-    // Then: 7 つとも workspace 依存として宣言されている（#91 PR 2 で topic-web、#94 PR 2 で roulette-web、#429 で agenda-web、#406 で checkin-web が加わった）
+    // Then: どれも workspace 依存として宣言されている（#91 PR 2 で topic-web、#94 PR 2 で roulette-web、#429 で agenda-web、#406 で checkin-web、#476 で track-web が加わった）
     expect(deps['@tasuki/timer-web']).toBe('workspace:*');
     expect(deps['@tasuki/poker-web']).toBe('workspace:*');
     expect(deps['@tasuki/landing']).toBe('workspace:*');
@@ -48,5 +48,6 @@ describe('e2e パッケージの登録', () => {
     expect(deps['@tasuki/roulette-web']).toBe('workspace:*');
     expect(deps['@tasuki/agenda-web']).toBe('workspace:*');
     expect(deps['@tasuki/checkin-web']).toBe('workspace:*');
+    expect(deps['@tasuki/track-web']).toBe('workspace:*');
   });
 });

@@ -18,8 +18,8 @@ index fd9ba5bb..fb43b3bc 100644
  export const TOOL_HUB: ToolId | null = null;
  
  /** このサーバーが載せている道具の一覧。綴りの正本。道具を足すときは定数とこの配列に足す。 */
--export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN] as const;
-+export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA] as const;
+-export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN, TOOL_TRACK] as const;
++export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_TRACK] as const;
  
  /** 一覧にある道具の識別子（リテラルの共用体）。`ToolId`（room-core・不透明な string）の部分型。 */
  export type KnownToolId = (typeof TOOL_IDS)[number];
