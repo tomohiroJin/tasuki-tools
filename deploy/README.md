@@ -18,6 +18,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 公開中 |
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
+| `track` | （無し・静的） | — | `/var/www/tasuki-track` | `/track/` | 未公開（#476。配る順と初回の用意は [`track/NOTES.md`](track/NOTES.md)） |
 
 > **#668（Caddy 2.11.7 → 2.11.9・同期サーバーの Bun 1.4.3 → 1.4.4・PR #678）は 2026-11-22 の昼に配った**（`v4.7.1`）。
 > 画面とメッセージの形は変わらない（上限を超えたフレームの close のコードだけが 1006 から 1009 になった。Bun の変更で、画面は close のコードを見ない）。
@@ -99,7 +100,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 公開中かどうかはアプリごとに上の表の「状態」が正本である（timer / poker / landing は 2026-08-28・#66、
 `topic` は 2026-09-27・#91、`roulette` は 2026-10-14・#94 に初回公開）。同期サーバーはすべてのアプリで共用の 1 本（`tasuki-sync`）で、
-`topic`・`roulette`・`agenda`・`checkin` は `poker` / `landing` と同じ静的アプリである。
+`topic`・`roulette`・`agenda`・`checkin`・`track` は `poker` / `landing` と同じ静的アプリである。
 デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、指定したアプリだけが転送される。
 
 `timer` 以外（表で「サービス」が無いもの）は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
