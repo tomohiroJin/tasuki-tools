@@ -272,7 +272,8 @@ RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 Bun は**本番・手元・CI を同じ版に揃えて固定**しています。版の正本はリポジトリ直下の `toolchain.json` の
 `bun` の 1 か所で、CI（`.github/workflows/ci.yml`）はそこから読みます。手元の版が違うと、`pnpm test`・
 変異検査が始まる前に止まります（`docs/adr/0031`）。CI だけを上げると、本番と違う版で試すことになります
-（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ち、CI を固定しました）。
+（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ち、CI を固定しました。原因は 1.4.4 の正当な変更で、
+上限を超えたフレームの close が 1006 から 1009 になったため。#668 で試験を合わせて 1.4.4 へ上げました）。
 Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovate.json`・#442）。
 承認すると `renovate/bun` の PR が出るので、その PR の中で次を済ませます。
 
@@ -281,12 +282,24 @@ Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovat
 2. **CI**: Renovate の PR が `toolchain.json` の `bun` を上げる（`renovate.json` の `customManagers`）。`@types/bun` も同じ PR に入る
 3. **本番**（root が要る・**人のいない時間に**。同期サーバーの再起動でルームが消える）:
    1. 公式の配布物（GitHub Releases の `bun-linux-x64.zip`）を `SHASUMS256.txt` と照合して取得する
-   2. 今の `/usr/local/bin/bun` を `/usr/local/bin/bun-<旧版>` へ退避し、新しい実体に入れ替える（入れ替えだけで再起動はしない）
-   3. `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` で、手元の新しい Bun でバンドルし直して再起動する
+   2. 今の `/usr/local/bin/bun` を `/usr/local/bin/bun-<旧版>` へ退避し、新しい実体に `install -m 755 <新しい実体> /usr/local/bin/bun` で
+      入れ替える（入れ替えだけで再起動はしない。動いている実体へ `cp` で上書きすると `Text file busy` で失敗する）
+   3. `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` で、手元の新しい Bun でバンドルし直して再起動する。
+      **手元の作業ツリーの同期サーバーと timer の画面がそのまま配られる**ので、配る元は「本番に出ている中身 ＋ Bun の変更だけ」の
+      コミットにする（未配布の変更を混ぜない）。試験と E2E はソースを `bun run` で起動していて、バンドルを起動しないので、
+      配る前に新しい Bun で `bun build` したバンドルを手元で 1 回起動して接続を確かめる（#668 のレビュー）。
+      流す直前に `ssh <ホスト別名> "ss -Htn state established '( sport = :8787 )' | wc -l"` で WS が 0 本なのを見る
    4. `/proc/<PID>/exe --version` で動いている版を確かめ、`pnpm e2e:prod` を流す
 4. PR をマージする
 
-切り戻しは、退避した `/usr/local/bin/bun-<旧版>` を `sudo cp -p` で戻して `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` です。
+切り戻しは、退避した実体と、`deploy.sh` が退避した前の `server.js` の両方を戻して再起動します。
+
+1. `sudo install -m 755 /usr/local/bin/bun-<旧版> /usr/local/bin/bun`（`cp` は同期サーバーが動いている間は
+   `Text file busy` で失敗する。`install` は消してから作り直すので通る。#668 で確かめた）
+2. `cp -p /opt/tasuki/server.js.bak-<日時> /opt/tasuki/server.js`（`deploy.sh` が配る前に作った退避。旧い Bun で作ったバンドル）
+3. `sudo systemctl restart tasuki-sync` → `/proc/<PID>/exe --version` で旧版を確かめる
+
+`deploy.sh timer` で戻さないこと。手元の Bun（新しい版）と手元の作業ツリーでバンドルし直すので、前の状態には戻らない（#668 の /code-review）。
 
 ## Caddy を上げる
 
@@ -295,7 +308,8 @@ Caddy も**本番・E2E・CI を同じ版に揃えて固定**しています。�
 版が違うと、本番でだけ効かない書き方が緑のまま出ます（#434 で 2.6.2 と 2.11.4 の差を踏みました）。
 
 本番の Caddy は他のサイトと共用で、Caddy 公式の apt リポジトリ（`dl.cloudsmith.io/public/caddy/stable`）
-から入れています（2026-10-25 に Debian の 2.6.2 から 2.11.7 へ切り替え）。このリポジトリは
+から入れています（2026-10-25 に Debian の 2.6.2 から 2.11.7 へ切り替え。2.11.9 へ上げたのは #668 で、
+2.11.7 のビルドに使われた Go 1.26.8・`golang.org/x/net` v0.59.0 に HTTP/2 サーバーの脆弱性が残っていたため）。このリポジトリは
 unattended-upgrades の対象外で、さらに `apt-mark hold caddy` で止めています。他のサイトの作業で
 `apt upgrade` を流しても上がりません。**上げるときは手で**次を済ませます。
 
@@ -304,15 +318,22 @@ unattended-upgrades の対象外で、さらに `apt-mark hold caddy` で止め�
    `/ws` の先に受け取ったヘッダーを返すだけのサーバーを置き、偽の `X-Forwarded-For` が実際の接続元で
    上書きされることも比べる（IP 単位のレート制限の前提・#103）
 2. **E2E と CI**: `toolchain.json` の `caddy` を新しい版へ上げる PR を出し、手元と CI の E2E を通す。**この PR はまだマージしない**
-3. **本番**（root が要る。Caddy の再起動で全サイトが数秒止まる。Tasuki の同期サーバーは再起動しないのでルームは残る）:
+3. **本番**（root が要る・**人のいない時間に**。Caddy の再起動で全サイトが数秒止まる。同期サーバーは再起動しないので
+   ルームは残るが、**全員の WebSocket が同時に切れる**。画面は 1→2→4→8 秒と間を空けて繋ぎ直し
+   （`packages/sync-client/src/backoff.ts`）、Check-in Cards は切断から 10 秒で回が自動で開く
+   （`CHECKIN_DISCONNECT_REVEAL_GRACE_MS`）。8787 の WS が 0 本なのを確かめてから流す）:
    1. 今の版の deb を版を指定して取っておく（`apt-get download caddy=$(dpkg-query -W -f='${Version}' caddy)`。
       版を付けないと新しい版の deb が来て、切り戻せなくなる）。`/usr/bin/caddy` と `/etc/caddy` も退避する
    2. 入れる前に、新しい版の deb を `apt-get download caddy=<新版>` で取り、`dpkg-deb -x` で一時ディレクトリへ
       展開して、その本体で `caddy validate --config /etc/caddy/Caddyfile` を通す（caddy ユーザーで実行する）
    3. `apt-mark unhold caddy` → `apt-get install -o Dpkg::Options::=--force-confold caddy=<新版>`
-      （今の Caddyfile を残す。付けないと設定ファイルの置き換えを対話で聞かれる）→ `apt-mark hold caddy` →
-      `systemctl restart caddy`
-   4. 各サイトの状態コードと `pnpm e2e:prod` で確かめる
+      （今の Caddyfile を残す。付けないと設定ファイルの置き換えを対話で聞かれる）→ `apt-mark hold caddy`。
+      **deb の postinst が自分で `try-restart caddy.service … || true` を流す**ので、`systemctl restart` は重ねない
+      （重ねると 2 回切れる。#668 で postinst を読んで確かめた）。`|| true` のため起動に失敗しても apt は成功で終わるので、
+      `systemctl is-active caddy` と `/proc/<PID>/exe version` で新しい版が動いていることを見る。
+      途中で止まっても `apt-mark hold caddy` を戻す
+   4. 各サイトの状態コードと `pnpm e2e:prod` で確かめる。`caddy build-info | grep -E '^go|caddy/v2|golang.org/x/net'` で、ビルドに使われた Go と依存の版も見る
+      （脆弱性が Caddy 本体でなく Go や `golang.org/x/net` の側にあることがある。#668）
 4. **すぐに** PR をマージする。本番を上げてからマージまでの間は、main の E2E が古い版のままになる。
    その間は Caddy の設定（`deploy/caddy/`）に触る PR をマージしない
 

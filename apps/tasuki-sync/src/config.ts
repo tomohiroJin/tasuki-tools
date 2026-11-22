@@ -95,8 +95,9 @@ export interface SyncConfig {
    * **統合で timer 側の実効値が下がる**（Bun 既定の 16MB → 既定 128KB）。
    * timer の旧実装は `maxPayloadLength` を指定せず Bun の既定に委ねており、
    * 64KB〜16MB のフレームには MESSAGE_TOO_LARGE を返して接続を保っていた。
-   * 統合後、その帯域のうち 128KB より上は 1006 の切断になる。アプリの上限
-   * （`maxMessageBytes` = 64KB）の遥か上で正当なコマンドは入らないため受け入れる。
+   * 統合後、その帯域のうち 128KB より上は close 1009 の切断になる
+   * （Bun 1.4.3 までは 1006。#668）。アプリの上限（`maxMessageBytes` = 64KB）の
+   * 遥か上で正当なコマンドは入らないため受け入れる。
    * poker 側が同じ判断を先に下している（旧 poker-sync の同名フィールドの docstring）。
    */
   maxFrameBytes: number;
