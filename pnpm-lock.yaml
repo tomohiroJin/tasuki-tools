@@ -418,6 +418,9 @@ importers:
       '@tasuki/topic-core':
         specifier: workspace:*
         version: link:../../packages/topic-core
+      '@tasuki/track-core':
+        specifier: workspace:*
+        version: link:../../packages/track-core
       nanoid:
         specifier: ^6.0.1
         version: 6.0.2
@@ -835,6 +838,28 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.11
         version: 4.1.12(vitest@4.1.12)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.12(@types/node@26.6.6)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.8(@types/node@26.6.6))
+
+  packages/track-core:
+    dependencies:
+      neverthrow:
+        specifier: ^8.1.1
+        version: 8.2.0
+      valibot:
+        specifier: ^1.0.0
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      '@tasuki/test-css':
+        specifier: workspace:*
+        version: link:../test-css
+      '@vitest/coverage-v8':
+        specifier: ^4.1.11
+        version: 4.1.12(vitest@4.1.12)
+      fast-check:
+        specifier: ^4.8.0
+        version: 4.10.2
       vitest:
         specifier: ^4.1.11
         version: 4.1.12(@types/node@26.6.6)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.8(@types/node@26.6.6))

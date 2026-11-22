@@ -91,4 +91,5 @@ export const PROTOCOL_LOG_NAMES = {
   roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
   agenda: publicText("agenda"), // log-hygiene:allow 語彙定義
   checkin: publicText("checkin"), // log-hygiene:allow 語彙定義
+  track: publicText("track"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<AcceptedProtocol, LogSafe>;

@@ -45,5 +45,6 @@ export { LiveTopicClient } from "./live/topic-client";
 export { LiveRouletteClient } from "./live/roulette-client";
 export { LiveAgendaClient } from "./live/agenda-client";
 export { LiveCheckinClient, type CheckinReceived } from "./live/checkin-client";
+export { LiveTrackClient } from "./live/track-client";
 export { LiveSyncServer, startLiveSyncServer } from "./live/server";
 export { createRoom, joinRoom, addToRotation, setPassphraseViaHub } from "./live/room-ops";

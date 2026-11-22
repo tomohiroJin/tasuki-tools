@@ -23,6 +23,7 @@ import { InMemoryTopicStore } from "../../src/adapters/in-memory-topic-store.js"
 import { InMemoryRouletteStore } from "../../src/adapters/in-memory-roulette-store.js";
 import { InMemoryAgendaStore } from "../../src/adapters/in-memory-agenda-store.js";
 import { InMemoryCheckinStore } from "../../src/adapters/in-memory-checkin-store.js";
+import { InMemoryTrackStore } from "../../src/adapters/in-memory-track-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import { makeTopicBroadcaster } from "../../src/application/topic-broadcast.js";
@@ -401,6 +402,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       agendaDeadlines: { clear: () => {} },
       // チェックインの猶予のタイマーも timer のハンドラは持たない。破棄の配線だけ揃える（#406）。
       checkinGrace: { clearRoom: () => {} },
+      tracks: new InMemoryTrackStore(),
+      trackAutoStop: { clearRoom: () => {} },
       topicGenerator: { cancel: () => {} },
       // scheduler は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。

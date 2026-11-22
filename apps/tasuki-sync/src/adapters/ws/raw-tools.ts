@@ -30,6 +30,7 @@ import type { AgendaOwnFrame, AgendaServerMsg } from "../../ports/agenda-server-
 import type { CheckinOwnFrame, CheckinServerMsg } from "../../ports/checkin-server-msg.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../../ports/topic-server-msg.js";
+import type { TrackOwnFrame, TrackServerMsg } from "../../ports/track-server-msg.js";
 
 /**
  * 型だけの断言に使う: `T` が `never` でなければ（余計なものが残っていれば）型検査が落ちる。
@@ -58,6 +59,7 @@ export interface RawToolFrames {
   roulette: { own: RouletteOwnFrame; out: RouletteServerMsg };
   agenda: { own: AgendaOwnFrame; out: AgendaServerMsg };
   checkin: { own: CheckinOwnFrame; out: CheckinServerMsg };
+  track: { own: TrackOwnFrame; out: TrackServerMsg };
 }
 
 /** 一覧から導いた鍵のすべてに、表の行があること（型だけの断言）。 */
@@ -77,6 +79,7 @@ export const RAW_BROADCAST = {
   roulette: true,
   agenda: true,
   checkin: false,
+  track: true,
 } as const satisfies Record<RawToolId, boolean>;
 
 /** 生テキストを渡すメッセージ層。**パース前の文字列を渡す。** 境界の検証はメッセージ層に置き、接続層は経路とサイズだけを見る。 */

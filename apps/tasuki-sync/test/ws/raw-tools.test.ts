@@ -3,7 +3,7 @@ import { mapRawTools, RAW_BROADCAST, RAW_TOOL_IDS, type RawToolId } from "../../
 import { TOOL_IDS } from "../../src/application/tool-id.js";
 
 /** 期待値は一覧から導かず、リテラルで固定する（導くと恒真になる）。 */
-const EXPECTED: readonly RawToolId[] = ["hub", "topic", "roulette", "agenda", "checkin"];
+const EXPECTED: readonly RawToolId[] = ["hub", "topic", "roulette", "agenda", "checkin", "track"];
 
 describe("生テキストを受けるツールの表（raw-tools）", () => {
   it("ハブと、一覧から timer・poker を除いたもの全部を、一覧の順に並べる", () => {
@@ -50,7 +50,7 @@ describe("生テキストを受けるツールの表（raw-tools）", () => {
         expect("broadcast" in adapter.to[id]).toBe(RAW_BROADCAST[id]);
       }
       // 期待値はリテラルで固定する（旗の表から導くと恒真になる）
-      expect(RAW_BROADCAST).toEqual({ hub: true, topic: true, roulette: true, agenda: true, checkin: false });
+      expect(RAW_BROADCAST).toEqual({ hub: true, topic: true, roulette: true, agenda: true, checkin: false, track: true });
     } finally {
       await adapter.close();
     }

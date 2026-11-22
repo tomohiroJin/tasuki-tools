@@ -23,6 +23,8 @@ import type { RouletteStore } from "../../src/ports/roulette-store.js";
 import { InMemoryAgendaStore } from "../../src/adapters/in-memory-agenda-store.js";
 import type { AgendaStore } from "../../src/ports/agenda-store.js";
 import { InMemoryCheckinStore } from "../../src/adapters/in-memory-checkin-store.js";
+import { InMemoryTrackStore } from "../../src/adapters/in-memory-track-store.js";
+import type { TrackStore } from "../../src/ports/track-store.js";
 import type { CheckinStore } from "../../src/ports/checkin-store.js";
 import type { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import type { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
@@ -45,6 +47,7 @@ export interface SpyDestroyer {
  * @param roulettes ルーレットの状態の保管（#94）。`topics` と同じく省略してよい。
  * @param agendas 進行タイマーの状態の保管（#429）。`roulettes` と同じく省略してよい。
  * @param checkins チェックインの状態の保管（#406）。`agendas` と同じく省略してよい。
+ * @param tracks うちわけの状態の保管（#476）。`checkins` と同じく省略してよい。
  */
 export function spyDestroyer(
   store: InMemoryRoomStore,
@@ -54,6 +57,7 @@ export function spyDestroyer(
   roulettes: RouletteStore = new InMemoryRouletteStore(),
   agendas: AgendaStore = new InMemoryAgendaStore(),
   checkins: CheckinStore = new InMemoryCheckinStore(),
+  tracks: TrackStore = new InMemoryTrackStore(),
 ): SpyDestroyer {
   const calls: string[] = [];
   const destroy = createRoomDestroyer({
@@ -64,8 +68,10 @@ export function spyDestroyer(
     roulettes,
     agendas,
     checkins,
+    tracks,
     agendaDeadlines: { clear: (c) => calls.push(`agendaDeadlines.clear:${c}`) },
     checkinGrace: { clearRoom: (c) => calls.push(`checkinGrace.clearRoom:${c}`) },
+    trackAutoStop: { clearRoom: (c) => calls.push(`trackAutoStop.clearRoom:${c}`) },
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
     topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },
