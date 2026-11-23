@@ -93,4 +93,27 @@ describe('終了の一覧の Markdown コピー', () => {
     expect(manual).toHaveValue(expected());
     expect(manual).toHaveAttribute('readonly');
   });
+
+  it('Given 失敗して欄が出た / When 続けてコピーが成功する / Then 欄が閉じ、2 秒たって元に戻っても出ない', async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'], now: NOW });
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    document.execCommand = () => false;
+    joinedRoom(finished());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: SUMMARY_COPY_BUTTON }));
+    });
+    expect(screen.getByRole('textbox', { name: SUMMARY_COPY_MANUAL_FIELD })).toBeInTheDocument();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: SUMMARY_COPY_BUTTON }));
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(SUMMARY_COPY_DONE);
+    expect(screen.queryByRole('textbox', { name: SUMMARY_COPY_MANUAL_FIELD })).toBeNull();
+    await act(async () => {
+      vi.advanceTimersByTime(2500);
+    });
+    expect(screen.queryByRole('textbox', { name: SUMMARY_COPY_MANUAL_FIELD })).toBeNull();
+  });
 });
+

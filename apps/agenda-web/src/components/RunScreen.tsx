@@ -9,6 +9,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { AgendaView, ExtendMinutes } from '@tasuki/agenda-core';
 import { extensionLine } from '../agenda-view';
+import type { SummaryMoment } from '../summary-markdown';
 import { FINISHED_LABEL, PROJECT_BUTTON, SPEAK_SUMMARY_BUTTON } from '../copy';
 import { Dial } from './Dial';
 import { ProjectionView } from './ProjectionView';
@@ -67,6 +68,12 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const summaryHeadingId = useId();
+  // Markdown の見出しの日時は「この端末で終了の一覧を最初に出した時刻」。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
+  // ここ（映す表示の出入りで捨てられない所）で持つ。終了でなくなったら（最初からやり直し）捨て、もう一度終わったら取り直す
+  const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
+  const finished = view.phase === 'finished';
+  if (finished && summaryAt === null) setSummaryAt({ wallMs: wallNow.getTime(), tzOffsetMin: -wallNow.getTimezoneOffset() });
+  else if (!finished && summaryAt !== null) setSummaryAt(null);
 
   useEffect(() => {
     if (projecting || !returnFocus) return;
@@ -95,7 +102,6 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
     );
   }
 
-  const finished = view.phase === 'finished';
   const note = extensionLine(view);
   return (
     <div className={finished ? 'run run--finished' : 'run'}>
@@ -133,7 +139,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
               {FINISHED_LABEL}
             </h2>
             <SummaryTable view={view} />
-            <SummaryCopy view={view} wallNow={wallNow} />
+            {summaryAt !== null && <SummaryCopy view={view} at={summaryAt} />}
           </section>
         ) : (
           <StepList view={view} canOperate={canOperate} onSetSkipped={actions.setSkipped} />

@@ -105,3 +105,15 @@ describe('終了の一覧の Markdown', () => {
     expect(summaryMarkdown(finished('x'), { wallMs, tzOffsetMin: 0 })).toContain('（2026-12-31 20:00）');
   });
 });
+
+/**
+ * @requirements #676
+ */
+describe('会の名前が空白だけ', () => {
+  it('Given 会の名前が空白とタブだけ / When 書き出す / Then 空の見出し（###）を出さない', () => {
+    const v = finished('');
+    const text = summaryMarkdown({ ...v, title: ' \t ' }, AT);
+    expect(text).not.toContain('###');
+    expect(text.split('\n').slice(0, 3)).toEqual(['## 進行タイマー（2026-11-23 14:05）', '', '| ステップ | 予定 | 追加 | かかった時間 | 予定より |']);
+  });
+});

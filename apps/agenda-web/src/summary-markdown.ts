@@ -96,7 +96,7 @@ export function summaryMarkdown(view: AgendaView, at: SummaryMoment): string {
     signedDuration(summary.driftMs, style),
   ]);
 
-  const title = escapeSummaryText(view.title);
+  const title = view.title.trim() === '' ? '' : escapeSummaryText(view.title);
   return [
     `## ${PAGE_HEADING}（${dateTimeText(at)}）`,
     '',

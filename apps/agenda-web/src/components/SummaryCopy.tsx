@@ -1,25 +1,25 @@
 /**
  * 終了の一覧を Markdown でコピーする操作（#676）。終了の一覧と一緒に、会が終わった後だけ描かれる。
  *
- * 文は `summaryMarkdown`（純関数）。書き出す日時は、この部品が描かれた時（会が終わって一覧が出た時）の壁時計を 1 度だけ取って固定する
- * （描き直しのたびに文が変わらない）。コピーに失敗したら、同じ文を選べる欄（`<textarea readonly>`）に出す
- * （poker の記録 #653・うちわけの持ち帰りと同じ作法。失敗の表示は 2 秒で消さない）。
+ * 文は `summaryMarkdown`（純関数）。見出しの日時 `at` は「この端末で終了の一覧を最初に出した時刻」で、呼ぶ側（`RunScreen`）が持つ
+ * （映す表示の出入りで、この部品が作り直されても変わらない。agenda の状態は壁時計の終了時刻を持たないので、本当の終了時刻は作れない）。
+ * コピーに失敗したら、同じ文を選べる欄（`<textarea readonly>`）に出す（poker の記録 #653・うちわけの持ち帰りと同じ作法。
+ * 失敗の表示は 2 秒で消さない）。映す表示の出入りで、開いていた欄は閉じる（受容）。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { SUMMARY_COPY_BUTTON, SUMMARY_COPY_DONE, SUMMARY_COPY_FAILED, SUMMARY_COPY_MANUAL_FIELD } from '../copy';
-import { summaryMarkdown } from '../summary-markdown';
+import { summaryMarkdown, type SummaryMoment } from '../summary-markdown';
 
 interface Props {
   view: AgendaView;
-  /** 書き出す日時の元（部品が描かれた時の値だけを使う） */
-  wallNow: Date;
+  /** 見出しに書く日時（この端末で終了の一覧を最初に出した時刻） */
+  at: SummaryMoment;
 }
 
-export function SummaryCopy({ view, wallNow }: Props) {
-  const [moment] = useState(() => ({ wallMs: wallNow.getTime(), tzOffsetMin: -wallNow.getTimezoneOffset() }));
-  const markdown = useMemo(() => summaryMarkdown(view, moment), [view, moment]);
+export function SummaryCopy({ view, at }: Props) {
+  const markdown = useMemo(() => summaryMarkdown(view, at), [view, at]);
   const { copy, state } = useCopyText(markdown, { keepFailure: true });
   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。文が変わって state が idle に戻っても開いたまま残す（選んでいる途中で欄が消えない）
   const [manualKept, setManualKept] = useState(false);
