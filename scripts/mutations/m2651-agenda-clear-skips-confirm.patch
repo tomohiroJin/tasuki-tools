@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m2651-*.patch
 # 復元: git apply -R scripts/mutations/m2651-*.patch
 diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-index f6bdfaa8..328b9c23 100644
+index 427029d3..903486bc 100644
 --- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
 +++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-@@ -246,7 +246,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
-             onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
-           />
-           {/* くりかえしの欄は「ルームのシナリオに戻す」で戻らないので、ルームの写しのままでも確かめる */}
--          <ClearDraftControl canClear={canClearDraft(draft)} needsConfirm={!(draftIsEmpty || draftIsRoom) || draft.sampleRepeat !== undefined} onClear={clear} />
-+          <ClearDraftControl canClear={canClearDraft(draft)} needsConfirm={false} onClear={clear} />
-         </div>
-       </div>
-       <div className="ui-workspace-side builder-side">
+@@ -263,7 +263,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+           <ClearDraftControl
+             asking={clearAsking}
+             canClear={canClearDraft(draft)}
+-            needsConfirm={!draftIsDisposable}
++            needsConfirm={false}
+             onOpen={() => setConfirming({ kind: 'clear', draft })}
+             onClose={closeClear}
+             onClear={clear}

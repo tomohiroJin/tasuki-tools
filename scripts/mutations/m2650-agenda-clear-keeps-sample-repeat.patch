@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m2650-*.patch
 # 復元: git apply -R scripts/mutations/m2650-*.patch
 diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-index 54524efa..a11310d2 100644
+index 427029d3..8298eb9f 100644
 --- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
 +++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-@@ -120,7 +120,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+@@ -133,7 +133,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
    };
-   // 空にしたら、押せなくなった「下書きを空にする」ではなく「ステップを追加」へフォーカスを移す（組み直しの次の一手）
+   // フォーカスの移し先は ClearDraftControl が決める（押せなくなった「下書きを空にする」ではなく「ステップを追加」へ）
    const clear = (): void => {
 -    setDraft(clearedDraft());
 +    setDraft({ ...draft, title: '', steps: [], rounds: '1' });
-     setFocusRequest('add');
    };
+   const clearAsking = confirming?.kind === 'clear' && confirming.draft === draft;
    const add = (): void => {

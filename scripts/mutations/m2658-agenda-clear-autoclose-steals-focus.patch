@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m2658-*.patch
 # 復元: git apply -R scripts/mutations/m2658-*.patch
 diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
-index 88e385d5..701f0a88 100644
+index 3f529e5e..6e7b25f9 100644
 --- a/apps/agenda-web/src/components/ClearDraftControl.tsx
 +++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
-@@ -38,7 +38,7 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
-   // フォーカスが確かめの中にあったときだけボタンへ返す（外にあるフォーカスは奪わない）
+@@ -42,7 +42,7 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+   // 確かめが消えたとき、フォーカスが確かめの中にあったときだけ返す（外にあるフォーカスは奪わない）。
+   // 返す先のボタンが押せない（空になった）ときは、フォーカスが落ちないよう「ステップを追加」へ
    useEffect(() => {
-     if (!asking || showConfirm) return;
--    if (focusInConfirmRef.current) setReturnFocus(true);
-+    setReturnFocus(true);
-     focusInConfirmRef.current = false;
-     setAsking(false);
-   }, [asking, showConfirm]);
+-    if (wasShownRef.current && !showConfirm && focusInConfirmRef.current) {
++    if (wasShownRef.current && !showConfirm) {
+       const open = openRef.current;
+       if (open !== null && !open.disabled) open.focus();
+       else onFocusFallback();

@@ -9,12 +9,12 @@
 #       git apply scripts/mutations/m2656-*.patch
 # 復元: git apply -R scripts/mutations/m2656-*.patch
 diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-index 54524efa..e12633f1 100644
+index 427029d3..e160190e 100644
 --- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
 +++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-@@ -102,7 +102,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
-   // ルームのシナリオの写しのままの下書き（ルームが空なら写しではない）。消えても取り戻せるので確かめない
-   const draftIsRoom = roomReady && isUntouchedCopy(draft, roomKey);
+@@ -115,7 +115,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+   // ルームの写しのままなら取り戻せるが、サンプルのくりかえしの欄は「ルームのシナリオに戻す」で戻らないので除く
+   const draftIsDisposable = (draftIsEmpty || draftIsRoom) && draft.sampleRepeat === undefined;
    // 空にした下書きからも、ルームのシナリオへ戻れるようにする（ルームにシナリオがあるときだけ・知らせの文は「変わりました」のときだけ）
 -  const showBack = changed || (roomReady && draftIsEmpty);
 +  const showBack = changed;

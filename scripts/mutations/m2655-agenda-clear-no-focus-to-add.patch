@@ -8,15 +8,15 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m2655-*.patch
 # 復元: git apply -R scripts/mutations/m2655-*.patch
-diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-index 54524efa..79acb68c 100644
---- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
-+++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-@@ -121,7 +121,6 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
-   // 空にしたら、押せなくなった「下書きを空にする」ではなく「ステップを追加」へフォーカスを移す（組み直しの次の一手）
-   const clear = (): void => {
-     setDraft(clearedDraft());
--    setFocusRequest('add');
-   };
-   const add = (): void => {
-     const next = addStep(draft);
+diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
+index 3f529e5e..529bc242 100644
+--- a/apps/agenda-web/src/components/ClearDraftControl.tsx
++++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
+@@ -64,7 +64,6 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+             return;
+           }
+           onClear();
+-          onFocusFallback();
+         }}
+       >
+         {CLEAR_DRAFT_BUTTON}

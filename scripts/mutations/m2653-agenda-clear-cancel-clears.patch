@@ -9,14 +9,18 @@
 #       git apply scripts/mutations/m2653-*.patch
 # 復元: git apply -R scripts/mutations/m2653-*.patch
 diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
-index 592c4cc9..a37a7347 100644
+index 3f529e5e..f3f1ab2d 100644
 --- a/apps/agenda-web/src/components/ClearDraftControl.tsx
 +++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
-@@ -71,6 +71,7 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
-           onClick={() => {
-             setAsking(false);
-             setReturnFocus(true);
+@@ -97,7 +97,10 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+           ref={noRef}
+           type="button"
+           className="ui-button ui-button--secondary ui-button--sm"
+-          onClick={onClose}
++          onClick={() => {
++            onClose();
 +            onClear();
-           }}
++          }}
          >
            {CLEAR_DRAFT_NO}
+         </button>
