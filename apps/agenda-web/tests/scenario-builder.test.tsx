@@ -920,4 +920,49 @@ describe('下書きを空にする', () => {
     expect(screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeDefined();
     expect(nameField(1).value).toBe('Checkx');
   });
+
+  it('Given 確かめを出していてフォーカスは「やめる」 / When 下書きがルームと同じになって確かめが自動で閉じる / Then 確かめは閉じ、フォーカスは「下書きを空にする」にある', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    fireEvent.click(clearButton());
+    const group = screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM });
+    expect(document.activeElement).toBe(within(group).getByRole('button', { name: CLEAR_DRAFT_NO }));
+    deliverAgenda(idleAgenda('Retro', [['Checkx', 5]]));
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+    expect(document.activeElement).toBe(clearButton());
+  });
+
+  it('Given 確かめを出している / When 下書きがルームと同じになった直後の描画 / Then もう要らない確かめは DOM に無い', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    fireEvent.click(clearButton());
+    let during: HTMLElement | null = null;
+    act(() => {
+      flushSync(() => latestSocket().deliver({ type: 'agenda', state: idleAgenda('Retro', [['Checkx', 5]]) }));
+      during = screen.queryByText(CLEAR_DRAFT_CONFIRM);
+    });
+    expect(during).toBeNull();
+  });
+
+  it('Given 確かめの外にフォーカスがある / When 確かめが自動で閉じる / Then フォーカスを奪わない', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    fireEvent.click(clearButton());
+    nameField(1).focus();
+    deliverAgenda(idleAgenda('Retro', [['Checkx', 5]]));
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+    expect(document.activeElement).toBe(nameField(1));
+  });
+
+  it('Given リファインメントをルームへ読み込み、配られ返った / When 空にする / Then ルームの写しでも確かめる（くりかえしの欄は「ルームのシナリオに戻す」で戻らない）', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    fireEvent.click(loadButton());
+    const sent = sentCommands('agenda.scenario.set')[0]?.['scenario'] as { title: string; steps: { name: string; durationSec: number }[] };
+    deliverAgenda(idleAgenda(sent.title, sent.steps.map((st) => [st.name, st.durationSec / 60] as const)));
+    expect(screen.getByRole('combobox', { name: 'サンプルのくりかえし' })).toBeDefined();
+    fireEvent.click(clearButton());
+    expect(screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeDefined();
+    expect(screen.getByRole('combobox', { name: 'サンプルのくりかえし' })).toBeDefined();
+  });
 });

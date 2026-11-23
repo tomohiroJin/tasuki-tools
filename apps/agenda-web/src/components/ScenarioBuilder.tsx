@@ -245,7 +245,8 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
             draftIsDisposable={draftIsEmpty || draftIsRoom}
             onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
           />
-          <ClearDraftControl canClear={canClearDraft(draft)} needsConfirm={!(draftIsEmpty || draftIsRoom)} onClear={clear} />
+          {/* くりかえしの欄は「ルームのシナリオに戻す」で戻らないので、ルームの写しのままでも確かめる */}
+          <ClearDraftControl canClear={canClearDraft(draft)} needsConfirm={!(draftIsEmpty || draftIsRoom) || draft.sampleRepeat !== undefined} onClear={clear} />
         </div>
       </div>
       <div className="ui-workspace-side builder-side">

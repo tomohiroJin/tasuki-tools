@@ -18,6 +18,9 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
   const [asking, setAsking] = useState(false);
   const [returnFocus, setReturnFocus] = useState(false);
   const noRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLDivElement>(null);
+  // 確かめの中にフォーカスがあるか（消えた要素には blur が来ないので、onFocus / onBlur で持つ）
+  const focusInConfirmRef = useRef(false);
   const openRef = useRef<HTMLButtonElement>(null);
   const textId = useId();
 
@@ -30,12 +33,17 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
       setReturnFocus(false);
     }
   }, [asking, returnFocus]);
-  // 確かめを出している間に要らなくなったら（他の編集で空になった・ルームの写しになった）閉じる
+  const showConfirm = asking && canClear && needsConfirm;
+  // 確かめを出している間に要らなくなったら（他の編集で空になった・ルームの写しになった）閉じる。
+  // フォーカスが確かめの中にあったときだけボタンへ返す（外にあるフォーカスは奪わない）
   useEffect(() => {
-    if (asking && (!canClear || !needsConfirm)) setAsking(false);
-  }, [asking, canClear, needsConfirm]);
+    if (!asking || showConfirm) return;
+    if (focusInConfirmRef.current) setReturnFocus(true);
+    focusInConfirmRef.current = false;
+    setAsking(false);
+  }, [asking, showConfirm]);
 
-  if (!asking) {
+  if (!showConfirm) {
     return (
       <button
         ref={openRef}
@@ -50,6 +58,13 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
   }
   return (
     <div
+      ref={confirmRef}
+      onFocus={() => {
+        focusInConfirmRef.current = true;
+      }}
+      onBlur={(event) => {
+        focusInConfirmRef.current = event.relatedTarget instanceof Node && (confirmRef.current?.contains(event.relatedTarget) ?? false);
+      }}
       className="builder-sample-confirm"
       role="group"
       aria-labelledby={textId}
