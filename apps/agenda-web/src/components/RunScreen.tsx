@@ -49,7 +49,7 @@ interface Props {
   consumeStartArrival: () => boolean;
   /** 接続の告知の帯。映す表示のときだけ受け取り、映す表示の中に置く（手元の画面では呼ぶ側が外に置く） */
   banner?: ReactNode;
-  /** 終了の一覧を最初に出した瞬間の時計（epoch ms）。試験で差し替える。省くと `Date.now` */
+  /** 会の終了を最初に受け取った瞬間の時計（epoch ms）。試験で差し替える。省くと `Date.now` */
   now?: () => number;
 }
 
@@ -70,7 +70,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const summaryHeadingId = useId();
-  // Markdown の見出しの日時は「この端末で終了の一覧を最初に出した時刻」。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
+  // Markdown の見出しの日時は「この端末が会の終了を最初に受け取った時刻」（映す表示の間に終わった会は、一覧を出す前の、終わりを受け取った時刻になる）。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
   // ここ（映す表示の出入りで捨てられない所）で持つ。終了でなくなったら（最初からやり直し）捨て、もう一度終わったら取り直す
   const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
   const finished = view.phase === 'finished';

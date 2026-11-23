@@ -90,7 +90,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - シナリオは端末に保存して読み直せる。「サンプルから選ぶ」で、定例・リファインメント・学習会などの型を下書きに入れて編集できる
   - 会の一部をくりかえすサンプルでは、下書きの「サンプルのくりかえし」で、その部分だけの回数を変えられる
   - 「くりかえし」でシナリオ全体を指定の回数だけ繰り返せる（朝会の 6 回、LT 会の 5 回など。回ごとの見出しで進行表を区切る）
-  - 会が終わったら「Markdown でコピー」で、終了の一覧（かかった時間・予定との差・各ステップの押し巻き）を Markdown でコピーできる。見出しの日時は、その端末で終了の一覧を最初に出した時刻。コピーに失敗したら、同じ文を手で選べる欄に出す（[#676](https://github.com/tomohiroJin/tasuki-tools/issues/676)）
+  - 会が終わったら「Markdown でコピー」で、終了の一覧（かかった時間・予定との差・各ステップの押し巻き）を Markdown でコピーできる。見出しの日時は、その端末が会の終了を最初に受け取った時刻。コピーに失敗したら、同じ文を手で選べる欄に出す（[#676](https://github.com/tomohiroJin/tasuki-tools/issues/676)）
 - 設計判断: [`docs/adr/0027`](docs/adr/0027-agenda-timer.md)・設計正本 [`docs/superpowers/specs/2026-10-19-agenda-timer-design.md`](docs/superpowers/specs/2026-10-19-agenda-timer-design.md)
 
 ### 7. チェックイン・チェックアウト（Check-in Cards）

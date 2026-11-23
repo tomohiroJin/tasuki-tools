@@ -1,9 +1,8 @@
 diff --git a/apps/agenda-web/src/components/RunScreen.tsx b/apps/agenda-web/src/components/RunScreen.tsx
-index ca71bbcc..6f6d878a 100644
 --- a/apps/agenda-web/src/components/RunScreen.tsx
 +++ b/apps/agenda-web/src/components/RunScreen.tsx
-@@ -73,7 +73,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate,
-   // Markdown の見出しの日時は「この端末で終了の一覧を最初に出した時刻」。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
+@@ -73,7 +73,7 @@
+   // Markdown の見出しの日時は「この端末が会の終了を最初に受け取った時刻」（映す表示の間に終わった会は、一覧を出す前の、終わりを受け取った時刻になる）。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
    // ここ（映す表示の出入りで捨てられない所）で持つ。終了でなくなったら（最初からやり直し）捨て、もう一度終わったら取り直す
    const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
 -  const finished = view.phase === 'finished';

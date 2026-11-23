@@ -1,7 +1,7 @@
 /**
  * 終了の一覧を Markdown でコピーする操作（#676）。終了の一覧と一緒に、会が終わった後だけ描かれる。
  *
- * 文は `summaryMarkdown`（純関数）。見出しの日時 `at` は「この端末で終了の一覧を最初に出した時刻」で、呼ぶ側（`RunScreen`）が持つ
+ * 文は `summaryMarkdown`（純関数）。見出しの日時 `at` は「この端末が会の終了を最初に受け取った時刻」で、呼ぶ側（`RunScreen`）が持つ
  * （映す表示の出入りで、この部品が作り直されても変わらない。agenda の状態は壁時計の終了時刻を持たないので、本当の終了時刻は作れない）。
  * コピーに失敗したら、同じ文を選べる欄（`<textarea readonly>`）に出す（poker の記録 #653・うちわけの持ち帰りと同じ作法。
  * 失敗の表示は 2 秒で消さない）。映す表示の出入りで、開いていた欄は閉じる（受容）。
@@ -14,7 +14,7 @@ import { summaryMarkdown, type SummaryMoment } from '../summary-markdown';
 
 interface Props {
   view: AgendaView;
-  /** 見出しに書く日時（この端末で終了の一覧を最初に出した時刻） */
+  /** 見出しに書く日時（この端末が会の終了を最初に受け取った時刻） */
   at: SummaryMoment;
 }
 

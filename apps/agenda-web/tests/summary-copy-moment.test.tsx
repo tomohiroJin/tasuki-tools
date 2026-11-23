@@ -1,5 +1,5 @@
 /**
- * 終了の一覧の Markdown の見出しの日時（#676）。「この端末で終了の一覧を最初に出した時刻」で、
+ * 終了の一覧の Markdown の見出しの日時（#676）。「この端末が会の終了を最初に受け取った時刻」で、
  * 映す表示の出入りでは変わらず、終了でなくなって（最初からやり直して）もう一度終わったら取り直す。
  */
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -61,13 +61,22 @@ async function copiedHeading(): Promise<string> {
  * @requirements #676
  */
 describe('終了の一覧の Markdown の日時', () => {
-  it('Given 終了の一覧を出した / When 映す表示へ入って戻り、時計が進んだ / Then 見出しの日時は最初に出した時刻のまま', async () => {
+  it('Given 終了の一覧を出した / When 映す表示へ入って戻り、時計が進んだ / Then 見出しの日時は、終了を受け取った時刻のまま', async () => {
     const { rerender } = render(screenAt(finished, T1, false));
     expect(await copiedHeading()).toBe(headingAt(T1));
     rerender(screenAt(finished, T2, true));
     expect(screen.queryByRole('button', { name: SUMMARY_COPY_BUTTON })).toBeNull();
     rerender(screenAt(finished, T2, false));
     expect(screen.getByRole('button', { name: PROJECT_BUTTON })).toBeInTheDocument();
+    expect(await copiedHeading()).toBe(headingAt(T1));
+    expect(headingAt(T1)).not.toBe(headingAt(T2));
+  });
+
+  it('Given 映す表示のまま会が終わった / When 時計が進んでから表示を戻し、初めて一覧を出す / Then 見出しの日時は、終了を受け取った時刻（一覧を出した時刻ではない）', async () => {
+    const { rerender } = render(screenAt(running, T1, true));
+    rerender(screenAt(finished, T1, true));
+    expect(screen.queryByRole('button', { name: SUMMARY_COPY_BUTTON })).toBeNull();
+    rerender(screenAt(finished, T2, false));
     expect(await copiedHeading()).toBe(headingAt(T1));
     expect(headingAt(T1)).not.toBe(headingAt(T2));
   });
