@@ -109,6 +109,8 @@ export const ALLOWED = {
   "packages/agenda-core": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
   // 会の始まりと終わりの札の文脈（#406）。製品コードは **@tasuki/* に依存しない**（他の文脈にも依存しない。試験だけが @tasuki/test-css を読む・決まり 5）。
   "packages/checkin-core": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
+  // うちわけの文脈（#476）。製品コードは **@tasuki/* に依存しない**（他の文脈にも依存しない。試験だけが @tasuki/test-css を読む・決まり 5）。
+  "packages/track-core": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
@@ -232,9 +234,23 @@ export const ALLOWED = {
     "@tasuki/ui",
     "@tasuki/web-kit",
   ],
+  // うちわけ（#476）。agenda-web と同じ形（自分の core だけを使い、他のツールの core を知らない）。
+  "apps/track-web": [
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/test-css",
+    "@tasuki/topic-core",
+    "@tasuki/track-core",
+    "@tasuki/ui",
+    "@tasuki/web-kit",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
   // 進行タイマー（#429）の合成ルートが agenda-core を呼ぶ。チェックイン（#406）のハンドラと配信が checkin-core を呼ぶ。
+  // うちわけ（#476）のハンドラ・配信・全員切断の停止が track-core を呼ぶ。
   "apps/tasuki-sync": [
     "@tasuki/agenda-core",
     "@tasuki/checkin-core",
@@ -245,8 +261,9 @@ export const ALLOWED = {
     "@tasuki/roulette-core",
     "@tasuki/timer-core",
     "@tasuki/topic-core",
+    "@tasuki/track-core",
   ],
-  e2e: ["@tasuki/agenda-web", "@tasuki/checkin-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
+  e2e: ["@tasuki/agenda-web", "@tasuki/checkin-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web", "@tasuki/track-web"],
 };
 
 /**

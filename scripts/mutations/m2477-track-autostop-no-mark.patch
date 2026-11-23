@@ -1,0 +1,22 @@
+# 変異 2477: track-autostop-no-mark
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 全員の切断で閉じた区切りに印を付けない。FR-24。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2477-*.patch
+# 復元: git apply -R scripts/mutations/m2477-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -122,7 +122,7 @@
+ export function autoStop(s: TrackState, input: { at: number }): TrackState {
+   const running = runningOf(s.segments);
+   if (running === undefined) return s;
+-  const segments = closeRunning(s.segments, running, input.at - s.epochMono, true);
++  const segments = closeRunning(s.segments, running, input.at - s.epochMono, false);
+   return { ...s, segments, undo: null, resumeOffer: segments.length === s.segments.length, rev: s.rev + 1 };
+ }
+ 

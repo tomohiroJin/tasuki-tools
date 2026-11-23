@@ -121,7 +121,7 @@ pnpm dev     # turbo が全アプリの dev を並列起動する
 ### 玄関から通しで使う
 
 **<http://localhost:5175/> を入口にすると、本番と同じ形で各系統を行き来できます。**
-LP の dev サーバーが本番の Caddy と同じ役割を担い、`/timer/` と `/poker/`、`/topic/`、`/roulette/`、`/agenda/`、`/checkin/` を
+LP の dev サーバーが本番の Caddy と同じ役割を担い、`/timer/` と `/poker/`、`/topic/`、`/roulette/`、`/agenda/`、`/checkin/`、`/track/` を
 それぞれの dev サーバーへ転送します（WebSocket も通します）。
 
 | 入口 | 到達先 |
@@ -133,13 +133,14 @@ LP の dev サーバーが本番の Caddy と同じ役割を担い、`/timer/` �
 | <http://localhost:5175/roulette/> | 進行役ルーレット（同上） |
 | <http://localhost:5175/agenda/> | 進行タイマー（同上） |
 | <http://localhost:5175/checkin/> | チェックイン・チェックアウト（同上） |
+| <http://localhost:5175/track/> | うちわけ（同上） |
 | `/ws` | 同期サーバー（唯一の WS 入口。ツールはクエリ `?tool=` が宣言する。#95 S5c） |
 
-> ⚠ **各ツールの dev サーバー（:5173 / :5174 / :5176 / :5177 / :5178 / :5179）を直接開かないでください。**
+> ⚠ **各ツールの dev サーバー（:5173 / :5174 / :5176 / :5177 / :5178 / :5179 / :5180）を直接開かないでください。**
 > **#95 S5c より前は「直接開いても動く」と書いていましたが、いまは動きません。**
 > 旧入口（timer の `Setup` / `Join`、poker の `TopPage`）を撤去したので、ルームコードを
-> 伴わずに開いたツールは玄関（`/`）へ送り返します。ところが :5173 / :5174 / :5176 / :5177 / :5178 / :5179 では `/` が
-> **そのツール自身**で、Vite が base（`/timer/` · `/poker/` · `/topic/` · `/roulette/` · `/agenda/` · `/checkin/`）へ 302 で戻すため、
+> 伴わずに開いたツールは玄関（`/`）へ送り返します。ところが :5173 / :5174 / :5176 / :5177 / :5178 / :5179 / :5180 では `/` が
+> **そのツール自身**で、Vite が base（`/timer/` · `/poker/` · `/topic/` · `/roulette/` · `/agenda/` · `/checkin/` · `/track/`）へ 302 で戻すため、
 > 送り返しと base リダイレクトが噛み合って**ページの再読み込みが止まりません**
 > （実測: 8 秒で 65 回／157 回）。:5175 では `/` が玄関なので 1 回で止まります。
 >
@@ -167,6 +168,7 @@ Tasuki は **画面ごとの web プロセス**（玄関とツールごとに 1 
 | 進行役ルーレットの画面 | `pnpm --filter @tasuki/roulette-web dev` | <http://localhost:5177/roulette/> |
 | 進行タイマーの画面 | `pnpm --filter @tasuki/agenda-web dev` | <http://localhost:5178/agenda/> |
 | チェックイン・チェックアウトの画面 | `pnpm --filter @tasuki/checkin-web dev` | <http://localhost:5179/checkin/> |
+| うちわけの画面 | `pnpm --filter @tasuki/track-web dev` | <http://localhost:5180/track/> |
 | 同期サーバー（すべての画面で共用） | `pnpm --filter @tasuki/sync dev` | （:8787・画面から使う） |
 
 各アプリは本番と同じ `base` で配信されます。ブラウザで `http://localhost:5173/` のように
@@ -176,7 +178,7 @@ base を省いて開いた場合は、Vite が **302 で `/timer/` へリダイ�
 
 同期サーバーを起動していないと、画面は開けても**ルームの作成・参加ができません**。
 **同期サーバーは 1 本ですべてを受けます**（#95 S2 で timer と poker を統合、#91 でお題を追加）。
-入口は `/ws` の 1 本だけで、接続 URL のクエリ（`?tool=timer` / `?tool=poker` / `?tool=topic` / `?tool=roulette` / `?tool=agenda` / `?tool=checkin`）
+入口は `/ws` の 1 本だけで、接続 URL のクエリ（`?tool=timer` / `?tool=poker` / `?tool=topic` / `?tool=roulette` / `?tool=agenda` / `?tool=checkin` / `?tool=track`）
 で振り分けます（#95 S5c）。1 つのツールだけ使うときも起動するのはこの 1 本です。
 
 > ポートが埋まっていると Vite は次の空きポートへ逃げます。起動時のログに出る URL が正です。

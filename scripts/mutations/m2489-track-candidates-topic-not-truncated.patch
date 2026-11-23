@@ -1,0 +1,22 @@
+# 変異 2489: track-candidates-topic-not-truncated
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/projection.test.ts
+#
+# #476 お題のタイトルを作業名の上限で切り詰めない。J16。候補を押すと拒まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2489-*.patch
+# 復元: git apply -R scripts/mutations/m2489-*.patch
+diff --git a/packages/track-core/src/projection.ts b/packages/track-core/src/projection.ts
+--- a/packages/track-core/src/projection.ts
++++ b/packages/track-core/src/projection.ts
+@@ -78,7 +78,7 @@
+ /** お題のタイトルを作業名の形にする。候補にできなければ null。 */
+ function topicLabel(title: string | null): string | null {
+   if (title === null) return null;
+-  const label = truncate(normalizeLabel(title), MAX_LABEL).trim();
++  const label = normalizeLabel(title);
+   return label === "" || hasControlChars(label) ? null : label;
+ }
+ 

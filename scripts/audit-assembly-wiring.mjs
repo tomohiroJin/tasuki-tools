@@ -143,6 +143,7 @@ export const ASSEMBLY_TARGETS = [
       { file: "apps/tasuki-sync/src/assembly/roulette.ts", fns: ["assembleRoulette"] },
       { file: "apps/tasuki-sync/src/assembly/agenda.ts", fns: ["assembleAgenda"] },
       { file: "apps/tasuki-sync/src/assembly/checkin.ts", fns: ["assembleCheckin"] },
+      { file: "apps/tasuki-sync/src/assembly/track.ts", fns: ["assembleTrack"] },
       { file: "apps/tasuki-sync/src/assembly/poker.ts", fns: ["assemblePoker"] },
     ],
   },

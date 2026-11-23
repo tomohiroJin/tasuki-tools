@@ -44,6 +44,8 @@ export const WEB_ROOTS: readonly WebRoot[] = [
   { link: '/var/www/tasuki-agenda', dist: path.join(REPO_ROOT, 'apps/agenda-web/dist') },
   // #406
   { link: '/var/www/tasuki-checkin', dist: path.join(REPO_ROOT, 'apps/checkin-web/dist') },
+  // #476
+  { link: '/var/www/tasuki-track', dist: path.join(REPO_ROOT, 'apps/track-web/dist') },
 ];
 
 /** 経路の正本。ローカルコピーの上流と配信元だけを変換する。 */
@@ -61,6 +63,8 @@ export const FRAGMENT_SOURCES: readonly string[] = [
   'deploy/agenda/caddy/60-agenda.conf',
   // #406
   'deploy/checkin/caddy/70-checkin.conf',
+  // #476
+  'deploy/track/caddy/80-track.conf',
   'deploy/landing/caddy/90-landing.conf',
 ].map((rel) => path.join(REPO_ROOT, rel));
 

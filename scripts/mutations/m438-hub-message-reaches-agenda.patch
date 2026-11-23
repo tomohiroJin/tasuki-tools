@@ -16,8 +16,8 @@ index 2f293a17..9e7b2080 100644
      deriveClientKey,
      requireClientAddress: config.requireClientAddress,
      // 生テキストを受けるツールのメッセージ層（鍵は `adapters/ws/raw-tools.ts` の表）。
--    raw: { hub, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer },
-+    raw: { hub: { handleMessage: async (connId, raw) => { await hub.handleMessage(connId, raw); await agenda.layer.handleMessage(connId, raw); } }, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer },
+-    raw: { hub, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer, track: track.layer },
++    raw: { hub: { handleMessage: async (connId, raw) => { await hub.handleMessage(connId, raw); await agenda.layer.handleMessage(connId, raw); } }, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer, track: track.layer },
      // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
      // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
      timer: createTimerCommandReceiver({

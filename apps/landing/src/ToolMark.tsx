@@ -5,10 +5,25 @@
  * （札の上では線の太さが世界観に直結する）。
  */
 interface Props {
-  readonly kind: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards";
+  readonly kind: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards" | "bars";
 }
 
 export function ToolMark({ kind }: Props) {
+  if (kind === "bars") {
+    // うちわけの帯。長さの違う 3 本の横棒を積み、いちばん上の棒だけ途中で区切る（切り替えの境目）。
+    // 線の太さは他の意匠と同じ 2.5。
+    return (
+      <svg viewBox="0 0 48 48" className="tool-mark" aria-hidden="true" focusable="false">
+        <g fill="none" strokeWidth="2.5" strokeLinejoin="round">
+          <rect x="7" y="8" width="34" height="8" rx="2" />
+          <rect x="7" y="20" width="24" height="8" rx="2" />
+          <rect x="7" y="32" width="14" height="8" rx="2" />
+        </g>
+        <line x1="27" y1="8" x2="27" y2="16" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
   if (kind === "ring") {
     // 交代タイマーの輪。上に切れ目を置き、針が一本立っている。
     return (

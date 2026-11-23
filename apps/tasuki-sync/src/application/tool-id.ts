@@ -61,6 +61,9 @@ export const TOOL_AGENDA = "agenda";
 /** チェックイン（Check-in Cards）の入口から来た接続（#406）。 */
 export const TOOL_CHECKIN = "checkin";
 
+/** うちわけ（作業の内訳の記録）の入口から来た接続（#476）。 */
+export const TOOL_TRACK = "track";
+
 /**
  * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
  *
@@ -71,7 +74,7 @@ export const TOOL_CHECKIN = "checkin";
 export const TOOL_HUB: ToolId | null = null;
 
 /** このサーバーが載せている道具の一覧。綴りの正本。道具を足すときは定数とこの配列に足す。 */
-export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN] as const;
+export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN, TOOL_TRACK] as const;
 
 /** 一覧にある道具の識別子（リテラルの共用体）。`ToolId`（room-core・不透明な string）の部分型。 */
 export type KnownToolId = (typeof TOOL_IDS)[number];

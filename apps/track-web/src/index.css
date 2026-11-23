@@ -1,0 +1,478 @@
+/* ============================================================
+   Tasuki うちわけ（#476）
+   共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。ここにはうちわけ固有のものだけを置く。
+   **Tailwind と併用しない**（#297）。**生の色を書かない**（語彙のトークンを使う）。字の大きさは 5 段のトークン。
+   段組み（2 段）は部品（`.ui-workspace`）が持つ。縦の間は親の `gap` が持ち、子は縦の外側の余白を持たない（ADR 0035）。
+   ============================================================ */
+
+@import '@tasuki/ui';
+
+/* 共通の見出し（`RoomHeader`）と中身の間（agenda-web と同じ理由で、部品層には置かない） */
+.ui-room-header {
+  margin-block-end: var(--space-5);
+}
+
+/* ── 画面の骨組み ─────────────────────────────────────────── */
+/* 知らせ → 段組み → 下の 1 行を縦に積む。区画どうしの間 */
+.track-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+/* 段の中の区画どうしの間 */
+.track-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-content: start;
+}
+.track-footnote {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+.track-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+/* 数字は桁の幅を揃える（毎秒変わっても横に揺れない） */
+.track-digits {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+/* 名前なしは、後から名前を付ける対象として目立たせる（斜体にはしない。和文の斜体は読みにくい） */
+.track-name--unnamed {
+  color: var(--gold-bright);
+}
+.track-hint {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+
+/* ── 知らせ ───────────────────────────────────────────────── */
+.track-notices {
+  display: grid;
+  gap: var(--space-3);
+}
+.track-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--gold-edge);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+.track-notice-text {
+  flex: 1 1 16rem;
+  margin: 0;
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+.track-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ── いまやっていること ───────────────────────────────────── */
+.track-now-idle {
+  color: var(--ivory-dim);
+}
+.track-now-name {
+  color: var(--ivory);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.track-now-elapsed {
+  color: var(--gold-bright);
+  font-size: var(--font-size-xl);
+  line-height: var(--line-tight);
+}
+.track-now-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.track-now-actions .ui-button {
+  flex: 1 1 auto;
+}
+.track-undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-block-start: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+}
+.track-undo-remaining {
+  color: var(--ivory-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 欄（ラベルと入力を縦に組む） ─────────────────────────── */
+.track-field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.track-field > label {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+.track-field > .ui-input,
+.track-field > .ui-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── 切り替える ───────────────────────────────────────────── */
+.track-switch-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.track-candidates {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.track-candidate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+/* 候補: 番号・（お題の印）・名前。ボタンの形をしない行なので、画面のクラスで飾る */
+.track-candidate-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--ivory);
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  font-size: var(--font-size-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.track-candidate-pick:hover:not(:disabled) {
+  background: var(--felt-900);
+}
+.track-candidate-pick:disabled,
+.track-pin:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* 番号は数字キーと同じ（数字の書体・真鍮の丸） */
+.track-candidate-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--space-5);
+  aspect-ratio: 1;
+  border-radius: var(--radius-full);
+  background: var(--gold-tint);
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.track-candidate-topic {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--gold-edge);
+  border-radius: var(--radius-sm);
+  color: var(--gold-bright);
+  font-size: var(--font-size-xs);
+}
+.track-candidate-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* 定番の星。固定は塗り・解除は線（形で示す。色だけに頼らない） */
+.track-pin {
+  display: grid;
+  place-items: center;
+  width: var(--tap-target);
+  min-height: var(--tap-target);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--gold-bright);
+  cursor: pointer;
+}
+.track-pin:hover:not(:disabled) {
+  background: var(--felt-900);
+}
+.track-pin-star {
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.track-pin[aria-pressed='true'] {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-edge);
+}
+.track-pin[aria-pressed='true'] .track-pin-star {
+  fill: currentColor;
+}
+
+/* ── ここまでのうちわけ ───────────────────────────────────── */
+/* 割合の帯（飾り。同じ情報は表が持つ）。色は並びの順で巡るだけで、良し悪しを表さない */
+.track-bar {
+  display: flex;
+  gap: 2px;
+  height: var(--space-4);
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--felt-sink);
+}
+.track-bar-part {
+  flex: var(--share) 1 0;
+  min-width: 2px;
+}
+.track-tone--0 {
+  background: var(--gold);
+}
+.track-tone--1 {
+  background: var(--ivory-dim);
+}
+.track-tone--2 {
+  background: var(--pewter);
+}
+.track-tone--3 {
+  background: var(--gold-deep);
+}
+.track-swatch {
+  display: inline-block;
+  flex: none;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.track-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+}
+.track-table th,
+.track-table td {
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+  text-align: start;
+  vertical-align: baseline;
+}
+.track-table thead th {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+.track-table tfoot th,
+.track-table tfoot td {
+  color: var(--ivory-dim);
+}
+.track-table tfoot tr:first-child th,
+.track-table tfoot tr:first-child td {
+  border-top: 1px solid var(--line-strong);
+  color: var(--ivory);
+  font-weight: 700;
+}
+.track-table .track-table-number {
+  text-align: end;
+  white-space: nowrap;
+}
+.track-table-name {
+  overflow-wrap: anywhere;
+}
+.track-table-name > .track-swatch {
+  margin-inline-end: var(--space-2);
+}
+
+/* ── 時系列 ───────────────────────────────────────────────── */
+.track-segments {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.track-segment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--felt-sink);
+}
+/* 名前なし・自動で止まった区切り: 枠と印で示す（色だけに頼らない。印の字が同じことを言う） */
+.track-segment--flagged {
+  border-color: var(--gold-edge);
+}
+.track-segment-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+}
+.track-segment-range {
+  flex: none;
+  color: var(--ivory-dim);
+}
+.track-segment-name {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.track-mark {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+.track-mark--auto {
+  border-color: var(--gold-edge);
+  color: var(--gold-bright);
+}
+.track-segment-edit {
+  flex: none;
+  margin-inline-start: auto;
+  /* 2 字の控えのボタンは、字と横の余白だけでは押せる幅（44px）に 1px 届かない */
+  min-inline-size: var(--tap-target);
+}
+
+/* ── 直す・抜けを足す ─────────────────────────────────────── */
+.track-editor {
+  padding-block-start: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+/* 欄とボタンを 1 行に。収まらなければ折り返す（320px では 1 列になる） */
+.track-editor-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.track-editor-row > .track-field {
+  flex: 1 1 9rem;
+}
+.track-form-error {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+.track-edge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+}
+.track-edge-name {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+.track-edge-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.track-edge-steps .ui-button {
+  white-space: nowrap;
+}
+/* 時刻を入れて合わせる欄。欄は縮められる幅を持ち、ボタンは折らない */
+.track-edge-set {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.track-edge-set .ui-input {
+  inline-size: auto;
+  min-inline-size: 0;
+}
+.track-edge-set .ui-button {
+  white-space: nowrap;
+}
+.track-editor-danger,
+.track-insert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* ── 持ち帰り ─────────────────────────────────────────────── */
+.track-takehome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.track-copy-status {
+  min-height: 1lh;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+.track-copy-manual {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--font-mono);
+  resize: vertical;
+}
+/* 消す前の確かめ（agenda の「最初から」の確かめと同じ作り） */
+.track-confirm {
+  display: grid;
+  flex: 1 1 100%;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--rose-edge);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+.track-confirm-text {
+  margin: 0;
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+.track-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.track-confirm-actions .ui-button {
+  white-space: nowrap;
+}

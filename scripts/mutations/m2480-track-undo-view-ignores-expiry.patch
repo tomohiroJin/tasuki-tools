@@ -1,0 +1,22 @@
+# 変異 2480: track-undo-view-ignores-expiry
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 期限を過ぎた取り消しを写しに載せ続ける。残りが負の取り消しが画面に出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2480-*.patch
+# 復元: git apply -R scripts/mutations/m2480-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -158,7 +158,7 @@
+     segments: s.segments,
+     pinned: s.pinned,
+     rev: s.rev,
+-    undo: slot !== null && now < slot.expiresAt ? { rev: slot.rev, kind: slot.kind, remainingMs: slot.expiresAt - now } : null,
++    undo: slot !== null ? { rev: slot.rev, kind: slot.kind, remainingMs: slot.expiresAt - now } : null,
+     resumeOffer: s.resumeOffer,
+   };
+ }

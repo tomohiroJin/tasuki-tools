@@ -68,6 +68,7 @@ describe("接続層のエラーの文言（実 WS 越し・同期サーバー全
     ["ルーレット", "roulette"],
     ["進行タイマー", "agenda"],
     ["チェックイン", "checkin"],
+    ["うちわけ", "track"],
   ] as const) {
     it(`Given ${label}の接続 / When 壊れた JSON を送る / Then INVALID_JSON と「JSON の形式が不正です」を返す`, async () => {
       // Given
@@ -95,6 +96,7 @@ describe("接続層のエラーの文言（実 WS 越し・同期サーバー全
     ["ルーレット", "roulette"],
     ["進行タイマー", "agenda"],
     ["チェックイン", "checkin"],
+    ["うちわけ", "track"],
   ] as const) {
     it(`Given ${label}の接続 / When 上限を超える本文を送る / Then MESSAGE_TOO_LARGE と「メッセージが大きすぎます」を返す`, async () => {
       // Given
@@ -137,6 +139,7 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
     ["ルーレット", "roulette", "roulette"],
     ["進行タイマー", "agenda", "agenda"],
     ["チェックイン", "checkin", "checkin"],
+    ["うちわけ", "track", "track"],
   ] as const) {
     // どの接続の失敗かは `protocol` に出る（固定の語彙。#381）
     const LOG_LINES = [`on-message-error name=Error protocol=${protocol}`];

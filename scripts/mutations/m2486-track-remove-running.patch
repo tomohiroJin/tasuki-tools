@@ -1,0 +1,20 @@
+# 変異 2486: track-remove-running
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 計測中の区切りを消せる。J1。計測が黙って止まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2486-*.patch
+# 復元: git apply -R scripts/mutations/m2486-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -177,6 +177,5 @@
+ export function removeSegment(s: TrackState, input: { id: string }): R<"SEGMENT_NOT_FOUND" | "SEGMENT_RUNNING"> {
+   const segment = s.segments.find((g) => g.id === input.id);
+   if (segment === undefined) return fail("SEGMENT_NOT_FOUND");
+-  if (segment.endMs === null) return fail("SEGMENT_RUNNING");
+   return ok(edited(s, { segments: s.segments.filter((g) => g !== segment) }));
+ }

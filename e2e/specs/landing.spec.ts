@@ -68,6 +68,8 @@ test.describe('選択画面の札から各ツールへ移動できる', () => {
     { card: 'Agenda Timer', path: '/agenda/', landmark: /サンプルから選ぶ/ },
     // Check-in Cards（#406）。目印は選ぶ画面の「ランダム」（玄関にも他のツールにも無い）。名前ちょうどで当てる（小見出しの「…からランダム」にも部分一致で当たる・#635）
     { card: 'Check-in Cards', path: '/checkin/', landmark: /^ランダム$/ },
+    // うちわけ（#476）。目印は持ち帰りの「Markdown でコピー」（玄関にも他のツールの入った直後の画面にも無い）
+    { card: 'Uchiwake', path: '/track/', landmark: /^Markdown でコピー$/ },
   ] as const;
 
   for (const tool of TOOLS) {

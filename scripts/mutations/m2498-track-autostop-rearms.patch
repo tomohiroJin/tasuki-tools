@@ -1,0 +1,21 @@
+# 変異 2498: track-autostop-rearms
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/track-auto-stop.test.ts
+#
+# #476 不在のまま名簿が配られるたびに、猶予を張り直す。古い予約が残り、覚える時刻が後ろへずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2498-*.patch
+# 復元: git apply -R scripts/mutations/m2498-*.patch
+diff --git a/apps/tasuki-sync/src/application/track-auto-stop.ts b/apps/tasuki-sync/src/application/track-auto-stop.ts
+--- a/apps/tasuki-sync/src/application/track-auto-stop.ts
++++ b/apps/tasuki-sync/src/application/track-auto-stop.ts
+@@ -81,7 +81,6 @@
+         return;
+       }
+       // 不在のまま名簿が何度配られても、最初に不在を見た時刻を保つ（猶予を張り直さない）
+-      if (pending.has(roomCode)) return;
+       const since = deps.clock.now();
+       pending.set(roomCode, { since, handle: deps.timer.set(() => expired(roomCode, since), graceMs) });
+     },

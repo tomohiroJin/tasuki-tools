@@ -9,7 +9,7 @@ import { TOOL_IDS, isKnownToolId, type KnownToolId } from "../src/application/to
  * 一覧から期待値を導くと恒真になるので、綴りは必ずリテラルで書く。
  * 道具を足してもこのテストは変えない（`toContain` で見る。等値にしない）。
  */
-const WIRE_SPELLINGS = ["timer", "poker", "topic", "roulette", "agenda", "checkin"] as const;
+const WIRE_SPELLINGS = ["timer", "poker", "topic", "roulette", "agenda", "checkin", "track"] as const;
 
 describe("TOOL_IDS", () => {
   it.each(WIRE_SPELLINGS)("wire の綴り %s を含む", (spelling) => {

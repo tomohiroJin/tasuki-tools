@@ -1,0 +1,22 @@
+# 変異 2502: tool-ids-drops-track
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws/connection-gate.test.ts
+#
+# #476 TOOL_IDS から TOOL_TRACK を落とす。うちわけの接続が拒まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2502-*.patch
+# 復元: git apply -R scripts/mutations/m2502-*.patch
+diff --git a/apps/tasuki-sync/src/application/tool-id.ts b/apps/tasuki-sync/src/application/tool-id.ts
+--- a/apps/tasuki-sync/src/application/tool-id.ts
++++ b/apps/tasuki-sync/src/application/tool-id.ts
+@@ -74,7 +74,7 @@
+ export const TOOL_HUB: ToolId | null = null;
+ 
+ /** このサーバーが載せている道具の一覧。綴りの正本。道具を足すときは定数とこの配列に足す。 */
+-export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN, TOOL_TRACK] as const;
++export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN] as const;
+ 
+ /** 一覧にある道具の識別子（リテラルの共用体）。`ToolId`（room-core・不透明な string）の部分型。 */
+ export type KnownToolId = (typeof TOOL_IDS)[number];

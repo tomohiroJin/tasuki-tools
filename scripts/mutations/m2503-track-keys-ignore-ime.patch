@@ -1,0 +1,21 @@
+# 変異 2503: track-keys-ignore-ime
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/keys.test.ts
+#
+# #476 IME の変換中のキーを拾う。FR-26。変換の確定で切り替わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2503-*.patch
+# 復元: git apply -R scripts/mutations/m2503-*.patch
+diff --git a/apps/track-web/src/keys.ts b/apps/track-web/src/keys.ts
+--- a/apps/track-web/src/keys.ts
++++ b/apps/track-web/src/keys.ts
+@@ -31,7 +31,6 @@
+ export function keyActionOf(event: KeyInput, context: KeyContext): KeyAction | null {
+   if (context.editable || context.dialogOpen) return null;
+   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return null;
+-  if (event.isComposing || event.keyCode === IME_KEY_CODE) return null;
+   if (/^[1-9]$/.test(event.key)) return { type: 'candidate', index: Number(event.key) - 1 };
+   const key = event.key.toLowerCase();
+   if (key === 's') return { type: 'stop' };

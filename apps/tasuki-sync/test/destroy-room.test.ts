@@ -25,7 +25,9 @@ import { INITIAL_AGENDA_STATE } from "@tasuki/agenda-core";
 import { InMemoryAgendaStore } from "../src/adapters/in-memory-agenda-store.js";
 import { INITIAL_CHECKIN_STATE } from "@tasuki/checkin-core";
 import { InMemoryCheckinStore } from "../src/adapters/in-memory-checkin-store.js";
+import { InMemoryTrackStore } from "../src/adapters/in-memory-track-store.js";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
+import { createTrackState } from "@tasuki/track-core";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
 describe("createRoomDestroyer", () => {
@@ -44,6 +46,7 @@ describe("createRoomDestroyer", () => {
       "scheduler.clear:AAA",
       "agendaDeadlines.clear:AAA",
       "checkinGrace.clearRoom:AAA",
+      "trackAutoStop.clearRoom:AAA",
       "topicGenerator.cancel:AAA",
       "presence.clearRoomTimers:AAA",
       "releaseRoom:AAA",
@@ -127,6 +130,26 @@ describe("createRoomDestroyer", () => {
     expect(checkins.get("III")).toEqual(INITIAL_CHECKIN_STATE);
   });
 
+  it("破棄の後にうちわけの状態が無く、全員切断の猶予も止まる", () => {
+    // Given: 名簿とうちわけの状態が同じルームコードにぶら下がっている
+    const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
+    const tracks = new InMemoryTrackStore();
+    const kept = createTrackState({ mono: 0, wallMs: 0 });
+    store.put({ code: "JJJ", createdAt: 0, participants: [] });
+    tracks.put("JJJ", createTrackState({ mono: 0, wallMs: 0 }));
+    tracks.put("KKK", kept);
+    const { destroy, calls } = spyDestroyer(store, timers, undefined, undefined, undefined, undefined, undefined, tracks);
+
+    // When
+    destroy("JJJ");
+
+    // Then: 猶予は止まり（発火しうるものを先に）、破棄したルームの状態だけが消える
+    expect(calls).toContain("trackAutoStop.clearRoom:JJJ");
+    expect(tracks.get("JJJ")).toBeUndefined();
+    expect(tracks.get("KKK")).toBe(kept);
+  });
+
   it("スケジューラ・presence を持たない構成でも解放とストア削除は行う", () => {
     // Given: makeHandlers 単体（scheduler を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
@@ -150,6 +173,8 @@ describe("createRoomDestroyer", () => {
       checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
       checkinGrace: { clearRoom: () => {} },
+      tracks: new InMemoryTrackStore(),
+      trackAutoStop: { clearRoom: () => {} },
       topicGenerator: { cancel: () => {} },
       releaseRoom: (c) => released.push(c),
     });

@@ -11,6 +11,7 @@ import { LiveTopicClient } from "./topic-client";
 import { LiveRouletteClient } from "./roulette-client";
 import { LiveAgendaClient } from "./agenda-client";
 import { LiveCheckinClient } from "./checkin-client";
+import { LiveTrackClient } from "./track-client";
 
 /** 起動中の同期サーバーと、そこへ繋いだクライアント群。 */
 export class LiveSyncServer {
@@ -21,6 +22,7 @@ export class LiveSyncServer {
   private readonly rouletteClients: LiveRouletteClient[] = [];
   private readonly agendaClients: LiveAgendaClient[] = [];
   private readonly checkinClients: LiveCheckinClient[] = [];
+  private readonly trackClients: LiveTrackClient[] = [];
 
   constructor(private readonly server: SyncServer) {}
 
@@ -163,6 +165,17 @@ export class LiveSyncServer {
     return client;
   }
 
+  /** **うちわけとして**（`?tool=track`）新しい WebSocket 接続を開く（#476）。{@link connectAgenda} の写し。 */
+  async connectTrack(
+    label = `track-${this.trackClients.length + 1}`,
+    headers: Record<string, string> = {},
+  ): Promise<LiveTrackClient> {
+    const ws = await openSocket(label, `ws://127.0.0.1:${this.port}/ws?tool=track`, headers);
+    const client = new LiveTrackClient(label, ws);
+    this.trackClients.push(client);
+    return client;
+  }
+
   /**
    * 全クライアントを閉じ、サーバーを停止する（afterEach から呼ぶ）。
    *
@@ -178,6 +191,7 @@ export class LiveSyncServer {
       ...this.rouletteClients,
       ...this.agendaClients,
       ...this.checkinClients,
+      ...this.trackClients,
     ];
     this.clients.length = 0;
     this.pokerClients.length = 0;
@@ -186,6 +200,7 @@ export class LiveSyncServer {
     this.rouletteClients.length = 0;
     this.agendaClients.length = 0;
     this.checkinClients.length = 0;
+    this.trackClients.length = 0;
     const failures: unknown[] = [];
     try {
       const results = await Promise.allSettled(all.map((client) => client.close()));

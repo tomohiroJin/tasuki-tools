@@ -61,6 +61,7 @@ import type { InMemoryRoundStore } from "./adapters/poker-in-memory-round-store.
 import type { AssertNever } from "./adapters/ws/raw-tools.js";
 import { assembleAgenda, type AgendaPart } from "./assembly/agenda.js";
 import { assembleCheckin, type CheckinPart } from "./assembly/checkin.js";
+import { assembleTrack, type TrackPart } from "./assembly/track.js";
 import { late, mergeDisjoint, type AssemblyBase, type TimerSide } from "./assembly/context.js";
 import { assembleHub } from "./assembly/hub.js";
 import { assemblePoker, type PokerPart } from "./assembly/poker.js";
@@ -105,6 +106,7 @@ interface ToolParts {
   readonly roulette: RoulettePart;
   readonly agenda: AgendaPart;
   readonly checkin: CheckinPart;
+  readonly track: TrackPart;
   readonly poker: PokerPart;
 }
 export type ToolPartsCoverTools = AssertNever<Exclude<Exclude<KnownToolId, "timer">, keyof ToolParts>>;
@@ -236,8 +238,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const roulette = assembleRoulette(base, timerSide);
   const agenda = assembleAgenda(base, timerSide);
   const checkin = assembleCheckin(base, timerSide);
+  const track = assembleTrack(base, timerSide);
   const poker = assemblePoker(base, timerSide, topicResources.broadcaster);
-  const parts: ToolParts = { topic, roulette, agenda, checkin, poker };
+  const parts: ToolParts = { topic, roulette, agenda, checkin, track, poker };
   toolParts.set(parts);
 
   // 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
@@ -246,7 +249,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // 各道具の保管は、道具ごとの組み立てが `destroy` として返したものを並べる
   // （必須の鍵が 1 つでも欠ければ型検査が落ちる。寿命はツールごとではなくルームごとに 1 つ・#95 S4a）。
   // 各部品の `destroy` は鍵が重なれば落ちる（後勝ちで黙って外れない）。受け側に無い余計な鍵は、型が `never` を要求して落とす。
-  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, checkin.destroy, poker.destroy);
+  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, checkin.destroy, track.destroy, poker.destroy);
   const destroyDeps: RoomDestroyerDeps & Record<Exclude<keyof typeof toolDestroy, keyof RoomDestroyerDeps>, never> = {
     store,
     timers,
@@ -290,7 +293,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     deriveClientKey,
     requireClientAddress: config.requireClientAddress,
     // 生テキストを受けるツールのメッセージ層（鍵は `adapters/ws/raw-tools.ts` の表）。
-    raw: { hub, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer },
+    raw: { hub, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer, track: track.layer },
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({

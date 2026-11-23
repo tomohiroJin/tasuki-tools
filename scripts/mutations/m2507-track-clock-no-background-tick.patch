@@ -1,0 +1,22 @@
+# 変異 2507: track-clock-no-background-tick
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-track-clock.test.tsx
+#
+# #476 裏のタブのためのタイマーの見張りを置かない（rAF だけで描き直す）。#476 のレビュー。裏のタブでは rAF が呼ばれず、タブの題（FR-22）が止まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2507-*.patch
+# 復元: git apply -R scripts/mutations/m2507-*.patch
+diff --git a/apps/track-web/src/hooks/use-track-clock.ts b/apps/track-web/src/hooks/use-track-clock.ts
+--- a/apps/track-web/src/hooks/use-track-clock.ts
++++ b/apps/track-web/src/hooks/use-track-clock.ts
+@@ -70,7 +70,7 @@
+     frameId = requestAnimationFrame(loop);
+     // 裏のタブでは rAF が呼ばれない。タブの題（別のタブを見ているときに役に立つ）を進めるため、タイマーでも見張る
+     // （裏では間引かれるが、題は 1 分ごとなので足りる）。描き直すのは、表と同じく秒が変わったときだけ
+-    const backgroundId = setInterval(check, BACKGROUND_TICK_MS);
++    const backgroundId = 0;
+     return () => {
+       cancelAnimationFrame(frameId);
+       clearInterval(backgroundId);

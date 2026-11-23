@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { loadSyncConfig } from "../src/config.js";
 import { CHECKIN_DISCONNECT_REVEAL_GRACE_MS } from "../src/application/checkin-handlers.js";
+import { TRACK_AUTO_STOP_GRACE_MS } from "../src/application/track-auto-stop.js";
 
 describe("loadSyncConfig", () => {
   it("既定値を返す（env 空）", () => {
@@ -169,6 +170,15 @@ describe("loadSyncConfig", () => {
     // Then
     expect(byDefault.checkinRevealGraceMs).toBe(CHECKIN_DISCONNECT_REVEAL_GRACE_MS);
     expect(shortened.checkinRevealGraceMs).toBe(300);
+  });
+
+    it("うちわけの全員切断の猶予は既定で定数と同じ。env で縮められる（#476）", () => {
+    // Given / When
+    const byDefault = loadSyncConfig({});
+    const shortened = loadSyncConfig({ TRACK_AUTO_STOP_GRACE_MS: "300" });
+    // Then
+    expect(byDefault.trackAutoStopGraceMs).toBe(TRACK_AUTO_STOP_GRACE_MS);
+    expect(shortened.trackAutoStopGraceMs).toBe(300);
   });
 
   it("ハートビート設定の不正値は既定値にフォールバック", () => {

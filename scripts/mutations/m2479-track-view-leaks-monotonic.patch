@@ -1,0 +1,22 @@
+# 変異 2479: track-view-leaks-monotonic
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 写しに単調時計の値をそのまま載せる。ADR 0038 決定 3。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2479-*.patch
+# 復元: git apply -R scripts/mutations/m2479-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -154,7 +154,7 @@
+   const slot = s.undo;
+   return {
+     epochWallMs: s.epochWallMs,
+-    nowMs: now - s.epochMono,
++    nowMs: now,
+     segments: s.segments,
+     pinned: s.pinned,
+     rev: s.rev,

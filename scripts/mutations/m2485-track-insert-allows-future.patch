@@ -1,0 +1,22 @@
+# 変異 2485: track-insert-allows-future
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 後からの追加を、いまより先の範囲に置ける。FR-18。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2485-*.patch
+# 復元: git apply -R scripts/mutations/m2485-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -135,7 +135,7 @@
+   const label = labelFor(input.kind, input.label);
+   if (label === null) return fail("TRACK_INVALID_LABEL");
+   const nowMs = input.now - s.epochMono;
+-  if (input.endMs - input.startMs < MIN_SEGMENT_MS || input.endMs > nowMs || input.startMs < nowMs - MAX_LOOKBACK_MS) {
++  if (input.endMs - input.startMs < MIN_SEGMENT_MS || input.startMs < nowMs - MAX_LOOKBACK_MS) {
+     return fail("TRACK_INVALID_RANGE");
+   }
+ 

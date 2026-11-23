@@ -33,7 +33,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` `packages/agenda-core` `packages/checkin-core` | なし（純粋関数と型のみ。例外として `packages/poker-core` だけが境界のパースのため `packages/protocol` に依存する）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` `packages/agenda-core` `packages/checkin-core` `packages/track-core` | なし（純粋関数と型のみ。例外として `packages/poker-core` だけが境界のパースのため `packages/protocol` に依存する）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | `packages/protocol` はなし（`@tasuki/*` に依存しない。境界のパースはコードも文言も決め打ちしない）。各 core の `protocol.ts` はその core の型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
@@ -110,7 +110,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
    乱数生成などの副作用はすべてアダプタ（`apps/*-sync/src/adapters`）に置き、
    ポートの型で上位層へ注入します。
 2. **複数アプリで使う純粋ロジックか？ → core。ただし ADR 0007 の抽出基準を
-   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` / `packages/roulette-core` / `packages/agenda-core` / `packages/checkin-core` に
+   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` / `packages/roulette-core` / `packages/agenda-core` / `packages/checkin-core` / `packages/track-core` に
    置けるのは純粋関数・型のみです。抽出してよいかどうかは
    [`docs/adr/0007`](../adr/0007-abstraction-criteria.md)（抽象化の基準。
    憲法 原則 X「抽象は実需で」）を先に確認します。呼び出し箇所が 1 つしか
@@ -153,6 +153,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`・#427 で撤回。いまは入る人から一様に引く）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
 | 進行タイマー | **会の進行表（名前と長さを持つステップの並び）を全員で同じ盤に映して順に計るツール**（`packages/agenda-core`・接続の種類 `?tool=agenda`・公開パス `/agenda/`）。定義（シナリオ・`ScenarioInput`）と展開済みの並び（`PlannedStep[]`・`expand`）を分け、進行の遷移（開始・次へ・一時停止・延長・飛ばす・最初から）は純粋関数で、操作はステップの ID で指す。**押し巻き**は実時間の経過と予定の差（一時停止中も増える）。「自動で次へ」の判断と期限の予約はサーバーが単調時計で持ち、画面へは送る時点で計った経過を配る。懐中時計の盤・映す表示・端末の保存は `apps/agenda-web` が持つ（[ADR-0027](../adr/0027-agenda-timer.md)） |
 | チェックイン・チェックアウト | **会の始まりと終わりに、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開くツール**（`packages/checkin-core`・接続の種類 `?tool=checkin`・公開パス `/checkin/`）。**匿名はサーバーが送らないことで守る**: 写し（`toView`）は受け手ごとに作り、開く前は他人の札の中身を、匿名で開いた後は誰がどの山かを載せない。操作は回の番号 `seq` で指し、違う回の操作は何もしない。「全員」はこの道具に在席し見学でない人で、名簿の変化は `hub.broadcastRoster` の口で受けて測り直す。見学者はこの道具が自前で持つ。やり方の札の絵・開く動きは `apps/checkin-web` が持つ（[ADR-0028](../adr/0028-checkin-cards.md)） |
+| うちわけ | **ルームの全員で「いまやっていること」を切り替え、作業の内訳（何に何分使ったか）を積み上げるツール**（`packages/track-core`・接続の種類 `?tool=track`・公開パス `/track/`）。**区切り**（`Segment`。種類は作業か休憩）を開始の昇順で重ならない列として持ち、位置は**時刻軸**（状態を最初に置いた時点を 0 とする ms・サーバーの単調時計で測る）で表す。区切りの間の**隙間**は止めていた時間で、どの合計にも入らない。**誰が操作したかは持たない**（状態・写し・書き出し・ログのどれにも載せない）。取り消しは直前の 1 操作の写しで行い、番号 `rev` で指す。「全員の切断」は名簿の全員の不在で数え、猶予の後に最後の切断の時刻で区切りを閉じる。候補・集計・Markdown の組み立ては純粋関数で、画面・キーボード・タブタイトルは `apps/track-web` が持つ（[ADR-0038](../adr/0038-track-uchiwake.md)） |
 
 ### 語と識別子の対応（#597）
 

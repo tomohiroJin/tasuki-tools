@@ -102,6 +102,7 @@ const TOOL_ENTRIES = [
   { name: 'roulette', path: '/roulette/', landmark: /^ルーレットを回す$/ },
   { name: 'agenda', path: '/agenda/', landmark: /サンプルから選ぶ/ },
   { name: 'checkin', path: '/checkin/', landmark: 'ランダム' },
+  { name: 'track', path: '/track/', landmark: /^Markdown でコピー$/ },
 ] as const;
 
 test.describe('合言葉の付いたルームへ各道具の URL から入ると、玄関で求められ、通ると元の道具へ戻る', () => {

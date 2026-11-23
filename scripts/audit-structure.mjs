@@ -120,6 +120,8 @@ export const SCANNED_PACKAGES = [
   { pkg: "packages/agenda-core", src: "src", test: "tests", entry: "index.ts" },
   // 会の始まりと終わりの札の文脈（#406）。
   { pkg: "packages/checkin-core", src: "src", test: "tests", entry: "index.ts" },
+  // うちわけの文脈（#476）。8 つ目の境界づけられた文脈。
+  { pkg: "packages/track-core", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/rate-limit", src: "src", test: "tests", entry: "index.ts" },
   // #95 S5a で新設（同期クライアントの接続部分・D18）。
   { pkg: "packages/sync-client", src: "src", test: "tests", entry: "index.ts" },
@@ -143,6 +145,8 @@ export const SCANNED_PACKAGES = [
   { pkg: "apps/agenda-web", src: "src", test: "tests", entry: "main.tsx" },
   // #406 で新設（Check-in Cards）。
   { pkg: "apps/checkin-web", src: "src", test: "tests", entry: "main.tsx" },
+  // #476 で新設（うちわけ）。
+  { pkg: "apps/track-web", src: "src", test: "tests", entry: "main.tsx" },
   { pkg: "e2e", src: null, test: "tests", entry: null },
 ];
 

@@ -1,0 +1,22 @@
+# 変異 2496: track-autostop-any-absent
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/track-auto-stop.test.ts
+#
+# #476 1 人でも不在なら、全員が不在と数える。ADR 0038 決定 7。誰かが見ているのに記録が止まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2496-*.patch
+# 復元: git apply -R scripts/mutations/m2496-*.patch
+diff --git a/apps/tasuki-sync/src/application/track-auto-stop.ts b/apps/tasuki-sync/src/application/track-auto-stop.ts
+--- a/apps/tasuki-sync/src/application/track-auto-stop.ts
++++ b/apps/tasuki-sync/src/application/track-auto-stop.ts
+@@ -59,7 +59,7 @@
+     const state = deps.tracks.get(roomCode);
+     if (room === undefined || state === undefined) return false;
+     if (runningSegmentOf(toView(state, deps.clock.now())) === null) return false;
+-    return room.participants.every((p) => presenceOf(p) === "offline");
++    return room.participants.some((p) => presenceOf(p) === "offline");
+   }
+ 
+   function expired(roomCode: string, since: number): void {

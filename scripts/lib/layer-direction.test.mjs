@@ -233,7 +233,8 @@ test("宣言の形: 許可表は ADR 0015 の追記の行を持ち、I/O の宣�
     "web/screen",
   ]);
   for (const f of WEB_IO_FILES) assert.match(f, /^apps\/[^/]+\/src\/.+\.ts$/, f);
-  assert.equal(WEB_IO_FILES.size, 14);
+  // ADR 0015 の追記の実測の 14 本に、うちわけ（#476）の 2 本（router.ts・platform/timezone.ts）を足した
+  assert.equal(WEB_IO_FILES.size, 16);
 });
 
 test("純粋判断と端末 I/O が react・react-dom（サブパス含む）・partysocket を読むと赤", () => {

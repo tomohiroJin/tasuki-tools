@@ -23,7 +23,7 @@ interface ToolSpec {
   /** 公開パス */
   readonly href: string;
   /** 札の中央に出る意匠 */
-  readonly mark: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards";
+  readonly mark: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards" | "bars";
 }
 
 export const TOOLS = [
@@ -74,6 +74,14 @@ export const TOOLS = [
     summary: "始めと終わりに札を出し合う",
     href: "/checkin/",
     mark: "cards",
+  },
+  {
+    id: "track",
+    pip: "内訳",
+    name: "Uchiwake",
+    summary: "何に何分使ったかを記録する",
+    href: "/track/",
+    mark: "bars",
   },
 ] as const satisfies readonly ToolSpec[];
 

@@ -17,5 +17,5 @@ index c636c235..fd5dc2f1 100644
      roulettes.remove(roomCode);
      agendas.remove(roomCode);
 -    checkins.delete(roomCode);
+     tracks.remove(roomCode);
    };
- }

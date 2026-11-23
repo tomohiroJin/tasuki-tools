@@ -33,6 +33,7 @@ import type { TopicStore } from "../ports/topic-store.js";
 import type { RouletteStore } from "../ports/roulette-store.js";
 import type { AgendaStore } from "../ports/agenda-store.js";
 import type { CheckinStore } from "../ports/checkin-store.js";
+import type { TrackStore } from "../ports/track-store.js";
 import type { AgendaDeadlines } from "./agenda-deadlines.js";
 
 export interface RoomDestroyerDeps {
@@ -91,6 +92,18 @@ export interface RoomDestroyerDeps {
    */
   checkinGrace: { clearRoom(roomCode: string): void };
   /**
+   * うちわけの状態の実体（#476）。**名簿と対で消す**（`checkins` と同じ規律）。
+   *
+   * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
+   */
+  tracks: Pick<TrackStore, "remove">;
+  /**
+   * うちわけの、全員の切断による自動の停止の猶予（#476）。破棄で止める（消えたルームの予約を残さない）。
+   *
+   * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
+   */
+  trackAutoStop: { clearRoom(roomCode: string): void };
+  /**
    * お題の生成（#91・`TopicGenerator`）。破棄で進行中の生成を中断する（子プロセスを止める）。
    *
    * ⚠ **optional にしてはならない。** 省略時の構成を持たない ——
@@ -118,6 +131,8 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     checkins,
     agendaDeadlines,
     checkinGrace,
+    tracks,
+    trackAutoStop,
     scheduler,
     topicGenerator,
     presence,
@@ -128,6 +143,7 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     scheduler?.clear(roomCode);
     agendaDeadlines.clear(roomCode);
     checkinGrace.clearRoom(roomCode);
+    trackAutoStop.clearRoom(roomCode);
     // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
     // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
     topicGenerator.cancel(roomCode);
@@ -140,5 +156,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     roulettes.remove(roomCode);
     agendas.remove(roomCode);
     checkins.delete(roomCode);
+    tracks.remove(roomCode);
   };
 }

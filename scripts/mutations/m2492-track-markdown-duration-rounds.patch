@@ -1,0 +1,22 @@
+# 変異 2492: track-markdown-duration-rounds
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/markdown.test.ts
+#
+# #476 Markdown の時間を切り捨てずに切り上げる。利用者の決め 9。#476 のレビュー: 元と同じ長さの置き換え（floor→round）は、同じファイルの変異が続くと復元の判定（git status）をすり抜けて変異が残ったので、長さの変わる壊し方にした。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2492-*.patch
+# 復元: git apply -R scripts/mutations/m2492-*.patch
+diff --git a/packages/track-core/src/markdown.ts b/packages/track-core/src/markdown.ts
+--- a/packages/track-core/src/markdown.ts
++++ b/packages/track-core/src/markdown.ts
+@@ -29,7 +29,7 @@
+ 
+ /** 長さを h:mm にする（1 分未満は切り捨て）。 */
+ export function formatDuration(ms: number): string {
+-  const minutes = Math.floor(Math.max(0, ms) / MS_PER_MIN);
++  const minutes = Math.ceil(Math.max(0, ms) / MS_PER_MIN);
+   return `${Math.floor(minutes / 60)}:${pad2(minutes % 60)}`;
+ }
+ 

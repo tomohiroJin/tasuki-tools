@@ -85,6 +85,8 @@ export const DOMAIN_PACKAGES = [
   "packages/agenda-core",
   // 会の始まりと終わりの札の文脈（#406）。乱数は引数で受ける。
   "packages/checkin-core",
+  // うちわけの文脈（#476）。時計は引数で受ける。
+  "packages/track-core",
   "packages/timer-core",
   // #91 PR 3 で新設。純粋な関数のみ（Date.now() や Math.random() を置いたら赤になるべき）。
   "packages/markdown",
@@ -98,6 +100,7 @@ export const EXCLUDED_PACKAGES = [
   { pkg: "apps/roulette-web", reason: "アプリ層。副作用を置いてよい境界" },
   { pkg: "apps/agenda-web", reason: "アプリ層。副作用を置いてよい境界" },
   { pkg: "apps/checkin-web", reason: "アプリ層。副作用を置いてよい境界" },
+  { pkg: "apps/track-web", reason: "アプリ層。副作用を置いてよい境界" },
   {
     pkg: "apps/tasuki-sync",
     reason:

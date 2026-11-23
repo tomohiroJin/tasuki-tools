@@ -1,0 +1,22 @@
+# 変異 2482: track-adjust-neighbor-not-moved
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#   - packages/track-core/tests/track-invariant.test.ts
+#
+# #476 接している境界を動かしても、隣の区切りが付いてこない。不変条件 1（重ならない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2482-*.patch
+# 復元: git apply -R scripts/mutations/m2482-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -94,7 +94,6 @@
+       return g;
+     }
+     if (i === index) return { ...g, endMs: input.atMs, autoClosed: false };
+-    if (i === index + 1 && g.startMs === segment.endMs) return { ...g, startMs: input.atMs };
+     return g;
+   });
+   return ok(edited(s, { segments }));

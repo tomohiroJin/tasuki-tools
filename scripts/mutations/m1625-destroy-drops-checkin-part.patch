@@ -19,8 +19,8 @@ index 905485ff..e80c5c17 100644
    // 各道具の保管は、道具ごとの組み立てが `destroy` として返したものを並べる
    // （必須の鍵が 1 つでも欠ければ型検査が落ちる。寿命はツールごとではなくルームごとに 1 つ・#95 S4a）。
    // 各部品の `destroy` は鍵が重なれば落ちる（後勝ちで黙って外れない）。受け側に無い余計な鍵は、型が `never` を要求して落とす。
--  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, checkin.destroy, poker.destroy);
-+  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, poker.destroy);
+-  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, checkin.destroy, track.destroy, poker.destroy);
++  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, track.destroy, poker.destroy);
    const destroyDeps: RoomDestroyerDeps & Record<Exclude<keyof typeof toolDestroy, keyof RoomDestroyerDeps>, never> = {
      store,
      timers,

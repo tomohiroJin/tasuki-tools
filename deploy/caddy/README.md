@@ -18,6 +18,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
         ├── 50-roulette.conf         # deploy/roulette/caddy/（#94 の配布で設置。順序は deploy/roulette/NOTES.md）
         ├── 60-agenda.conf           # deploy/agenda/caddy/（#429 の配布で設置。順序は deploy/agenda/NOTES.md）
         ├── 70-checkin.conf          # deploy/checkin/caddy/（#406 の配布で設置。順序は deploy/checkin/NOTES.md）
+        ├── 80-track.conf            # deploy/track/caddy/（#476 の配布で設置する。順序は deploy/track/NOTES.md）
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
 ```
 
@@ -88,6 +89,8 @@ scp deploy/agenda/caddy/60-agenda.conf          "$TASUKI_SSH_HOST:/tmp/"
 # ↑ /agenda/ の断片（#429）。置き忘れると /agenda/ は包括フォールバック＝玄関に吸われる
 scp deploy/checkin/caddy/70-checkin.conf        "$TASUKI_SSH_HOST:/tmp/"
 # ↑ /checkin/ の断片（#406）。置き忘れると /checkin/ は包括フォールバック＝玄関に吸われる
+scp deploy/track/caddy/80-track.conf            "$TASUKI_SSH_HOST:/tmp/"
+# ↑ /track/ の断片（#476）。置き忘れると /track/ は包括フォールバック＝玄関に吸われる
 
 # 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
 # #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
@@ -116,6 +119,8 @@ sudo install -m 644 /tmp/50-roulette.conf /etc/caddy/tasuki/apps/
 sudo install -m 644 /tmp/60-agenda.conf /etc/caddy/tasuki/apps/
 # #406（Check-in Cards）の配布では、70-checkin.conf もこの段で入れる（順序の正本は ../checkin/NOTES.md）。
 sudo install -m 644 /tmp/70-checkin.conf /etc/caddy/tasuki/apps/
+# #476（うちわけ）の配布では、80-track.conf もこの段で入れる（順序の正本は ../track/NOTES.md）。
+sudo install -m 644 /tmp/80-track.conf /etc/caddy/tasuki/apps/
 
 # **旧共有リンクの救済（40-timer-legacy-room.conf・S5a で撤去）はこの段で消す。**
 # 後回しにできない —— 残したまま `deploy.sh landing` を走らせると、新しい玄関が配る
@@ -181,7 +186,7 @@ curl -sI "$HOST/"                                        # 200・x-robots-tag: n
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
 # 各系統が並存すること（/topic/ は #91 の配布から）
-for p in / /timer/ /poker/ /topic/ /roulette/ /agenda/ /checkin/; do
+for p in / /timer/ /poker/ /topic/ /roulette/ /agenda/ /checkin/ /track/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
 # **/topic/ は断片を置き忘れても玄関が 200 を返す**（90-landing.conf の包括フォールバック）ので、
@@ -191,6 +196,7 @@ curl -s "$HOST/topic/" | grep -o '/topic/assets/' | head -1
 curl -s "$HOST/roulette/" | grep -o '/roulette/assets/' | head -1   # #94 の配布から
 curl -s "$HOST/agenda/" | grep -o '/agenda/assets/' | head -1   # #429 の配布から
 curl -s "$HOST/checkin/" | grep -o '/checkin/assets/' | head -1   # #406 の配布から
+curl -s "$HOST/track/" | grep -o '/track/assets/' | head -1   # #476 の配布から
 
 # WebSocket が SPA に吸われていないこと。統合 sync（apps/tasuki-sync）は
 # 非 Upgrade の HTTP に 426 を返す。

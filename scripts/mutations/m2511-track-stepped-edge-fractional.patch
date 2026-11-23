@@ -1,0 +1,22 @@
+# 変異 2511: track-stepped-edge-fractional
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-view.test.ts
+#
+# #476 ± の行き先を、いまの位置の端数を残したまま返す。#476 の /code-review。送る位置が整数でなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2511-*.patch
+# 復元: git apply -R scripts/mutations/m2511-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -81,7 +81,7 @@
+   const maxMs = Math.floor(range.maxMs);
+   if (minMs > maxMs) return null;
+   // いまの位置が整数でなくても（古いサーバーの写しなど）、送る位置は整数にする
+-  const target = Math.min(maxMs, Math.max(minMs, Math.round(currentMs + deltaMs)));
++  const target = Math.min(maxMs, Math.max(minMs, currentMs + deltaMs));
+   // 範囲の外にいる端を、押した向きと逆へは引き戻さない
+   if (deltaMs > 0 ? target <= currentMs : target >= currentMs) return null;
+   return target;
