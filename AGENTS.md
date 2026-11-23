@@ -106,6 +106,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `pnpm check:full` — 全件の段。CI からコマンドと変異のシャードを導いて同じ引数で流す。依存・ブラウザの導入は先に済ませる。両方とも版が合わなければ検査を始めない。`--list` で実行予定だけを確認できる
 - `pnpm test` — 全パッケージのテスト
 - `pnpm e2e` — E2E テスト
+- `TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm verify:prod` — 本番に配った後の、読むだけの確かめ（公開中の道具の配信ハッシュと手元のビルドの一致・公開パス・`/ws` の 426。`--e2e` で続けて `pnpm e2e:prod`。配る時の確認の一覧は [`deploy/README.md`](deploy/README.md)）
 - `node scripts/audit-structure.mjs` — 構造監査
 - `node scripts/audit-test-focus.mjs` — テストの `.only`（`node:test` の `{ only: true }` を含む）と、理由のコメントの無い `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（bun の `.if` / `.todoIf`、`node:test` の `{ skip }` / `{ todo }` を含む）を止める（違反があれば exit 1）
 - `node scripts/audit-log-hygiene.mjs` — ログ衛生
