@@ -1,7 +1,8 @@
 /**
  * 「下書きを空にする」（#667）。手元の下書きだけを空に戻す（ルームのシナリオは変えない）。
- * 部品層の危険の役割にし、取り戻せない中身があるときだけ確かめる（「サンプルから選ぶ」の置き換えの確かめと同じ作り:
- * 確かめを開いたら安全な側＝やめる にフォーカス、やめる・Esc で閉じたら「下書きを空にする」へ返す）。
+ * 開くボタンは隣の「サンプルから選ぶ」と同じ控えめの役割にする（空では押せない状態になり、危険の役割の小さい字は AA を割った）。
+ * 危険の役割は確かめの中の「空にする」に置く（確かめは押せるときだけ出る）。取り戻せない中身があるときだけ確かめる
+ * （「サンプルから選ぶ」の置き換えの確かめと同じ作り: 確かめを開いたら安全な側＝やめる にフォーカス、やめる・Esc で閉じたら「下書きを空にする」へ返す）。
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { CLEAR_DRAFT_BUTTON, CLEAR_DRAFT_CONFIRM, CLEAR_DRAFT_NO, CLEAR_DRAFT_YES } from '../copy';
@@ -48,7 +49,7 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
       <button
         ref={openRef}
         type="button"
-        className="ui-button ui-button--danger ui-button--sm builder-clear-toggle"
+        className="ui-button ui-button--quiet ui-button--sm builder-clear-toggle"
         disabled={!canClear}
         onClick={() => (needsConfirm ? setAsking(true) : onClear())}
       >

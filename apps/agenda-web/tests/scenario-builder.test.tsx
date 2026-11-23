@@ -965,4 +965,14 @@ describe('下書きを空にする', () => {
     expect(screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeDefined();
     expect(screen.getByRole('combobox', { name: 'サンプルのくりかえし' })).toBeDefined();
   });
+
+  it('Given 空の下書き（押せない状態） / When 役割を見る / Then 開くボタンは控えめの役割で、危険の役割は確かめの中の実行のボタンだけ（危険の小さい字は押せない状態で AA を割る）', () => {
+    joinedRoom();
+    expect(clearButton()).toBeDisabled();
+    expect(clearButton().classList.contains('ui-button--quiet')).toBe(true);
+    expect(clearButton().classList.contains('ui-button--danger')).toBe(false);
+    pickRow(/朝会/);
+    fireEvent.click(clearButton());
+    expect(screen.getByRole('button', { name: CLEAR_DRAFT_YES }).classList.contains('ui-button--danger')).toBe(true);
+  });
 });
