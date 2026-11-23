@@ -32,9 +32,7 @@ export function RevealCopy({ method, visibility, piles, session }: Props) {
   useEffect(() => {
     if (state === 'failed') setManualKept(true);
     else if (state === 'done') setManualKept(false);
-    // setManualKept は描画ごとに作り直される。state の変化にだけ反応する
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [state, setManualKept]);
   const manualOpen = state === 'failed' || (manualKept && state === 'idle');
 
   return (

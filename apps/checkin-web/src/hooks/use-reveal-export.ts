@@ -5,7 +5,7 @@
  * ［別のやり方］で卓ごと外れて［いまの回に戻る］で作り直されても、同じ回のあいだは時刻も欄も変わらない。次の回では取り直す・閉じる。
  * 時刻の意味は「**この端末で、その回の開いた結果を最初に出した時刻**」（再読み込みした人・後から入った人は、その人が出した時刻）。
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface Session {
   readonly seq: number;
@@ -23,6 +23,11 @@ export interface RevealExport {
 /** `revealedSeq` は、いま開いた結果を出している回の番号（開いていなければ null）。 */
 export function useRevealExport(revealedSeq: number | null, now: () => number = Date.now): RevealExport | null {
   const [session, setSession] = useState<Session | null>(null);
+  // 書き込みは回の番号で固定する（回が替わるまで同じ関数）。ほかの回への書き込みは捨てる
+  const setManualKept = useCallback(
+    (kept: boolean) => setSession((s) => (s !== null && s.seq === revealedSeq ? { ...s, manualKept: kept } : s)),
+    [revealedSeq],
+  );
   if (revealedSeq !== null && session?.seq !== revealedSeq) {
     // 描画の中で state を直す正規の形（同じ描画のうちに作り直される）。時刻は回が替わったときだけ読む
     setSession({ seq: revealedSeq, at: now(), manualKept: false });
@@ -32,6 +37,6 @@ export function useRevealExport(revealedSeq: number | null, now: () => number = 
   return {
     at: session.at,
     manualKept: session.manualKept,
-    setManualKept: (kept) => setSession((s) => (s !== null && s.seq === session.seq ? { ...s, manualKept: kept } : s)),
+    setManualKept,
   };
 }
