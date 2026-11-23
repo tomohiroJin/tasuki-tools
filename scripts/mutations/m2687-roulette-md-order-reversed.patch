@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/result-markdown.ts b/apps/roulette-web/src/result-markdown.ts
+index 0aeaf4fc..c76a7faf 100644
+--- a/apps/roulette-web/src/result-markdown.ts
++++ b/apps/roulette-web/src/result-markdown.ts
+@@ -44,7 +44,7 @@ export function resultMarkdown(result: RouletteResult): string {
+   const names = result.names.map(escapeName);
+   const head = ['## ' + RESULT_MD_HEADING, '', '- ' + RESULT_MD_MODE + '：' + MODE_NAME[result.mode]];
+   if (result.mode === 'order') {
+-    return [...head, '- ' + RESULT_MD_ORDER + '：', ...names.map((n, i) => `  ${i + 1}. ${n}`)].join('\n');
++    return [...head, '- ' + RESULT_MD_ORDER + '：', ...[...names].reverse().map((n, i) => `  ${i + 1}. ${n}`)].join('\n');
+   }
+   if (names.length === 1) return [...head, '- ' + RESULT_MD_PICKED + '：' + names[0]].join('\n');
+   return [...head, '- ' + RESULT_MD_PICKED + '：', ...names.map((n, i) => `  ${i + 1}. ${n}`)].join('\n');

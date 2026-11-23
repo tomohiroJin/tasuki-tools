@@ -286,6 +286,9 @@ const RESERVED_1850_1869 =
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
+const RESERVED_2685_2699 =
+  "**対応表より後に足した変異。** 2685〜2699 は #676（roulette の結果を Markdown でコピーする）に割り当てた範囲。";
+
 const RESERVED_1410_1419 =
   "**対応表より後に足した変異。** 1410〜1419 は #557 に追加で割り当てた範囲（1120〜1129 を使い切ったため。除く規則ごとの変異と、検査が見つけた CSS の直しの変異）。";
 
@@ -12595,5 +12598,93 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2685,
+    label: "結果の Markdown の名前を逃がさない（| * # 改行 ` ほかが書き出しに混ざる）",
+    patch: "m2685-roulette-md-no-escape.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。名前の記号が Markdown の構文に読まれ、表・見出し・強調・リンクになって結果が崩れる。",
+  },
+  {
+    id: 2686,
+    label: "2 人以上が決まっても、結果の Markdown に 1 人目しか書かない",
+    patch: "m2686-roulette-md-first-only.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。選ぶ人数が 2 人以上のとき、画面の札には全員いるのに持ち出した結果には 1 人しかいない。",
+  },
+  {
+    id: 2687,
+    label: "順番に回した結果の Markdown を、逆の順で書く",
+    patch: "m2687-roulette-md-order-reversed.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。1 番の人が最後に書かれ、順番が持ち出し先で逆になる。",
+  },
+  {
+    id: 2688,
+    label: "名前の行頭の - と + を逃がさない",
+    patch: "m2688-roulette-md-leading-dash.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。名前が箇条書きの始まりに読まれ、結果の行が入れ子の項目になる。",
+  },
+  {
+    id: 2689,
+    label: "名前の改行を 1 つの空白にせず、そのまま書き出す",
+    patch: "m2689-roulette-md-newline-kept.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。名前に入れた改行で行が割れ、後ろが見出し・項目として読まれる。",
+  },
+  {
+    id: 2690,
+    label: "結果のコピーを、回っている間（止まる前）にも出す",
+    patch: "m2690-roulette-result-while-spinning.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-of.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。演出が終わる前に、コピーで結果が先に分かってしまう。",
+  },
+  {
+    id: 2691,
+    label: "順番に回すとき、札が伏せてある間もコピーを出す",
+    patch: "m2691-roulette-result-order-card-hidden.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-of.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。2 番を回している間に、1 番までの結果が札の出る前にコピーできる（回し終えた順の食い違い）。",
+  },
+  {
+    id: 2692,
+    label: "結果のコピーに、決まった人のうち 1 人目しか入れない",
+    patch: "m2692-roulette-result-first-pick-only.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-of.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。画面が 2 人以上を見せているのに、コピーする人が 1 人に減る。",
+  },
+  {
+    id: 2693,
+    label: "コピーに失敗しても、成功の知らせを出す",
+    patch: "m2693-roulette-copy-failure-as-done.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676。コピーできていないのに「コピーしました」と出て、貼ると空か前の物が出る。",
+  },
+  {
+    id: 2694,
+    label: "コピーに失敗した表示を 2 秒で消す（keepFailure を外す）",
+    patch: "m2694-roulette-copy-failure-not-kept.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676。手で選ぶ前に失敗の知らせが消え、なぜ欄が出ているか分からない。",
+  },
+  {
+    id: 2695,
+    label: "結果が替わっても、結果のコピーの部品を作り直さない（key を外す）",
+    patch: "m2695-roulette-copy-no-key.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy-room.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676。回っている間を挟まず別の結果が届くと、前の結果の失敗の欄が残る。",
   },
 ];

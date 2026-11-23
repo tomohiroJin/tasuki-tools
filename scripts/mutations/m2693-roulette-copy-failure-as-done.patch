@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/components/ResultCopy.tsx b/apps/roulette-web/src/components/ResultCopy.tsx
+index 0a6c830d..46adc9e3 100644
+--- a/apps/roulette-web/src/components/ResultCopy.tsx
++++ b/apps/roulette-web/src/components/ResultCopy.tsx
+@@ -25,7 +25,7 @@ export function ResultCopy({ markdown }: { markdown: string }) {
+         {RESULT_COPY_BUTTON}
+       </button>
+       <p role="status" className="ui-note roulette-result-copy-status">
+-        {state === 'done' ? RESULT_COPY_DONE : state === 'failed' ? RESULT_COPY_FAILED : ''}
++        {state !== 'idle' ? RESULT_COPY_DONE : ''}
+       </p>
+       {manualOpen && (
+         <textarea

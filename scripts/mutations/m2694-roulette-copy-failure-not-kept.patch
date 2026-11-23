@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/components/ResultCopy.tsx b/apps/roulette-web/src/components/ResultCopy.tsx
+index 0a6c830d..5fe4465d 100644
+--- a/apps/roulette-web/src/components/ResultCopy.tsx
++++ b/apps/roulette-web/src/components/ResultCopy.tsx
+@@ -10,7 +10,7 @@ import { RESULT_COPY_BUTTON, RESULT_COPY_DONE, RESULT_COPY_FAILED, RESULT_COPY_M
+  * （poker の記録 #653・うちわけ #476 と同じ作法。失敗の表示は 2 秒で消さない）。
+  */
+ export function ResultCopy({ markdown }: { markdown: string }) {
+-  const { copy, state } = useCopyText(markdown, { keepFailure: true });
++  const { copy, state } = useCopyText(markdown);
+   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。文が変わって state が idle に戻っても開いたまま残す
+   const [manualKept, setManualKept] = useState(false);
+   useEffect(() => {
