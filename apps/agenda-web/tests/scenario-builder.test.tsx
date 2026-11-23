@@ -10,6 +10,11 @@ import type { TimeoutBehavior } from '@tasuki/agenda-core';
 import { App } from '../src/App';
 import {
   ADD_STEP_BUTTON,
+  CLEAR_DRAFT_BUTTON,
+  CLEAR_DRAFT_CONFIRM,
+  CLEAR_DRAFT_NO,
+  CLEAR_DRAFT_YES,
+  BACK_TO_ROOM_SCENARIO_BUTTON,
   MAX_PLANNED_NOTE,
   MAX_STEPS_NOTE,
   ROUNDS_LABEL,
@@ -808,5 +813,111 @@ describe('サンプルから選ぶ', () => {
     expect(menuButton().getAttribute('aria-expanded')).toBe('true');
     expect(rowNames()).toHaveLength(13);
     expect(screen.getAllByRole('status').some((el) => el.textContent?.includes(SCENARIO_CHANGED_NOTE))).toBe(true);
+  });
+});
+
+/**
+ * @requirements #667（組む画面で、下書きをまとめて空に戻せる。手元の下書きだけで、ルームのシナリオは変えない）
+ */
+describe('下書きを空にする', () => {
+  const clearButton = () => screen.getByRole('button', { name: CLEAR_DRAFT_BUTTON });
+  const titleField = () => screen.getByRole('textbox', { name: '会の名前' }) as HTMLInputElement;
+  const expectEmptyDraft = (): void => {
+    expect(titleField().value).toBe('');
+    expect(screen.queryByRole('textbox', { name: stepNameLabel(1) })).toBeNull();
+    expect(roundsField().value).toBe('1');
+    expect(screen.queryByRole('combobox', { name: 'サンプルのくりかえし' })).toBeNull();
+  };
+
+  it('Given リファインメントのサンプル（くりかえしあり） / When 空にして確かめで空にするを押す / Then 名前・行・回数・サンプルのくりかえしが空になり、ルームへ何も送らない', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    expect(screen.getByRole('combobox', { name: 'サンプルのくりかえし' })).toBeDefined();
+    fireEvent.click(clearButton());
+    const group = screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM });
+    fireEvent.click(within(group).getByRole('button', { name: CLEAR_DRAFT_YES }));
+    expectEmptyDraft();
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+    expect(sentCommands('agenda.scenario.set')).toHaveLength(0);
+    expect(clearButton()).toBeDisabled();
+  });
+
+  it('Given 自分で組んだ下書き / When 空にする / Then 確かめて、空になる。安全な側（やめる）にフォーカスが置かれる', () => {
+    joinedRoom();
+    fireEvent.click(screen.getByRole('button', { name: ADD_STEP_BUTTON }));
+    typeName(1, 'Mine');
+    fireEvent.change(titleField(), { target: { value: '会' } });
+    fireEvent.change(roundsField(), { target: { value: '3' } });
+    fireEvent.click(clearButton());
+    const group = screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM });
+    expect(document.activeElement).toBe(within(group).getByRole('button', { name: CLEAR_DRAFT_NO }));
+    fireEvent.click(within(group).getByRole('button', { name: CLEAR_DRAFT_YES }));
+    expectEmptyDraft();
+    expect(sentCommands('agenda.scenario.set')).toHaveLength(0);
+  });
+
+  it('Given 確かめを出している / When やめるを押す / Then 下書きは変わらず、フォーカスは「下書きを空にする」へ戻る', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    fireEvent.click(clearButton());
+    fireEvent.click(screen.getByRole('button', { name: CLEAR_DRAFT_NO }));
+    expect(titleField().value).toBe('朝会');
+    expect(roundsField().value).toBe('6');
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+    expect(document.activeElement).toBe(clearButton());
+  });
+
+  it('Given 確かめを出している / When Esc を押す / Then 閉じて下書きはそのまま', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    fireEvent.click(clearButton());
+    fireEvent.keyDown(screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM }), { key: 'Escape' });
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+    expect(titleField().value).toBe('朝会');
+    expect(document.activeElement).toBe(clearButton());
+  });
+
+  it('Given 空の下書き / When 描く / Then 「下書きを空にする」は押せず、確かめは出ない', () => {
+    joinedRoom();
+    expect(clearButton()).toBeDisabled();
+    fireEvent.click(clearButton());
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+  });
+
+  it('Given 空にした後 / When ステップを追加し、またサンプルを読み込む / Then どちらもできる（確かめは空なので出ない）', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    fireEvent.click(clearButton());
+    fireEvent.click(screen.getByRole('button', { name: CLEAR_DRAFT_YES }));
+    // 空にしたらフォーカスは「ステップを追加」へ（押せなくなった「下書きを空にする」に残さない）
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: ADD_STEP_BUTTON }));
+    pickRow(/朝会/);
+    expect(screen.queryByText(SAMPLE_REPLACE_CONFIRM)).toBeNull();
+    expect(titleField().value).toBe('朝会');
+    fireEvent.click(clearButton());
+    fireEvent.click(screen.getByRole('button', { name: CLEAR_DRAFT_YES }));
+    fireEvent.click(screen.getByRole('button', { name: ADD_STEP_BUTTON }));
+    expect(nameField(1).value).toBe('');
+  });
+
+  it('Given ルームの写しのままの下書き / When 空にする / Then 確かめずに空になり、「ルームのシナリオに戻す」で取り戻せて、ルームは変わらない', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    expect(screen.queryByRole('button', { name: BACK_TO_ROOM_SCENARIO_BUTTON })).toBeNull();
+    fireEvent.click(clearButton());
+    expect(screen.queryByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeNull();
+    expectEmptyDraft();
+    fireEvent.click(screen.getByRole('button', { name: BACK_TO_ROOM_SCENARIO_BUTTON }));
+    expect(titleField().value).toBe('Retro');
+    expect(nameField(1).value).toBe('Check');
+    expect(screen.queryByRole('button', { name: BACK_TO_ROOM_SCENARIO_BUTTON })).toBeNull();
+    expect(sentCommands('agenda.scenario.set')).toHaveLength(0);
+  });
+
+  it('Given ルームの写しを触った下書き / When 空にする / Then 確かめる', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    fireEvent.click(clearButton());
+    expect(screen.getByRole('group', { name: CLEAR_DRAFT_CONFIRM })).toBeDefined();
+    expect(nameField(1).value).toBe('Checkx');
   });
 });
