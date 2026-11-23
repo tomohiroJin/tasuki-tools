@@ -9,13 +9,13 @@
 #       git apply scripts/mutations/m2708-*.patch
 # 復元: git apply -R scripts/mutations/m2708-*.patch
 diff --git a/apps/checkin-web/src/components/RevealCopy.tsx b/apps/checkin-web/src/components/RevealCopy.tsx
-index 1eebebd9..852c8127 100644
+index 4f8f19da..56249588 100644
 --- a/apps/checkin-web/src/components/RevealCopy.tsx
 +++ b/apps/checkin-web/src/components/RevealCopy.tsx
-@@ -35,7 +35,7 @@ export function RevealCopy({ method, visibility, piles, session }: Props) {
-     // setManualKept は描画ごとに作り直される。state の変化にだけ反応する
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [state]);
+@@ -33,7 +33,7 @@ export function RevealCopy({ method, visibility, piles, session }: Props) {
+     if (state === 'failed') setManualKept(true);
+     else if (state === 'done') setManualKept(false);
+   }, [state, setManualKept]);
 -  const manualOpen = state === 'failed' || (manualKept && state === 'idle');
 +  const manualOpen = false;
  

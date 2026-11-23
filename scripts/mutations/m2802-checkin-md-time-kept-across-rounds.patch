@@ -9,13 +9,13 @@
 #       git apply scripts/mutations/m2802-*.patch
 # 復元: git apply -R scripts/mutations/m2802-*.patch
 diff --git a/apps/checkin-web/src/hooks/use-reveal-export.ts b/apps/checkin-web/src/hooks/use-reveal-export.ts
-index 7b6c8cec..133347f2 100644
+index 724a4661..39b9728a 100644
 --- a/apps/checkin-web/src/hooks/use-reveal-export.ts
 +++ b/apps/checkin-web/src/hooks/use-reveal-export.ts
-@@ -23,7 +23,7 @@ export interface RevealExport {
- /** `revealedSeq` は、いま開いた結果を出している回の番号（開いていなければ null）。 */
- export function useRevealExport(revealedSeq: number | null, now: () => number = Date.now): RevealExport | null {
-   const [session, setSession] = useState<Session | null>(null);
+@@ -28,7 +28,7 @@ export function useRevealExport(revealedSeq: number | null, now: () => number =
+     (kept: boolean) => setSession((s) => (s !== null && s.seq === revealedSeq ? { ...s, manualKept: kept } : s)),
+     [revealedSeq],
+   );
 -  if (revealedSeq !== null && session?.seq !== revealedSeq) {
 +  if (revealedSeq !== null && session === null) {
      // 描画の中で state を直す正規の形（同じ描画のうちに作り直される）。時刻は回が替わったときだけ読む
