@@ -265,6 +265,9 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
+const RESERVED_2670_2684 =
+  "**対応表より後に足した変異。** 2670〜2684 は #676（agenda の終了の一覧を Markdown でコピーする）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12595,5 +12598,69 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2670,
+    label: "終了の一覧の Markdown が、名前の `|`・記号を逃がさない",
+    patch: "m2670-agenda-summary-markdown-no-escape.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。表の区切りや見出しを名前が壊す。",
+  },
+  {
+    id: 2671,
+    label: "終了の一覧の Markdown の、ステップごとの差の符号が逆になる",
+    patch: "m2671-agenda-summary-markdown-diff-sign-reversed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。押した行が「−」、巻いた行が「+」と書かれる。",
+  },
+  {
+    id: 2672,
+    label: "コピーに失敗したのに「コピーしました」と知らせる",
+    patch: "m2672-agenda-summary-copy-failure-reported-as-done.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676。失敗を成功と伝える。",
+  },
+  {
+    id: 2673,
+    label: "コピーに失敗しても手で選べる欄を出さない",
+    patch: "m2673-agenda-summary-copy-no-manual-field-on-failure.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676。持ち出す道が失敗で消える。",
+  },
+  {
+    id: 2674,
+    label: "Markdown の合計の行の押し巻きを、最後のステップの差にする",
+    patch: "m2674-agenda-summary-markdown-total-drift-from-last-row.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。合計は summaryOf の押し巻きと同じでなければならない。",
+  },
+  {
+    id: 2675,
+    label: "くりかえしのある会でも、Markdown に回の列を付けない",
+    patch: "m2675-agenda-summary-markdown-no-round-column.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。どの回の行か分からなくなる。",
+  },
+  {
+    id: 2676,
+    label: "Markdown の日時が、渡された時間帯を無視する",
+    patch: "m2676-agenda-summary-markdown-ignores-timezone.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。日時が UTC のままになる。",
+  },
+  {
+    id: 2677,
+    label: "スキップしたステップの「かかった時間」に、スキップでなく 0:00 を書く",
+    patch: "m2677-agenda-summary-markdown-skipped-row-shows-time.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。画面の一覧はスキップと書く。",
   },
 ];

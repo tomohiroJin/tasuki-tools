@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/summary-markdown.ts b/apps/agenda-web/src/summary-markdown.ts
+index 6837152f..c255b49a 100644
+--- a/apps/agenda-web/src/summary-markdown.ts
++++ b/apps/agenda-web/src/summary-markdown.ts
+@@ -83,7 +83,7 @@ export function summaryMarkdown(view: AgendaView, at: SummaryMoment): string {
+       escapeSummaryText(r.name),
+       minutesText(r.plannedMs / MIN),
+       r.extensionMs > 0 ? extensionCell(r.extensionMs / MIN) : '',
+-      r.skipped ? SKIP_BUTTON : durationClock(r.spentMs, style),
++      durationClock(r.spentMs, style),
+       signedDuration(r.diffMs, style),
+     ]),
+   );

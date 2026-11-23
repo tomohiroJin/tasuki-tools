@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/summary-markdown.ts b/apps/agenda-web/src/summary-markdown.ts
+index 6837152f..a69e52e7 100644
+--- a/apps/agenda-web/src/summary-markdown.ts
++++ b/apps/agenda-web/src/summary-markdown.ts
+@@ -62,7 +62,7 @@ function dateTimeText({ wallMs, tzOffsetMin }: SummaryMoment): string {
+  * 強調・リンク・見出し・HTML・自動リンクに読まれる記号を逃がす（poker の記録と同じ文字の集まり + `|`）。
+  */
+ export function escapeSummaryText(text: string): string {
+-  return text.replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ').replace(/[\\\x60*_[\]<>#~&!.:@|]/g, '\\$&');
++  return text.replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ');
+ }
+ 
+ /** 表の 1 行。空の欄は空白 1 つ（`| |`）で書く */
