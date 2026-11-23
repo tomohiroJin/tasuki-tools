@@ -265,6 +265,9 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
+const RESERVED_2600_2629 =
+  "**対応表より後に足した変異。** 2600〜2629 は #684・#673（玄関の道具の札の並びと、札の下の見た目）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12595,5 +12598,85 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2600,
+    label: "札を段に割るとき、前の段から最大の枚数で詰める（7 枚・3 列が 3 + 3 + 1 になる）",
+    patch: "m2600-landing-hand-rows-greedy.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hand-rows.test.ts"],
+    note: RESERVED_2600_2629 + " " + "#684。最後の段だけ 1 枚に余り、並びの釣り合いが崩れる（直す前の崩れそのもの）。",
+  },
+  {
+    id: 2601,
+    label: "短い段の頭の札を、内へ寄せずに 1 本目の列から置く",
+    patch: "m2601-landing-hand-rows-short-row-not-centered.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hand-rows.test.ts"],
+    note: RESERVED_2600_2629 + " " + "#684。短い段が左に寄り、右が空く。",
+  },
+  {
+    id: 2602,
+    label: "1 枚だけの段の札にも、段の端の印を付ける",
+    patch: "m2602-landing-hand-rows-single-card-row-tilted.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hand-rows.test.ts"],
+    note: RESERVED_2600_2629 + " " + "#684。1 枚だけの段の札が片側へ傾く。",
+  },
+  {
+    id: 2603,
+    label: "段の差の 1 枚を、後ろの段へ足す（7 枚・4 列が 3 + 4 になる）",
+    patch: "m2603-landing-hand-rows-longer-rows-last.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hand-rows.test.ts"],
+    note: RESERVED_2600_2629 + " " + "#684。多い段が下に来て、扇が逆さになる。",
+  },
+  {
+    id: 2604,
+    label: "選択画面の札に、段の端の印（data-row-edge）を付けない",
+    patch: "m2604-landing-choice-no-row-edge.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-hub-arrangement.test.tsx"],
+    note: RESERVED_2600_2629 + " " + "#684。扇の札が 1 枚も傾かず、配った見た目にならない。",
+  },
+  {
+    id: 2605,
+    label: "選択画面の札に、3 列の並びの始まりの列（--hand-start-3）を渡さない",
+    patch: "m2605-landing-choice-no-start-3.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-hub-arrangement.test.tsx"],
+    note: RESERVED_2600_2629 + " " + "#684。3 列の幅で短い段が中央に寄らず、左に詰まる。",
+  },
+  {
+    id: 2606,
+    label: "「記録を見る」を、作業領域の外（画面の末尾）に置く",
+    patch: "m2606-landing-choice-history-link-outside-workspace.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-hub-arrangement.test.tsx"],
+    note: RESERVED_2600_2629 + " " + "#673。「記録を見る」がパネルの並びから外れ、画面の下に 1 つだけ浮く。",
+  },
+  {
+    id: 2607,
+    label: "合言葉の設定の口を、最初から開いておく",
+    patch: "m2607-landing-passphrase-open-by-default.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-hub-arrangement.test.tsx"],
+    note: RESERVED_2600_2629 + " " + "#673。合言葉の入力と長い注記がいつも出て、札の下が間延びする。",
+  },
+  {
+    id: 2608,
+    label: "たたんだ合言葉の行のボタンが、設定中でも「設定する」のまま",
+    patch: "m2608-landing-passphrase-toggle-ignores-protected.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-hub-arrangement.test.tsx"],
+    note: RESERVED_2600_2629 + " " + "#673。設定中のルームで、押すと何ができるか（変更・解除）が分からない。",
+  },
+  {
+    id: 2609,
+    label: "合言葉の設定の失敗の文言を、たたむ口の中に置く",
+    patch: "m2609-landing-passphrase-error-inside-fold.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-hub-arrangement.test.tsx"],
+    note: RESERVED_2600_2629 + " " + "#673。口を閉じたあとに届いた失敗が見えず、設定できたと思い込む。",
   },
 ];
