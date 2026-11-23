@@ -56,7 +56,7 @@ export function computeRotationStatus(args: {
   const turns = new Map<number, number>();
   if (random) {
     // 次の人だけが 1。その先はサーバーも画面へ配らない（交代のたびに引く）
-    if (nextIndex !== null && nextIndex !== currentIndex) turns.set(nextIndex, 1);
+    if (nextIndex !== null) turns.set(nextIndex, 1);
   } else {
     // 現在地から交代の向きへ歩き、飛ばされる席を数えずに順番を振る（#276 D13）。
     // サーバーは不適格な席を飛ばして繰り上げるので、素朴な循環距離

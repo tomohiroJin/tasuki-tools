@@ -365,9 +365,16 @@ function decideMemberRemove(
   // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
   const nextDriver = nextDriverAfterRemoval(agg.session, index, ineligible);
   // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
-  // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、引いていないので袋を変えない。
-  const drawn = index === agg.session.currentIndex ? nextDriverIndex(agg.session, index, ineligible) : index;
-  const randomRotation = drawn === index ? null : randomRotationAfterSwitch(agg.session, drawn, undefined);
+  // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、袋から引いていないので、指名と同じく
+  // その人をこの周で運転した人に足すだけにする（周は始め直さない）。足さないと、全員が戻ったあとに
+  // 同じ人がこの周でもう一度当たる（#660 のレビュー）。
+  const removesDriver = index === agg.session.currentIndex;
+  const drawn = removesDriver ? nextDriverIndex(agg.session, index, ineligible) : index;
+  const randomRotation = !removesDriver
+    ? null
+    : drawn === index
+      ? randomRotationAfterAssign(agg.session, (index + 1) % agg.session.rotation.length)
+      : randomRotationAfterSwitch(agg.session, drawn, undefined);
   return ok([
     { type: "MemberRemoved", index, nextDriverIndex: nextDriver, ...(randomRotation !== null && { randomRotation }), now },
   ]);

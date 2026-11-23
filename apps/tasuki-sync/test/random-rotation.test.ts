@@ -324,8 +324,9 @@ describe("ランダム交代の間の、指名・並べ替え・一時離脱", (
     await send(f, "conn-1", { command: "driver.assign", participantId: participantIdOfConn(f.store, "conn-3") });
 
     expect(driver(f.view())).toBe("えま");
-    // 指名された人は、次の予告にならない（この周で運転した）
-    expect(forecast(f.view())).not.toBe("えま");
+    // 指名された人は、この周で運転した人に入る（開始の運転者と 2 人）
+    const seatIds = f.view().session.seats.map((s) => s.id);
+    expect(f.timers.get(f.code)!.session.randomRotation!.drove).toEqual([seatIds[0]!, seatIds[3]!]);
   });
 
   it("並べ替え（member.shuffle）は通り、予告した人は変わらない", async () => {

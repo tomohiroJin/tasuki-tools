@@ -210,7 +210,7 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
 /**
  * 稼働中に次の eligible ドライバーへ交代する（plan.md L194/L209）。
  * `ineligible`（driverEligible===false のインデックス集合）を飛ばして次の対象を選ぶ。
- * B-2統合により、交代先の決定（nextEligibleIndex）とイベント適用（担当回数加算・
+ * B-2統合により、交代先の決定（nextDriverIndex。#660 で nextEligibleIndex から入口を替えた）とイベント適用（担当回数加算・
  * タイマー再アンカー・交代回数加算、あるいは全員 ineligible 時の現状維持＋再アンカーのみ）は
  * evolveDriverSwitched に一本化された。本関数はその1行ラッパである。
  * 不変条件 rotation.length === driverCounts.length は evolve(DriverSwitched) が保つ。

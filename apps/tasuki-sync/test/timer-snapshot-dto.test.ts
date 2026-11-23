@@ -399,3 +399,23 @@ describe("previousDriverIndex（直前に実際に運転した人の席・#374�
     expect(v.safeParse(RoomSchema, buildTimerSnapshotRoom(membership, t)).success).toBe(true);
   });
 });
+
+describe("ランダム交代の袋は wire に載せない（#660）", () => {
+  it("Given ランダム交代のルーム / When snapshot を組む / Then 設定にモードは載るが、session に袋は無い", () => {
+    // Given: 引く順と、この周で運転した人を持つ集約
+    const t: TimerState = {
+      ...timer,
+      config: { ...timer.config, rotationMode: "random" },
+      session: { ...timer.session, randomRotation: { order: ["p_proxy1", "p_alice"], drove: ["p_alice"] } },
+    };
+
+    // When
+    const room = buildTimerSnapshotRoom(membership, t);
+
+    // Then: 次の人は nextIndex で届く。その先（引く順）は画面へ配らない
+    expect(room.config.rotationMode).toBe("random");
+    expect(room.session.nextIndex).toBe(1);
+    expect(Object.keys(room.session)).not.toContain("randomRotation");
+    expect(JSON.stringify(room)).not.toContain("drove");
+  });
+});

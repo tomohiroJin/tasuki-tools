@@ -604,12 +604,53 @@ describe("ランダム交代の間の、指名・並べ替え・席の出入り"
     expect(driverId(next)).toBe("d");
   });
 
-  it("運転中の人を外すとき、ほかに適格な人が居なければ、位置で次の席にする（袋は変えない）", () => {
-    const agg = anAggregate().withRotation("a", "b", "c").withRandomRotation(["c", "b", "a"]).running().build();
+  it("運転中の人を外すとき、ほかに適格な人が居なければ、位置で次の席にし、その人をこの周で運転した人に足す", () => {
+    const agg = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["b", "c", "d", "a"]).running().build();
+
+    const next = run(agg, { command: "member.remove", index: 0, ineligible: new Set([1, 2, 3]) });
+
+    expect(driverId(next)).toBe("b");
+    expect(next.session.randomRotation).toEqual({ order: ["b", "c", "d", "a"], drove: ["a", "b"] });
+    // 全員が戻ったあとの 2 回の交代は c・d（繰り上がった b が、同じ周でもう一度当たらない）
+    const first = run(next, { command: "session.act", action: "SWITCH" });
+    const second = run(first, { command: "session.act", action: "SWITCH" });
+    expect([driverId(first), driverId(second)]).toEqual(["c", "d"]);
+  });
+
+  it("位置で繰り上がった人がこの周で運転し終えていても、周は始め直さない", () => {
+    const agg = anAggregate()
+      .withRotation("a", "b", "c")
+      .withRandomRotation(["c", "b", "a"], ["a", "b"])
+      .running()
+      .build();
 
     const next = run(agg, { command: "member.remove", index: 0, ineligible: new Set([1, 2]) });
 
     expect(driverId(next)).toBe("b");
+    expect(next.session.randomRotation?.drove).toEqual(["a", "b"]);
+  });
+
+  it("運転者が替わらない交代のイベントは、袋を載せていても袋を変えない", () => {
+    const agg = anAggregate().withRotation("a", "b", "c").withRandomRotation(["c", "b", "a"]).running().build();
+
+    const next = evolve(
+      agg,
+      { type: "DriverSwitched", nextIndex: 0, randomRotation: { order: ["a"], drove: ["c"] }, now: LATER },
+      LATER,
+    );
+
+    expect(next.session.randomRotation).toEqual({ order: ["c", "b", "a"], drove: ["a"] });
+  });
+
+  it("範囲外の席を外すイベントは、袋を載せていても袋を変えない", () => {
+    const agg = anAggregate().withRotation("a", "b", "c").withRandomRotation(["c", "b", "a"]).running().build();
+
+    const next = evolve(
+      agg,
+      { type: "MemberRemoved", index: 9, nextDriverIndex: 0, randomRotation: { order: ["a"], drove: ["c"] }, now: LATER },
+      LATER,
+    );
+
     expect(next.session.randomRotation).toEqual({ order: ["c", "b", "a"], drove: ["a"] });
   });
 

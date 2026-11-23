@@ -31,7 +31,7 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue
       return { ...draft, participantId: sources.newParticipantId() };
     case "session.act":
       // 手動 SWITCH は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす（B-2統合）。
-      // 交代先の決定は decide 自身（nextEligibleIndex 経由）に一本化されたため、ここでは
+      // 交代先の決定は decide 自身（nextDriverIndex 経由）に一本化されたため、ここでは
       // ineligible を decide への入力として注入するだけで、決定結果を後から差し替えない。
       // ランダム交代（#660）は、交代と開始のたびに引く順を作り直す。順列を作るのはサーバーで、
       // ドメインは受け取った順列から次の人を決める（`member.shuffle` と同じ形）。
