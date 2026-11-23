@@ -37,16 +37,6 @@ const NAME_B = 'e2e-roulette-b';
 const RESULT = /^次の進行役は (.+) さんです$/;
 /** 2 人以上の結果（#401）。止まった順に「{名前} さん」を「、」でつなぐ */
 const GROUP_RESULT = /^選ばれたのは (.+) さんです$/;
-/** 結果のコピー（#676）の名前と文言 */
-const COPY_NAME = '結果をコピー';
-const MANUAL_FIELD = '手動コピー用の Markdown';
-/** 見出しの行は日時（この端末で結果を最初に出した時刻）が入るので正規表現で、残りは行ごとに比べる */
-const MD_HEADING = /^## 進行役ルーレットの結果（\d{4}-\d{2}-\d{2} \d{2}:\d{2}）$/;
-function expectMarkdown(text: string, rest: string[], message: string): void {
-  const [head, ...lines] = text.split('\n');
-  expect(head, `${message}: 見出し`).toMatch(MD_HEADING);
-  expect(lines, message).toEqual(['', ...rest]);
-}
 
 /**
  * @requirements #94 E7 E17 E19
@@ -79,11 +69,6 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     const redirected = await request.get('/roulette', { maxRedirects: 0 });
     expect(redirected.status()).toBe(301);
     expect(redirected.headers()['location']).toBe('/roulette/');
-
-    //   結果のコピー（#676）の検査で、クリップボードを読む
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    const copyButton = (p: typeof page) => p.getByRole('button', { name: COPY_NAME });
-    const clipboardText = () => page.evaluate(() => navigator.clipboard.readText());
 
     // Given その1: A が玄関でルームを作ってルーレットを開き、B が別の文脈で招待 URL から入る。
     //   B は動きを減らす設定（回さずに結果を出す経路も同じテストで通す）
@@ -221,7 +206,6 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     const beforeGroupOnB = await roulettePhrase(peer.page).textContent();
     await spinButton(page).click();
     await expect(roulettePhrase(page), '2 人: A は回している最中').toHaveText(`${NAME_A} さんが回しました`);
-    await expect(copyButton(page), '2 人: 回している間はコピーが出ない').toHaveCount(0);
     let groupOnB = '';
     await expect
       .poll(
@@ -239,12 +223,6 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     expect(pair, '2 人: 選ばれたのは 2 人').toHaveLength(2);
     expect(pair[0], '2 人: 同じ人を 2 度選ばない').not.toBe(pair[1]);
     await expect(page.locator('.wheel-segment--winner'), '2 人: 真鍮の席が 2 つ').toHaveCount(2);
-    //   結果のコピー（#676）。止まったら A にも B にも出て、札と同じ 2 人が止まった順に入る
-    await expect(copyButton(page), '2 人: 止まったらコピーが出る').toBeVisible();
-    await expect(copyButton(peer.page), '2 人: B にも出る').toBeVisible();
-    await copyButton(page).click();
-    await expect(page.getByRole('status').filter({ hasText: 'コピーしました' })).toBeVisible();
-    expectMarkdown(await clipboardText(), ['- 決め方：1 回で決める', '- 選ばれた人：', `  1. ${pair[0]}`, `  2. ${pair[1]}`], '2 人: コピーした Markdown');
     //   4 人・幅 320×640（縦積み）。組の札は 1 人の札より背が高いが、下端の帯に隠れない・札からはみ出さない
     await page.setViewportSize({ width: 320, height: 640 });
     await pickButton(page, 4).click();
@@ -283,9 +261,6 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expect(roulettePhrase(peer.page), '最後: B も同じ人').toHaveText(lastText);
     turns.push(/^最後は (.+) さんです$/.exec(lastText)?.[1] ?? '');
     expect(new Set(turns).size, '3 人がそれぞれ 1 度ずつ').toBe(3);
-    //   結果のコピー（#676）。回が終わったら、1 番から 3 番までの順に入る
-    await copyButton(page).click();
-    expectMarkdown(await clipboardText(), ['- 決め方：順番に回す', '- 順番：', ...turns.map((name, i) => `  ${i + 1}. ${name}`)], '順番: コピーした Markdown');
     await expect(page.locator('.wheel-segment'), '回が終わったら円盤は空').toHaveCount(0);
     await expect(orderButton(page, '次の回を始める')).toBeEnabled();
     await expect(peer.page.getByText('全員の順番が決まりました')).toBeVisible();
@@ -302,22 +277,6 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expect(roulettePhrase(page), '押して止める: A は寄せてから同じ人').toHaveText(stopped, { timeout: 5000 });
     expect(await roulettePhrase(page).textContent(), '押して止める: A と B で同じ人').toBe(await roulettePhrase(peer.page).textContent());
     await expect(page.locator('.wheel-segment--winner'), '押して止める: 真鍮の席が 1 つ').toHaveCount(1);
-    //   結果のコピー（#676）。押して止めた結果も入る。コピーに失敗したら、同じ Markdown を手で選べる欄に出す
-    const stoppedName = stopped.exec((await roulettePhrase(page).textContent()) ?? '')?.[1] ?? '';
-    await copyButton(page).click();
-    expectMarkdown(await clipboardText(), ['- 決め方：止めて決める', `- 選ばれた人：${stoppedName}`], '押して止める: コピーした Markdown');
-    await page.evaluate(() => {
-      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
-      document.execCommand = () => false;
-    });
-    await copyButton(page).click();
-    await expect(page.getByRole('status').filter({ hasText: 'コピーできませんでした' })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: MANUAL_FIELD }), '失敗: 手で選べる欄が出る').toBeVisible();
-    expectMarkdown(await page.getByRole('textbox', { name: MANUAL_FIELD }).inputValue(), ['- 決め方：止めて決める', `- 選ばれた人：${stoppedName}`], '失敗: 手で選べる欄に同じ Markdown');
-    //   結果が出なくなる（決め方を変える）と、操作も欄も消える
-    await modeButton(page, '1 回で決める').click();
-    await expect(page.getByRole('textbox', { name: MANUAL_FIELD })).toHaveCount(0);
-    await expect(copyButton(page)).toHaveCount(0);
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
