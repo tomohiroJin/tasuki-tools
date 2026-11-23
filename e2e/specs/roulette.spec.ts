@@ -40,7 +40,13 @@ const GROUP_RESULT = /^選ばれたのは (.+) さんです$/;
 /** 結果のコピー（#676）の名前と文言 */
 const COPY_NAME = '結果をコピー';
 const MANUAL_FIELD = '手動コピー用の Markdown';
-const MD_HEADING = '## 進行役ルーレットの結果';
+/** 見出しの行は日時（この端末で結果を最初に出した時刻）が入るので正規表現で、残りは行ごとに比べる */
+const MD_HEADING = /^## 進行役ルーレットの結果（\d{4}-\d{2}-\d{2} \d{2}:\d{2}）$/;
+function expectMarkdown(text: string, rest: string[], message: string): void {
+  const [head, ...lines] = text.split('\n');
+  expect(head, `${message}: 見出し`).toMatch(MD_HEADING);
+  expect(lines, message).toEqual(['', ...rest]);
+}
 
 /**
  * @requirements #94 E7 E17 E19
@@ -238,9 +244,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expect(copyButton(peer.page), '2 人: B にも出る').toBeVisible();
     await copyButton(page).click();
     await expect(page.getByRole('status').filter({ hasText: 'コピーしました' })).toBeVisible();
-    expect(await clipboardText(), '2 人: コピーした Markdown').toBe(
-      [MD_HEADING, '', '- 決め方：1 回で決める', '- 選ばれた人：', `  1. ${pair[0]}`, `  2. ${pair[1]}`].join('\n'),
-    );
+    expectMarkdown(await clipboardText(), ['- 決め方：1 回で決める', '- 選ばれた人：', `  1. ${pair[0]}`, `  2. ${pair[1]}`], '2 人: コピーした Markdown');
     //   4 人・幅 320×640（縦積み）。組の札は 1 人の札より背が高いが、下端の帯に隠れない・札からはみ出さない
     await page.setViewportSize({ width: 320, height: 640 });
     await pickButton(page, 4).click();
@@ -281,9 +285,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     expect(new Set(turns).size, '3 人がそれぞれ 1 度ずつ').toBe(3);
     //   結果のコピー（#676）。回が終わったら、1 番から 3 番までの順に入る
     await copyButton(page).click();
-    expect(await clipboardText(), '順番: コピーした Markdown').toBe(
-      [MD_HEADING, '', '- 決め方：順番に回す', '- 順番：', ...turns.map((name, i) => `  ${i + 1}. ${name}`)].join('\n'),
-    );
+    expectMarkdown(await clipboardText(), ['- 決め方：順番に回す', '- 順番：', ...turns.map((name, i) => `  ${i + 1}. ${name}`)], '順番: コピーした Markdown');
     await expect(page.locator('.wheel-segment'), '回が終わったら円盤は空').toHaveCount(0);
     await expect(orderButton(page, '次の回を始める')).toBeEnabled();
     await expect(peer.page.getByText('全員の順番が決まりました')).toBeVisible();
@@ -303,18 +305,15 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     //   結果のコピー（#676）。押して止めた結果も入る。コピーに失敗したら、同じ Markdown を手で選べる欄に出す
     const stoppedName = stopped.exec((await roulettePhrase(page).textContent()) ?? '')?.[1] ?? '';
     await copyButton(page).click();
-    expect(await clipboardText(), '押して止める: コピーした Markdown').toBe(
-      [MD_HEADING, '', '- 決め方：止めて決める', `- 選ばれた人：${stoppedName}`].join('\n'),
-    );
+    expectMarkdown(await clipboardText(), ['- 決め方：止めて決める', `- 選ばれた人：${stoppedName}`], '押して止める: コピーした Markdown');
     await page.evaluate(() => {
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
       document.execCommand = () => false;
     });
     await copyButton(page).click();
     await expect(page.getByRole('status').filter({ hasText: 'コピーできませんでした' })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: MANUAL_FIELD }), '失敗: 手で選べる欄に同じ Markdown').toHaveValue(
-      [MD_HEADING, '', '- 決め方：止めて決める', `- 選ばれた人：${stoppedName}`].join('\n'),
-    );
+    await expect(page.getByRole('textbox', { name: MANUAL_FIELD }), '失敗: 手で選べる欄が出る').toBeVisible();
+    expectMarkdown(await page.getByRole('textbox', { name: MANUAL_FIELD }).inputValue(), ['- 決め方：止めて決める', `- 選ばれた人：${stoppedName}`], '失敗: 手で選べる欄に同じ Markdown');
     //   結果が出なくなる（決め方を変える）と、操作も欄も消える
     await modeButton(page, '1 回で決める').click();
     await expect(page.getByRole('textbox', { name: MANUAL_FIELD })).toHaveCount(0);

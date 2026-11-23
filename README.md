@@ -73,6 +73,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - 円盤（SVG）が回って止まり、指し針の先に伏せた象牙の札がめくれる。どの画面も同じ席に止まる
   - 毎回、入る人から一様に引く（1 回の回転で 2〜4 人を選ぶときだけ、同じ人は重ならない）。ルームにいない人も名前を追加して入れられる
   - 動きを減らす設定では回さずに結果を出す
+  - 結果が出たら「結果をコピー」で、決まった人（2 人以上は全員・順番に回す回は 1 番から）と決め方を Markdown でコピーできる。見出しの日時は、その端末で結果を最初に出した時刻。コピーに失敗したら、同じ文を手で選べる欄に出す（[#676](https://github.com/tomohiroJin/tasuki-tools/issues/676)）
 - 設計判断: [`docs/adr/0026`](docs/adr/0026-facilitator-roulette.md)・設計正本 [`docs/superpowers/specs/2026-10-12-facilitator-roulette-design.md`](docs/superpowers/specs/2026-10-12-facilitator-roulette-design.md)
 
 ### 6. 進行タイマー（Agenda Timer）
