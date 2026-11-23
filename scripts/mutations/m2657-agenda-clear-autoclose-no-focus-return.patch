@@ -1,0 +1,22 @@
+# 変異 2657: agenda-clear-autoclose-no-focus-return
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-autoclose-no-focus-return
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2657-*.patch
+# 復元: git apply -R scripts/mutations/m2657-*.patch
+diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
+index 88e385d5..f43cee6d 100644
+--- a/apps/agenda-web/src/components/ClearDraftControl.tsx
++++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
+@@ -38,7 +38,6 @@ export function ClearDraftControl({ canClear, needsConfirm, onClear }: Props) {
+   // フォーカスが確かめの中にあったときだけボタンへ返す（外にあるフォーカスは奪わない）
+   useEffect(() => {
+     if (!asking || showConfirm) return;
+-    if (focusInConfirmRef.current) setReturnFocus(true);
+     focusInConfirmRef.current = false;
+     setAsking(false);
+   }, [asking, showConfirm]);

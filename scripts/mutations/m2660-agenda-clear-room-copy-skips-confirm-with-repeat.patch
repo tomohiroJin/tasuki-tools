@@ -1,0 +1,23 @@
+# 変異 2660: agenda-clear-room-copy-skips-confirm-with-repeat
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-room-copy-skips-confirm-with-repeat
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2660-*.patch
+# 復元: git apply -R scripts/mutations/m2660-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index f6bdfaa8..e716bee3 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -246,7 +246,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+             onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
+           />
+           {/* くりかえしの欄は「ルームのシナリオに戻す」で戻らないので、ルームの写しのままでも確かめる */}
+-          <ClearDraftControl canClear={canClearDraft(draft)} needsConfirm={!(draftIsEmpty || draftIsRoom) || draft.sampleRepeat !== undefined} onClear={clear} />
++          <ClearDraftControl canClear={canClearDraft(draft)} needsConfirm={!(draftIsEmpty || draftIsRoom)} onClear={clear} />
+         </div>
+       </div>
+       <div className="ui-workspace-side builder-side">
