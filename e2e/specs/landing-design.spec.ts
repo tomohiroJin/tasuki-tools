@@ -1,7 +1,15 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { test, expect } from '../fixtures/test';
 import type { Page, Request } from '@playwright/test';
 import { describePaint, groundLayers, measureSample, sampleInPage } from '../support/contrast';
 import { expectFieldsAtLeast16px } from '../support/a11y';
+
+/**
+ * 札の枚数の期待値。**画面から数えない**（描かれなかった札があっても、数えた件数どうしを比べると緑になる）。
+ * 札の定義（`apps/landing/src/tools.ts` の `TOOLS`）の件数を、ソースから数える。札を足す・減らすときに、ここは直さなくてよい（#684）。
+ */
+const TOOL_COUNT = (readFileSync(path.resolve(import.meta.dirname, '../../apps/landing/src/tools.ts'), 'utf8').match(/^ {4}id: "/gm) ?? []).length;
 
 /**
  * 札の文字は 1 行に収まっていること。
@@ -131,9 +139,10 @@ for (const width of [1280, 1024, 768, 640, 320]) {
     const toolBox = await tools.boundingBox();
     const inviteBox = await invite.boundingBox();
     expect(toolBox!.y).toBeLessThan(inviteBox!.y);
-    // 札の枚数は画面から読む（枚数を決め打ちにすると、札を足すたびにここを直すことになる・#684）。0 枚で黙って通らないことだけ固定する
-    const toolCount = await page.getByRole('list', { name: 'ツール' }).getByRole('listitem').count();
-    expect(toolCount).toBeGreaterThan(0);
+    // 札は、定義した枚数ぶん描かれている（期待値は札の定義から数える。画面から数えた件数とは比べない）
+    expect(TOOL_COUNT, '札の定義を数えられている').toBeGreaterThan(0);
+    const toolCount = TOOL_COUNT;
+    await expect(page.getByRole('list', { name: 'ツール' }).getByRole('listitem')).toHaveCount(toolCount);
     // 横長の札を並べる幅（扇にならない幅）では、札の幅がどの札も揃う。並びそのもの（段の割り方）は `landing-arrangement.spec.ts` が見る
     if (width < 1024) {
       const widths = await page.locator('.hub-tools .tool-card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));

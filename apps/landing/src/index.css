@@ -490,7 +490,7 @@
   .hand li {
     grid-column: var(--hand-start-3, auto) / span 2;
   }
-  /* 扇に切り替える幅を測る箱（上の「札の並び」の `@container hub-tools`）。幅だけを測る */
+  /* 扇に切り替える幅を測る箱（ファイルの末尾の `@container hub-tools`）。幅だけを測る */
   .hub-tools {
     container: hub-tools / inline-size;
   }
@@ -513,7 +513,8 @@
 /*
   扇。札の列の箱に、実物大（15rem）の札が 4 枚と間 3 つ入る幅（64.5rem）があるときだけ。
   幅の段（40・64・90rem）でなく箱の幅で決める —— 器の幅は 72rem で頭打ちなので、画面の幅では「4 枚入るか」を言えない
-  （コンテナクエリは幅の段の対象外・`docs/adr/0025` 決定 1）。容器は下の `.hub-tools`。
+  （コンテナクエリは幅の段の対象外・`docs/adr/0025` 決定 1）。容器は、上の 64rem 以上の幅の段で名乗る `.hub-tools`。
+  64.5rem は「15rem × 4 + 間（`--space-5` = 1.5rem）× 3」。`--space-5` を変えるなら、この境目も合わせる（`packages/ui/tests/card-rows.test.mjs` が固定する）。
 
   段の両端の札を逆向きに傾け、あいだは正位置に置く。狙いは「並べた」ではなく「配った」に見せること。
   名前の由来（襷＝斜めに掛けるもの）とも響く。傾ける札は段ごとに決める（`data-row-edge`）——

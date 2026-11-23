@@ -122,6 +122,9 @@ test('Given landing の道具の札の並び / When 幅の段の規則を読む 
 
 test('Given landing の道具の札の扇 / When 札の列の箱が 64.5rem 以上の規則を読む / Then 実物大（15rem・5 / 7）の札を 4 列に置き、段の両端だけを逆向きに傾ける（#684）', () => {
   const fan = rules(mediaBlock(LANDING, '@container hub-tools (width >= 64.5rem)'));
+  // 扇に切り替える箱の幅（64.5rem）は「15rem × 4 + 間 × 3」。間のトークンを変えると、並びが箱より広くなってはみ出す
+  const gapRem = Number(/--space-5:\s*([0-9.]+)rem/.exec(read('packages/ui/src/tokens/shape.css'))?.[1]);
+  assert.equal(15 * 4 + gapRem * 3, 64.5, '扇の境目が、札 4 枚と間 3 つの幅と合っている');
   // 札 1 枚 = 列 2 本 + 間 1 つ = 15rem。15rem を割ると名前と一行説明が折り返す
   assert.equal(ruleDecls(fan, '.hand').get('grid-template-columns'), 'repeat(8, calc((15rem - var(--space-5)) / 2))');
   assert.equal(ruleDecls(fan, '.hand').get('gap'), 'var(--space-5)');
