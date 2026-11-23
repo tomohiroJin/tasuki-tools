@@ -1,0 +1,23 @@
+# 変異 2640: topic-make-focus-only-on-generating
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 切断でボタンが押せなくなっても、フォーカスを逃がさない（生成中のときだけ逃がす）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2640-*.patch
+# 復元: git apply -R scripts/mutations/m2640-*.patch
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+index 69a2bf26..a216d97f 100644
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -52,7 +52,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+   // 押せなくなる（生成中・切断）ボタンにフォーカスがあったら、作るの欄（region・押しても何も起きない所）へ移す。summary へ移すと 2 度目の Enter で欄が閉じる。移さないとフォーカスが文書の先頭へ落ちる。
+   // ほかにあるとき（書く欄で打っている最中など）は動かさない。ほかの参加者の画面でも同じ規則（#665）
+   useLayoutEffect(() => {
+-    if (canGenerate) return;
++    if (!generating) return;
+     const active = document.activeElement;
+     if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus();
+   }, [canGenerate]);

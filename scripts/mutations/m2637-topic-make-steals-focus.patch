@@ -3,21 +3,21 @@
 # 検出を期待するテスト:
 #   - apps/topic-web/tests/topic-room.test.tsx
 #
-# #665 フォーカスがほかにあっても（書く欄で打っていても）見出しへ奪う。
+# #665 フォーカスがほかにあっても（書く欄で打っていても）作るの欄へ奪う。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m2637-*.patch
 # 復元: git apply -R scripts/mutations/m2637-*.patch
 diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
-index 542e3968..d44e9a2d 100644
+index 69a2bf26..d58cf08a 100644
 --- a/apps/topic-web/src/components/TopicMaker.tsx
 +++ b/apps/topic-web/src/components/TopicMaker.tsx
 @@ -54,7 +54,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
    useLayoutEffect(() => {
-     if (!generating) return;
+     if (canGenerate) return;
      const active = document.activeElement;
--    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) summaryRef.current?.focus();
-+    if (active !== null) summaryRef.current?.focus();
-   }, [generating]);
+-    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus();
++    if (active !== null) sectionRef.current?.focus();
+   }, [canGenerate]);
  
    return (

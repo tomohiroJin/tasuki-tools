@@ -3,21 +3,21 @@
 # 検出を期待するテスト:
 #   - apps/topic-web/tests/topic-room.test.tsx
 #
-# #665 押せなくなるボタンにフォーカスがあっても、見出しへ移さない。
+# #665 押せなくなるボタンにフォーカスがあっても、作るの欄へ移さない。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m2636-*.patch
 # 復元: git apply -R scripts/mutations/m2636-*.patch
 diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
-index 542e3968..b1f3bdff 100644
+index 69a2bf26..9c454789 100644
 --- a/apps/topic-web/src/components/TopicMaker.tsx
 +++ b/apps/topic-web/src/components/TopicMaker.tsx
 @@ -54,7 +54,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
    useLayoutEffect(() => {
-     if (!generating) return;
+     if (canGenerate) return;
      const active = document.activeElement;
--    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) summaryRef.current?.focus();
-+    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) void summaryRef;
-   }, [generating]);
+-    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus();
++    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) void sectionRef;
+   }, [canGenerate]);
  
    return (

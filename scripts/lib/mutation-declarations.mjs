@@ -12679,4 +12679,12 @@ export const MUTATIONS = [
     tests: ["tests/topic-room.test.tsx"],
     note: RESERVED_2630_2649 + " " + "#665 のレビュー。生成中に文言が長くなるとボタンの幅が変わり、押した場所が約 40px 動く。",
   },
+  {
+    id: 2640,
+    label: "切断でボタンが押せなくなっても、フォーカスを作るの欄へ逃がさない（生成中だけ逃がす）",
+    patch: "m2640-topic-make-focus-only-on-generating.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。canGenerate が false になる全部の場合で逃がす。",
+  },
 ];
