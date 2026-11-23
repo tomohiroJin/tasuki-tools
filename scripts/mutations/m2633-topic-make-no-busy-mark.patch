@@ -9,11 +9,11 @@
 #       git apply scripts/mutations/m2633-*.patch
 # 復元: git apply -R scripts/mutations/m2633-*.patch
 diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
-index 603eccbf..5cc05ff6 100644
+index 542e3968..1711b814 100644
 --- a/apps/topic-web/src/components/TopicMaker.tsx
 +++ b/apps/topic-web/src/components/TopicMaker.tsx
-@@ -54,7 +54,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
-         <summary>
+@@ -65,7 +65,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+         <summary ref={summaryRef}>
            <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
            {/* たたんでいる間に生成中になっても見出しの横で分かるようにする。開いている間は中のボタンが言う */}
 -          {generating && (

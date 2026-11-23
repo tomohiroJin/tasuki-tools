@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m2632-*.patch
 # 復元: git apply -R scripts/mutations/m2632-*.patch
 diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
-index 603eccbf..30f3732b 100644
+index 542e3968..56de480a 100644
 --- a/apps/topic-web/src/components/TopicMaker.tsx
 +++ b/apps/topic-web/src/components/TopicMaker.tsx
-@@ -118,7 +118,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
-           <div className="ui-actions">
-             {aiUnlocked && (
-               <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!canGenerate}>
--                {generating ? GENERATING_TEXT : AI_BUTTON}
-+                {AI_BUTTON}
+@@ -132,7 +132,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+                 {/* 幅は 2 つの文言の長いほうで最初から取る（文言が変わっても押した場所が動かない）。出していないほうは隠して読み上げから外す */}
+                 <span className="topic-make-label">
+                   <span aria-hidden={generating} className={generating ? 'topic-make-label-off' : undefined}>{AI_BUTTON}</span>
+-                  <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{GENERATING_TEXT}</span>
++                  <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{AI_BUTTON}</span>
+                 </span>
                </button>
              )}
-             <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty, category)} disabled={!canGenerate}>
