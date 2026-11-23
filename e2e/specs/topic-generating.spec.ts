@@ -59,7 +59,7 @@ test.describe('お題ツールの生成中は作るの欄のボタンが押せ�
     // When: 生成中が全員へ配られる
     for (const inject of injects) inject(state({ generating: true }));
 
-    // Then: どちらの画面でも、作るのボタンは押せず、押した場所が「作っています…」と言う。先頭の知らせは 1 つだけ
+    // Then: どちらの画面でも、作るのボタンは押せず、押した場所が「作っています…」と言う。知らせ（role="status"）は 1 つだけ
     for (const p of screens) {
       const make = p.getByRole('region', { name: '定型や AI で作る' });
       await expect(make.getByRole('button', { name: GENERATING })).toBeDisabled();

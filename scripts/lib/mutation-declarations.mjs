@@ -12665,10 +12665,18 @@ export const MUTATIONS = [
   },
   {
     id: 2638,
-    label: "生成中、出していない「AI で作る」の文言を描かず、ボタンの幅が変わる",
+    label: "生成中、出していない「AI で作る」を描かない（2 つの文言を重ねて置く形が崩れる。幅は変わらない）",
     patch: "m2638-topic-make-label-width-not-reserved.patch",
     pkg: "apps/topic-web",
     tests: ["tests/topic-room.test.tsx"],
     note: RESERVED_2630_2649 + " " + "#665。幅を長いほうの文言で取っておく。",
+  },
+  {
+    id: 2639,
+    label: "押せるとき、出していない「作っています…」を描かない（ボタンの幅を長いほうで取っておかない）",
+    patch: "m2639-topic-make-idle-width-not-reserved.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665 のレビュー。生成中に文言が長くなるとボタンの幅が変わり、押した場所が約 40px 動く。",
   },
 ];

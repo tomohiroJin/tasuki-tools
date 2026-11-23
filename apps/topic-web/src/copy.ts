@@ -42,7 +42,7 @@ export const SET_BUTTON = '場に出す';
 export const COPY_TO_DRAFT_BUTTON = '下書きにコピー';
 
 export const MAKE_HEADING = '定型や AI で作る';
-/** 作るの欄をたたんでいる間、生成中と分かる見出し横の印（#665）。読み上げは先頭の知らせ（`GENERATING_TEXT`）の 1 か所なので、画面は `aria-hidden` で隠す */
+/** 作るの欄をたたんでいる間、生成中と分かる見出し横の印（#665）。読み上げは知らせ（`GENERATING_TEXT`・`role="status"`）の 1 か所なので、画面は `aria-hidden` で隠す */
 export const MAKE_BUSY_MARK = '作成中';
 /** お題の種類（#634）。選択肢の値は topic-core の許可リスト（`CATEGORIES`）から引き、名前だけをここに置く */
 /** 「種類」は書体の常用の層に無い（#634 で実測）ので「お題の型」と書く */

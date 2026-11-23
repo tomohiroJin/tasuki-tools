@@ -60,7 +60,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
   return (
     <section className="topic-panel topic-make ui-panel" aria-labelledby={`${id}-heading`}>
       {/* 書くが主役なので、作るは最初たたむ（`<details>`）。見出しは summary の中に置き、region の名前を保つ。
-          生成中・定型に切り替えた知らせは `TopicRoom` が操作の面の先頭に置くので、たたんだままでも見える。 */}
+          生成中・定型に切り替えた知らせは `TopicRoom` がこの欄の外（すぐ下）に置くので、たたんだままでも見える。 */}
       <details className="topic-make-fold">
         <summary ref={summaryRef}>
           <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>

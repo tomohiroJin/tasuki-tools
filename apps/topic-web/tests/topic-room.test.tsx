@@ -89,7 +89,7 @@ describe('場のお題', () => {
     // When
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: 'FizzBuzz' } });
     fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
-    // Then: 先頭の知らせは 1 つだけ（ボタンの文言は知らせではない）
+    // Then: 知らせ（role="status"）は 1 つだけ（ボタンの文言は知らせではない）
     expect(screen.getByRole('region', { name: copy.READER_HEADING })).toHaveAttribute('aria-busy', 'true');
     expect(screen.getAllByRole('status').map((n) => n.textContent)).toEqual([copy.GENERATING_TEXT]);
     // 自分で書いたお題へ切り替える道は残す（押すと進行中の生成をサーバーが中断する・E11）
@@ -106,7 +106,7 @@ describe('場のお題', () => {
     // Given / When
     enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true, topic: FIZZ });
     const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
-    // Then: 見出し（region の名前）は変えず、印は読み上げから外す（読み上げは先頭の知らせの 1 か所）
+    // Then: 見出し（region の名前）は変えず、印は読み上げから外す（読み上げは知らせの 1 か所）
     expect(make.querySelector('details')).not.toHaveAttribute('open');
     const mark = within(make).getByText(copy.MAKE_BUSY_MARK);
     expect(mark).toHaveAttribute('aria-hidden', 'true');
