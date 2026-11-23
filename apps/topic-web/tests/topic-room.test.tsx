@@ -80,7 +80,16 @@ describe('場のお題', () => {
     enterWith({ ...IDLE_STATE, topic: FIZZ });
     // Then
     expect(screen.getByRole('region', { name: copy.READER_HEADING })).toHaveAttribute('aria-busy', 'false');
+    expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByText(copy.GENERATING_TEXT)).toBeNull();
+  });
+
+  it('Given 生成していない・解錠済み / When 画面を見る / Then 知らせは無く、見えている「作っています…」も無い（幅のために隠した文言は数えない）', () => {
+    enterWith({ ...IDLE_STATE, topic: FIZZ, aiUnlocked: true });
+    expect(screen.getByRole('region', { name: copy.READER_HEADING })).toHaveAttribute('aria-busy', 'false');
+    expect(screen.queryByRole('status')).toBeNull();
+    const visible = screen.queryAllByText(copy.GENERATING_TEXT).filter((n) => n.getAttribute('aria-hidden') !== 'true');
+    expect(visible).toEqual([]);
   });
 
   it('Given お題があって生成中 / When 画面を見る / Then 作っていることが見え、場に出す・下ろすは押せて、作るの欄のボタンは押せない（#665）', () => {
@@ -158,14 +167,23 @@ describe('場のお題', () => {
   it.each([
     ['AI で作る', copy.AI_BUTTON],
     ['定型から選ぶ', copy.FALLBACK_BUTTON],
-  ])('Given 「%s」にフォーカスがある / When 生成中が届く / Then フォーカスは作るの欄の見出し（summary）へ移る（#665）', (_, name) => {
+  ])('Given 「%s」にフォーカスがある / When 生成中が届く / Then フォーカスは作るの欄（region）へ移る（#665）', (_, name) => {
     enterWith({ ...IDLE_STATE, aiUnlocked: true });
     screen.getByRole('button', { name }).focus();
     act(() => {
       latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, aiUnlocked: true, generating: true } });
     });
-    const summary = screen.getByRole('region', { name: copy.MAKE_HEADING }).querySelector('summary');
-    expect(document.activeElement).toBe(summary);
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: copy.MAKE_HEADING }));
+  });
+
+  it('Given 「定型から選ぶ」にフォーカスがある / When 接続が切れる / Then フォーカスは作るの欄へ移る（#665）', () => {
+    enterWith({ ...IDLE_STATE, aiUnlocked: true });
+    screen.getByRole('button', { name: copy.FALLBACK_BUTTON }).focus();
+    act(() => {
+      latestSocket().drop();
+    });
+    expect(screen.getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeDisabled();
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: copy.MAKE_HEADING }));
   });
 
   it('Given 書く欄にフォーカスがある / When 生成中が届く / Then フォーカスは動かない（#665）', () => {
@@ -191,7 +209,7 @@ describe('場のお題', () => {
     // When: 画面を見る（`aria-busy` の内容変化は支援技術が busy の間は無視してよい・レビュー指摘）
     enterWith({ ...IDLE_STATE, generating: true, topic: FIZZ });
     // Then
-    expect(screen.getByText(copy.GENERATING_TEXT).closest('[aria-busy="true"]')).toBeNull();
+    expect(screen.getByRole('status').closest('[aria-busy="true"]')).toBeNull();
   });
 
   it('Given 定型に落ちた / When 画面を見る / Then 定型にしたと伝える', () => {

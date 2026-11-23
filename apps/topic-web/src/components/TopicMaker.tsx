@@ -45,24 +45,24 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTIES[0]);
   const [key, setKey] = useState('');
   const id = useId();
-  const summaryRef = useRef<HTMLElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const aiRef = useRef<HTMLButtonElement>(null);
   const fallbackRef = useRef<HTMLButtonElement>(null);
 
-  // 押せなくなるボタンにフォーカスがあったら、見出し（summary）へ移す。移さないとフォーカスが文書の先頭へ落ちる。
+  // 押せなくなる（生成中・切断）ボタンにフォーカスがあったら、作るの欄（region・押しても何も起きない所）へ移す。summary へ移すと 2 度目の Enter で欄が閉じる。移さないとフォーカスが文書の先頭へ落ちる。
   // ほかにあるとき（書く欄で打っている最中など）は動かさない。ほかの参加者の画面でも同じ規則（#665）
   useLayoutEffect(() => {
-    if (!generating) return;
+    if (canGenerate) return;
     const active = document.activeElement;
-    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) summaryRef.current?.focus();
-  }, [generating]);
+    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus();
+  }, [canGenerate]);
 
   return (
-    <section className="topic-panel topic-make ui-panel" aria-labelledby={`${id}-heading`}>
+    <section ref={sectionRef} tabIndex={-1} className="topic-panel topic-make ui-panel" aria-labelledby={`${id}-heading`}>
       {/* 書くが主役なので、作るは最初たたむ（`<details>`）。見出しは summary の中に置き、region の名前を保つ。
           生成中・定型に切り替えた知らせは `TopicRoom` がこの欄の外（すぐ下）に置くので、たたんだままでも見える。 */}
       <details className="topic-make-fold">
-        <summary ref={summaryRef}>
+        <summary>
           <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
           {/* たたんでいる間に生成中になっても見出しの横で分かるようにする。開いている間は中のボタンが言う */}
           {generating && (

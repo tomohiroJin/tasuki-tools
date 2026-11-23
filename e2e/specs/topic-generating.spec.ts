@@ -125,10 +125,14 @@ test.describe('お題ツールの生成中は作るの欄のボタンが押せ�
     await expect(fallback).toBeDisabled();
 
     // Then
-    await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).toBe('SUMMARY');
+    await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).toBe('SECTION');
+    // 待ちきれずに Enter を押しても、欄は開いたまま
+    await page.keyboard.press('Enter');
+    await expect(make.locator('details')).toHaveAttribute('open', '');
+    await expect(make.getByRole('button', { name: FALLBACK_BUTTON })).toBeVisible();
   });
 
-  for (const width of [320, 1280]) {
+  for (const width of [320, 704, 768, 1024, 1280]) {
     test(`Given 幅 ${String(width)} / When 生成中になる / Then 作っています…のボタンが欄からはみ出さず、ページが横にあふれない`, async ({ page }) => {
       // Given
       await page.setViewportSize({ width, height: 800 });
