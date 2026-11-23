@@ -40,14 +40,15 @@ function formatDateTime(wallMs: number, tzOffsetMin: number): string {
 
 /**
  * 名前を Markdown の本文として安全にする。強調・リンク・見出し・HTML・表に読まれる記号を逃がし、改行は空白にする。
- * 行頭の `-` `+` は入れ子の箇条書きに読まれるので逃がす（`.` は逃がすので `1.` の番号付きの列にもならない）。
+ * 行頭の `-` `+` と「数字 + `)`」は入れ子の箇条書き・番号付きの列に読まれるので逃がす（`.` は逃がすので `1.` は列にならない。`)` 側は行頭の数字の直後だけ逃がす）。
  */
 export function escapeName(name: string): string {
   return name
     .replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
     .trim()
     .replace(/[\\`*_[\]<>#~&!.:@|]/g, '\\$&')
-    .replace(/^[-+]/, '\\$&');
+    .replace(/^[-+]/, '\\$&')
+    .replace(/^(\d+)\)/, '$1\\)');
 }
 
 export interface RevealMarkdownInput {

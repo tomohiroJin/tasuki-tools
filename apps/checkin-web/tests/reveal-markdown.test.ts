@@ -117,4 +117,13 @@ describe('revealMarkdown', () => {
     const md = revealMarkdown({ method: 'weather', visibility: 'anonymous', piles: anonymous, nowMs: Date.UTC(2026, 11, 31, 23, 5), tzOffsetMin: JST });
     expect(md.split('\n')[0]).toBe('## チェックイン・チェックアウトの記録（2027-01-01 08:05）');
   });
+
+  it('Given 先頭が「数字 + )」の名前 / Then 入れ子の番号付きの列に読まれず、名前の文字が残る', () => {
+    const md = revealMarkdown({ method: 'weather', visibility: 'named', piles: [{ card: 'sunny', count: 3, names: ['1) y', '10) z', '12 3) w'] }], nowMs: AT, tzOffsetMin: JST });
+    const lines = md.split('\n');
+    expect(lines).toContain('  - 1\\) y');
+    expect(lines).toContain('  - 10\\) z');
+    // 数字の後が空白なら列にならないので、そのまま
+    expect(lines).toContain('  - 12 3) w');
+  });
 });

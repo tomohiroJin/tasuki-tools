@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CheckinRoom } from '../src/screens/CheckinRoom';
-import { MD_COPY_BUTTON, MD_COPY_DONE, MD_COPY_FAILED, MD_COPY_MANUAL_FIELD } from '../src/copy';
+import { BACK_LABEL, CHANGE_METHOD, MD_COPY_BUTTON, MD_COPY_DONE, MD_COPY_FAILED, MD_COPY_MANUAL_FIELD } from '../src/copy';
 import { RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, openCheckin } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -127,5 +127,28 @@ describe('結果の Markdown のコピー', () => {
     reveal('named', 4);
     expect(screen.queryByRole('textbox', { name: MD_COPY_MANUAL_FIELD })).toBeNull();
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+  it('Given 名前つきで開いて失敗した / When 別のやり方を開いていまの回に戻る / Then 見出しの日時も失敗の欄も変わらない（時刻は回ごとに 1 度）', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 10, 23, 10, 0));
+    enter({ visibility: 'named', seq: 3 });
+    await pressCopy();
+    const manual = () => screen.getByRole('textbox', { name: MD_COPY_MANUAL_FIELD }) as HTMLTextAreaElement;
+    const heading = manual().value.split('\n')[0];
+    clock.mockReturnValue(Date.UTC(2026, 10, 23, 10, 30));
+    // 卓ごと外れて、戻る
+    fireEvent.click(screen.getByRole('button', { name: CHANGE_METHOD }));
+    expect(screen.queryByRole('button', { name: MD_COPY_BUTTON })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: BACK_LABEL }));
+    expect(manual().value.split('\n')[0]).toBe(heading);
+    // 戻った後に押し直しても、見出しの日時は最初のまま
+    await pressCopy();
+    expect(manual().value.split('\n')[0]).toBe(heading);
+    // 次の回では取り直し、欄は閉じる
+    reveal('named', 4);
+    expect(screen.queryByRole('textbox', { name: MD_COPY_MANUAL_FIELD })).toBeNull();
+    await pressCopy();
+    expect(manual().value.split('\n')[0]).not.toBe(heading);
+    clock.mockRestore();
   });
 });
