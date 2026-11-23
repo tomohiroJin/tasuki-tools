@@ -12713,6 +12713,14 @@ export const MUTATIONS = [
     note: RESERVED_2670_2684 + " " + "#676 の敵対的レビュー。画面は何も出さない。",
   },
   {
+    id: 2683,
+    label: "Markdown の見出しの日時を、終わった瞬間の時計でなく盤の古い時刻から取る",
+    patch: "m2683-agenda-summary-moment-from-stale-board-clock.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy-moment.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676 の /code-review。盤の時刻は 10 秒ごとにしか進まず、見出しが最大でその分古くなる。",
+  },
+  {
     id: 2685,
     label: "結果の Markdown の名前を逃がさない（| * # 改行 ` ほかが書き出しに混ざる）",
     patch: "m2685-roulette-md-no-escape.patch",
