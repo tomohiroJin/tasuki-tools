@@ -135,7 +135,8 @@ test('Given landing の道具の札の扇 / When 札の列の箱が 64.5rem 以�
   // 並びの最初と最後（段をまたいで離れた 2 枚）を傾ける決め打ちを置かない
   assert.doesNotMatch(LANDING, /\.hand li:(first|last|nth)-child/);
   // 扇の規則は、同じ詳細度の 3 列の規則（64rem 以上の幅の段）より後ろに置く。前に置くと負けて、広い幅でも 3 列のままになる
-  assert.ok(LANDING.indexOf('@container hub-tools (width >= 64.5rem)') > LANDING.lastIndexOf('@media (width >= 64rem)'), '扇の規則が幅の段より後ろにある');
+  // 2 列（40rem 以上）の規則も同じ詳細度なので、どの幅の段よりも後ろにあることを見る
+  assert.ok(LANDING.indexOf('@container hub-tools (width >= 64.5rem)') > LANDING.lastIndexOf('@media (width >='), '扇の規則が、どの幅の段より後ろにある');
   // 扇を測る箱は 64rem 以上でだけ名乗る（それより狭い幅では扇の規則が効かない）
   assert.equal(ruleDecls(rules(mediaBlock(LANDING, '@media (width >= 64rem)')), '.hub-tools').get('container'), 'hub-tools / inline-size');
 });
