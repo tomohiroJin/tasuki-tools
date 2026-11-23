@@ -6,6 +6,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { revealMarkdown } from '../src/reveal-markdown';
 import { CheckinRoom } from '../src/screens/CheckinRoom';
 import { BACK_LABEL, CHANGE_METHOD, MD_COPY_BUTTON, MD_COPY_DONE, MD_COPY_FAILED, MD_COPY_MANUAL_FIELD } from '../src/copy';
 import { RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, openCheckin } from './support/scripted-web-socket';
@@ -149,6 +150,27 @@ describe('結果の Markdown のコピー', () => {
     expect(screen.queryByRole('textbox', { name: MD_COPY_MANUAL_FIELD })).toBeNull();
     await pressCopy();
     expect(manual().value.split('\n')[0]).not.toBe(heading);
+    clock.mockRestore();
+  });
+
+  it('Given やり方を選ぶ画面を開いている間に回が開いた / When 戻って初めてコピーする / Then 見出しの日時は、回が開いたのを受け取った時刻（戻った時刻ではない）', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    const received = Date.UTC(2026, 10, 23, 14, 0);
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 10, 23, 13, 50));
+    enter('open');
+    fireEvent.click(screen.getByRole('button', { name: CHANGE_METHOD }));
+    // 選ぶ画面を開いたまま、同じ回が開く（卓は描かれていないが、開いたのは受け取る）
+    clock.mockReturnValue(received);
+    reveal('named', 1);
+    expect(screen.queryByRole('button', { name: MD_COPY_BUTTON })).toBeNull();
+    // 7 分後に戻って、初めて結果を見てコピーする
+    clock.mockReturnValue(received + 7 * 60_000);
+    fireEvent.click(screen.getByRole('button', { name: BACK_LABEL }));
+    await pressCopy();
+    const heading = (screen.getByRole('textbox', { name: MD_COPY_MANUAL_FIELD }) as HTMLTextAreaElement).value.split('\n')[0];
+    const at = (ms: number) => revealMarkdown({ method: 'weather', visibility: 'named', piles: namedPiles, nowMs: ms, tzOffsetMin: -new Date(ms).getTimezoneOffset() }).split('\n')[0];
+    expect(heading).toBe(at(received));
+    expect(heading).not.toBe(at(received + 7 * 60_000));
     clock.mockRestore();
   });
 });
