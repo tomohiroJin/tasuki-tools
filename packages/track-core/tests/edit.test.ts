@@ -104,6 +104,22 @@ describe("adjustSegment（始まり・終わりの調整）", () => {
   });
 });
 
+describe("24 時間より前へは置けない（始まり以外の手直し）", () => {
+  // 0〜2 時間の区切りを持ち、いまは 25 時間。置ける下限は 1 時間
+  const HOUR = 60 * MIN;
+  const old = (): TrackState => must(stop(must(start(empty(), { label: "古い作業", kind: "work", now: at(0) })), { now: at(120) }));
+  const LATER = at(25 * 60);
+
+  it("終わりを、下限より前へは動かせない", () => {
+    expect(codeOf(adjustSegment(old(), { id: "g-1", edge: "end", atMs: HOUR - 1, now: LATER }))).toBe("TRACK_INVALID_RANGE");
+    expect(must(adjustSegment(old(), { id: "g-1", edge: "end", atMs: HOUR, now: LATER })).segments[0]!.endMs).toBe(HOUR);
+  });
+  it("下限より前の位置では分けられない", () => {
+    expect(codeOf(splitSegment(old(), { id: "g-1", atMs: HOUR - 1, label: "x", kind: "work", now: LATER }))).toBe("TRACK_INVALID_RANGE");
+    expect(must(splitSegment(old(), { id: "g-1", atMs: HOUR, label: "x", kind: "work", now: LATER })).segments).toHaveLength(2);
+  });
+});
+
 describe("adjustRangeOf（動かせる範囲）", () => {
   const view = toView(sample(), NOW);
   it("接している境界は、隣の反対の端の 1 秒内側まで", () => {

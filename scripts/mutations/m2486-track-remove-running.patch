@@ -11,7 +11,7 @@
 diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
 --- a/packages/track-core/src/edit.ts
 +++ b/packages/track-core/src/edit.ts
-@@ -175,6 +175,5 @@
+@@ -177,6 +177,5 @@
  export function removeSegment(s: TrackState, input: { id: string }): R<"SEGMENT_NOT_FOUND" | "SEGMENT_RUNNING"> {
    const segment = s.segments.find((g) => g.id === input.id);
    if (segment === undefined) return fail("SEGMENT_NOT_FOUND");

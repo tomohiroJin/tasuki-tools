@@ -1,0 +1,22 @@
+# 変異 2508: track-editor-stale-now
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 手直しの欄が、押せる・押せないを描いた時点の「いま」で決める。#476 のレビュー。止まっている間に時間が経つと、終わりを後ろへ動かすボタンが押せないまま残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2508-*.patch
+# 復元: git apply -R scripts/mutations/m2508-*.patch
+diff --git a/apps/track-web/src/components/SegmentEditor.tsx b/apps/track-web/src/components/SegmentEditor.tsx
+--- a/apps/track-web/src/components/SegmentEditor.tsx
++++ b/apps/track-web/src/components/SegmentEditor.tsx
+@@ -73,7 +73,7 @@
+     const id = setInterval(() => setTick((n) => n + 1), OPEN_TICK_MS);
+     return () => clearInterval(id);
+   }, []);
+-  const liveNow = Math.max(nowMs, getNow());
++  const liveNow = nowMs;
+ 
+   const applyName = (event: FormEvent): void => {
+     event.preventDefault();

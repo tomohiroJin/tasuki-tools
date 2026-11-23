@@ -67,7 +67,7 @@ export function adjustRangeOf(
     if (segment.endMs === null) return null;
     const next = segments[index + 1];
     const ceiling = next === undefined ? nowMs : next.startMs === segment.endMs ? (next.endMs ?? nowMs) - MIN_SEGMENT_MS : next.startMs;
-    range = { minMs: segment.startMs + MIN_SEGMENT_MS, maxMs: Math.min(ceiling, nowMs) };
+    range = { minMs: Math.max(segment.startMs + MIN_SEGMENT_MS, nowMs - MAX_LOOKBACK_MS), maxMs: Math.min(ceiling, nowMs) };
   }
   return range.minMs <= range.maxMs ? range : null;
 }
@@ -110,8 +110,10 @@ export function splitSegment(
   if (segment === undefined) return fail("SEGMENT_NOT_FOUND");
   const label = labelFor(input.kind, input.label);
   if (label === null) return fail("TRACK_INVALID_LABEL");
-  const end = segment.endMs ?? input.now - s.epochMono;
-  if (input.atMs < segment.startMs + MIN_SEGMENT_MS || input.atMs > end - MIN_SEGMENT_MS) return fail("TRACK_INVALID_RANGE");
+  const nowMs = input.now - s.epochMono;
+  const end = segment.endMs ?? nowMs;
+  // 分ける位置も、ほかの手直しと同じく「いま」から `MAX_LOOKBACK_MS` より前へは置けない
+  if (input.atMs < segment.startMs + MIN_SEGMENT_MS || input.atMs > end - MIN_SEGMENT_MS || input.atMs < nowMs - MAX_LOOKBACK_MS) return fail("TRACK_INVALID_RANGE");
   if (s.segments.length >= MAX_SEGMENTS) return fail("TRACK_FULL");
   const head: Segment = { ...segment, endMs: input.atMs, autoClosed: false };
   // 終わりは後半の持ち物なので、切断で閉じた印は後半が引き継ぐ

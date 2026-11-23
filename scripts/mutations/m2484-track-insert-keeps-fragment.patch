@@ -11,7 +11,7 @@
 diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
 --- a/packages/track-core/src/edit.ts
 +++ b/packages/track-core/src/edit.ts
-@@ -156,7 +156,7 @@
+@@ -158,7 +158,7 @@
      // 重なった区切り。前の残りは元の番号を保ち、後ろの残りは（前の残りがあれば）新しい番号を取る
      const hasHead = g.startMs < input.startMs;
      if (hasHead) {

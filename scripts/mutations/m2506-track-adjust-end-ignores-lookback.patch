@@ -1,0 +1,22 @@
+# 変異 2506: track-adjust-end-ignores-lookback
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 終わりの調整が、いまから 24 時間より前の位置を通す。#476 のレビュー。設計 §4.3「手直しの制約」・J5。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2506-*.patch
+# 復元: git apply -R scripts/mutations/m2506-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -67,7 +67,7 @@
+     if (segment.endMs === null) return null;
+     const next = segments[index + 1];
+     const ceiling = next === undefined ? nowMs : next.startMs === segment.endMs ? (next.endMs ?? nowMs) - MIN_SEGMENT_MS : next.startMs;
+-    range = { minMs: Math.max(segment.startMs + MIN_SEGMENT_MS, nowMs - MAX_LOOKBACK_MS), maxMs: Math.min(ceiling, nowMs) };
++    range = { minMs: segment.startMs + MIN_SEGMENT_MS, maxMs: Math.min(ceiling, nowMs) };
+   }
+   return range.minMs <= range.maxMs ? range : null;
+ }

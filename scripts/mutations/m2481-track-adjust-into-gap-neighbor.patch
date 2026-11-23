@@ -17,6 +17,6 @@ diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
      const next = segments[index + 1];
 -    const ceiling = next === undefined ? nowMs : next.startMs === segment.endMs ? (next.endMs ?? nowMs) - MIN_SEGMENT_MS : next.startMs;
 +    const ceiling = next === undefined ? nowMs : next.startMs === segment.endMs ? (next.endMs ?? nowMs) - MIN_SEGMENT_MS : (next.endMs ?? nowMs) - MIN_SEGMENT_MS;
-     range = { minMs: segment.startMs + MIN_SEGMENT_MS, maxMs: Math.min(ceiling, nowMs) };
+     range = { minMs: Math.max(segment.startMs + MIN_SEGMENT_MS, nowMs - MAX_LOOKBACK_MS), maxMs: Math.min(ceiling, nowMs) };
    }
    return range.minMs <= range.maxMs ? range : null;
