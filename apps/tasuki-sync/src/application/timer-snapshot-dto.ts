@@ -100,6 +100,17 @@
  *    旧画面は未知の action を契約違反として捨てるが、notice は signal（画面の状態を変えない通知）
  *    なので、旧画面が古くなる（snapshot を取りこぼす）ことはない。休憩の表示は snapshot から出る。
  *
+ * ★ **#660 で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 14. **`config.rotationMode?: "order" | "random"`（交代先の決め方）を任意項目として足した**
+ *    （`aggregate.ts` の `TimerConfig.rotationMode`）。省略は輪の順。`session.nextIndex`（7）の形は変えず、
+ *    ランダム交代の間は袋（集約の `randomRotation`）から決めた席を載せる。**袋そのものは載せない**
+ *    （下の `session` の明示列挙に足していない。次の次の人を画面へ漏らさない）。
+ *    「旧画面 × 新サーバー」では、旧画面は未知の `rotationMode` を捨て、`nextIndex` をそのまま出すので、
+ *    予告は実際の交代先と合う（輪の並びから読む「あと N 人」だけが輪の順のまま出る）。
+ *    「新画面 × 旧サーバー」では、旧サーバーのスキーマが `config.set` の `rotationMode` を捨てるので、
+ *    切り替えても輪の順のまま回る。どちらもパースは落ちない。
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
@@ -120,11 +131,13 @@ import {
   type SeatSkipReason,
   type TimerState,
 } from "@tasuki/timer-core";
-// nextEligibleIndex は index.ts の公開契約に載っていない（ADR-0016・#220 —
+// nextDriverIndex は index.ts の公開契約に載っていない（ADR-0016・#220 —
 // 「代わりの入口があるなら index に載せない」）。`aggregate` はサブパス入口として
 // 列挙済みのモジュールなので、そこから直接取り込む（RoomSchema が `/schemas` から
 // 取り込むのと同じ経路）。
-import { nextEligibleIndex } from "@tasuki/timer-core/aggregate";
+// **交代（decide・advanceDriver）と同じ関数である**（#660）。輪の順でもランダム交代でも、
+// 予告と実際の交代先を別々に決めない。
+import { nextDriverIndex } from "@tasuki/timer-core/aggregate";
 
 /** ローテーション上の代理の席だけを取り出す。 */
 type ProxyEntry = Extract<RotationEntry, { kind: "proxy" }>;
@@ -314,15 +327,15 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
   const ineligible = new Set(
     seats.flatMap((s, i) => (s.skipReason !== null ? [i] : [])),
   );
-  // 全席が不適格ならサーバーは現状維持へ縮退する（R15）。`nextEligibleIndex` は
+  // 全席が不適格ならサーバーは現状維持へ縮退する（R15）。`nextDriverIndex` は
   // その場合 currentIndex を返すので、「次は現ドライバー」と区別が付かない。
   // 画面に人名を出させないため、ここで null へ倒す（D6）。
   const candidate =
     seats.length === 0 || ineligible.size === seats.length
       ? null
-      : nextEligibleIndex(timer.session, timer.session.currentIndex, ineligible);
+      : nextDriverIndex(timer.session, timer.session.currentIndex, ineligible);
   // D6 追補（最終レビュー指摘）: 席が 2 つ以上あり、かつ適格なのが現ドライバーの席
-  // だけのときも `nextEligibleIndex` は `currentIndex` を返す（全席不適格のときと
+  // だけのときも `nextDriverIndex` は `currentIndex` を返す（全席不適格のときと
   // 同じ「区別が付かない」形）。ここを見落とすと画面は「Current Driver: あや」の
   // 直下に「次: あや」を出す —— 2 人ルームで相方が離席する、最も起きやすい場面である。
   // 「交代しても運転者が変わらないなら人名を出さない」へ倒し、null にする。

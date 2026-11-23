@@ -20,6 +20,23 @@ function fisherYatesShuffle<T>(arr: T[], randomInt: RandomInt): T[] {
 }
 
 /**
+ * ランダム交代（#660）の引く順を作る順列（`[0..len-1]` の一様な並べ替え）。
+ * **輪の順のモードでは undefined を返し、乱数を引かない。** 交代・開始のたびに、ドメイン（`decide` の
+ * `randomOrder`・`advanceDriver`）へ渡す。乱数を引くのはサーバーだけで、ドメインは受け取った順列から次の人を決める。
+ */
+export function randomOrderFor(
+  session: { rotation: readonly unknown[]; randomRotation: unknown | null },
+  randomInt: RandomInt,
+): number[] | undefined {
+  return session.randomRotation === null ? undefined : drawSeatOrder(session.rotation.length, randomInt);
+}
+
+/** 席の添字 `[0..len-1]` の一様な並べ替え。ランダム交代を入れるとき（まだ袋が無い）はこちらを直接使う。 */
+export function drawSeatOrder(len: number, randomInt: RandomInt): number[] {
+  return fisherYatesShuffle(Array.from({ length: len }, (_, i) => i), randomInt);
+}
+
+/**
  * member.shuffle の順列 order を生成する。
  * - 非稼働中: [0..len-1] を完全シャッフルする。
  * - 稼働中: currentIndex の位置を固定し、それ以外のインデックスのみをシャッフルして

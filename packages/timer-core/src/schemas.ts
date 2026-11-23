@@ -6,6 +6,7 @@
 import * as v from "valibot";
 import {
   VALID_INTERVAL_MINUTES,
+  ROTATION_MODES,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
   ROOM_PHASES,
@@ -82,6 +83,8 @@ const SessionConfigSchema = v.object({
   navigatorEnabled: v.optional(v.boolean()),
   break: v.optional(BreakPolicySchema),
   assertiveSwitch: v.optional(v.boolean()),
+  // 交代先の決め方（#660）。任意なので、古い画面の config.set・room.create はそのまま通る（省略は輪の順）。
+  rotationMode: v.optional(v.picklist(ROTATION_MODES)),
 });
 
 // ─── Command スキーマ ────────────────────────────────────────────────────────

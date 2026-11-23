@@ -21,7 +21,8 @@ const TRANSLATIONS: Record<RoomScopedCommand["command"], readonly Case[]> = {
   "session.act": [
     ...(["START", "SWITCH", "PAUSE", "RESUME", "RESTART"] as const).map((action) => ({
       input: { command: "session.act" as const, action },
-      expected: { command: "session.act" as const, action, ineligible: undefined },
+      // ineligible・randomOrder は後で埋める（randomOrder はランダム交代の引く順を作る順列・#660）
+      expected: { command: "session.act" as const, action, ineligible: undefined, randomOrder: undefined },
     })),
     // wire は受けるが、ドメインは扱わない（UNKNOWN_COMMAND になる）
     { input: { command: "session.act", action: "COMPLETE" }, expected: null },
@@ -32,11 +33,18 @@ const TRANSLATIONS: Record<RoomScopedCommand["command"], readonly Case[]> = {
     { input: { command: "session.complete" }, expected: { command: "session.complete", topicTitle: null } },
   ],
   "session.abort": [{ input: { command: "session.abort" }, expected: { command: "session.abort" } }],
-  "session.reset": [{ input: { command: "session.reset" }, expected: { command: "session.reset" } }],
+  "session.reset": [
+    { input: { command: "session.reset" }, expected: { command: "session.reset", randomOrder: undefined } },
+  ],
   "config.set": [
     {
       input: { command: "config.set", config: { intervalMinutes: 5 } },
-      expected: { command: "config.set", config: { intervalMinutes: 5 } },
+      expected: { command: "config.set", config: { intervalMinutes: 5 }, randomOrder: undefined },
+    },
+    // 交代先の決め方（#660）はそのまま通す。引く順を作る順列は wire から受け取らず、後で埋める
+    {
+      input: { command: "config.set", config: { rotationMode: "random" } },
+      expected: { command: "config.set", config: { rotationMode: "random" }, randomOrder: undefined },
     },
   ],
   "phase.set": [
