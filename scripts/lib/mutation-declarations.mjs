@@ -12649,7 +12649,7 @@ export const MUTATIONS = [
   },
   {
     id: 2636,
-    label: "押せなくなるボタンにフォーカスがあっても、作るの欄の見出しへ移さない",
+    label: "押せなくなるボタンにフォーカスがあっても、作るの欄（region）へ移さない",
     patch: "m2636-topic-make-focus-not-moved.patch",
     pkg: "apps/topic-web",
     tests: ["tests/topic-room.test.tsx"],
@@ -12657,7 +12657,7 @@ export const MUTATIONS = [
   },
   {
     id: 2637,
-    label: "フォーカスがほかにあっても、生成中になると見出しへ奪う",
+    label: "フォーカスがほかにあっても、押せなくなると作るの欄（region）へ奪う",
     patch: "m2637-topic-make-steals-focus.patch",
     pkg: "apps/topic-web",
     tests: ["tests/topic-room.test.tsx"],
@@ -12686,5 +12686,13 @@ export const MUTATIONS = [
     pkg: "apps/topic-web",
     tests: ["tests/topic-room.test.tsx"],
     note: RESERVED_2630_2649 + " " + "#665。canGenerate が false になる全部の場合で逃がす。",
+  },
+  {
+    id: 2641,
+    label: "フォーカスを作るの欄へ移すとき、ページのスクロールを止めない",
+    patch: "m2641-topic-make-focus-scrolls-page.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665 のレビュー。欄の上端が画面の外にあると、フォーカスの移動でページが動き、押したボタンが指の下から逃げる。",
   },
 ];

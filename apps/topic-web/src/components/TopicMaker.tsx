@@ -54,7 +54,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
   useLayoutEffect(() => {
     if (canGenerate) return;
     const active = document.activeElement;
-    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus();
+    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus({ preventScroll: true });
   }, [canGenerate]);
 
   return (

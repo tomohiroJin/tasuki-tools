@@ -19,5 +19,5 @@ index 69a2bf26..a216d97f 100644
 -    if (canGenerate) return;
 +    if (!generating) return;
      const active = document.activeElement;
-     if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus();
+     if (active !== null && (active === aiRef.current || active === fallbackRef.current)) sectionRef.current?.focus({ preventScroll: true });
    }, [canGenerate]);

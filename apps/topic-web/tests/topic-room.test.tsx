@@ -170,10 +170,14 @@ describe('場のお題', () => {
   ])('Given 「%s」にフォーカスがある / When 生成中が届く / Then フォーカスは作るの欄（region）へ移る（#665）', (_, name) => {
     enterWith({ ...IDLE_STATE, aiUnlocked: true });
     screen.getByRole('button', { name }).focus();
+    const region = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    const focus = vi.spyOn(region, 'focus');
     act(() => {
       latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, aiUnlocked: true, generating: true } });
     });
-    expect(document.activeElement).toBe(screen.getByRole('region', { name: copy.MAKE_HEADING }));
+    expect(document.activeElement).toBe(region);
+    // 移すときにページをスクロールさせない。欄の上端が画面の外にあると、スクロールで押したボタンが指の下から逃げる
+    expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
   });
 
   it('Given 「定型から選ぶ」にフォーカスがある / When 接続が切れる / Then フォーカスは作るの欄へ移る（#665）', () => {
