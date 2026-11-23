@@ -19,6 +19,8 @@ interface RotationLineupProps {
   /** rotation 内での自分の位置（輪の外なら -1）。 */
   selfIndex: number;
   isPaused: boolean;
+  /** ランダム交代か（#660）。輪の並びから「あと N 人」を出さない。 */
+  random?: boolean;
 }
 
 /** 各メンバーの「いつ番が来るか」ラベルを返す */
@@ -29,6 +31,8 @@ function whenLabel(m: MemberTurn): string {
   // isNext 分岐までに終わらない限りここへは来ない設計だが、念のため防御する
   // （でないと「あとnull人」を描画しうる）。
   if (m.skipReason !== null) return "";
+  // ランダム交代（#660）では、次の人より先の順番は決まっていない。何も予告しない。
+  if (m.turnsAway === null) return "";
   const mins = m.minutesAway !== null ? `・約${m.minutesAway}分後` : "";
   return `あと${m.turnsAway}人${mins}`;
 }
@@ -38,13 +42,15 @@ function buildSelfSummary(self: MemberTurn): string {
   if (self.isCurrent) return "あなたの番です";
   // 飛ばされる席は順番を持たない（#276 D11）。「あとnull人」を出さない。
   if (self.skipReason !== null) return `あなた: 番が回りません（${SKIP_TEXT[self.skipReason].label}）`;
+  // 番は回るが、順番がまだ決まっていない（ランダム交代・#660）
+  if (!self.isNext && self.turnsAway === null) return "あなた: 順番はランダムです";
   const turns = self.isNext ? "次です" : `あと${self.turnsAway}人`;
   const mins = self.minutesAway !== null && !self.isNext ? `・約${self.minutesAway}分後` : "";
   return `あなた: ${turns}${mins}`;
 }
 
-export function RotationLineup({ rotation, currentIndex, nextIndex, intervalSeconds, selfIndex, isPaused }: RotationLineupProps) {
-  const { members, self } = computeRotationStatus({ rotation, currentIndex, nextIndex, intervalSeconds, selfIndex, isPaused });
+export function RotationLineup({ rotation, currentIndex, nextIndex, intervalSeconds, selfIndex, isPaused, random = false }: RotationLineupProps) {
+  const { members, self } = computeRotationStatus({ rotation, currentIndex, nextIndex, intervalSeconds, selfIndex, isPaused, random });
   // メンバーが空の場合は何も描画しない
   if (members.length === 0) return null;
 

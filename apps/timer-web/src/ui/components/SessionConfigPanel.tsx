@@ -20,6 +20,8 @@ interface SessionConfigPanelProps {
 export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionConfigPanelProps) {
   const navigatorEnabled = config.navigatorEnabled === true;
   const assertiveSwitch = config.assertiveSwitch === true;
+  // 交代先の決め方（#660）。省略は輪の順
+  const randomRotation = config.rotationMode === "random";
 
   return (
     // 縦の間は親が gap で持つ（ADR 0035 決定 1）。見出し → 交代間隔は 1rem（内側の組）、組 → 詳細設定は 1.25rem（根）。
@@ -60,6 +62,12 @@ export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionC
           <ChevronDown className="session-config-summary-chevron" aria-hidden="true" />
         </summary>
         <div className="session-config-toggles">
+          <Toggle
+            checked={randomRotation}
+            onChange={(v) => onChange({ rotationMode: v ? "random" : "order" })}
+            label="交代先をランダムに決める"
+            hint="交代のたびに、まだ運転していない人から次のドライバーを選びます。1 周で全員に 1 回ずつ回ります。"
+          />
           <Toggle
             checked={navigatorEnabled}
             onChange={(v) => onChange({ navigatorEnabled: v })}

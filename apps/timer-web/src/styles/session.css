@@ -145,6 +145,16 @@
   color: var(--bone-subtle);
 }
 
+/* 交代先の決め方の名前（ランダム交代・#660）。次の人の名前より控えめな札にする */
+.session-next-mode {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--steel);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  color: var(--bone-muted);
+}
+
 /* ナビゲーター（比較に描かれない・Q5） */
 .session-navigator {
   margin-left: var(--space-3);

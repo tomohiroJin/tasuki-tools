@@ -2,6 +2,7 @@
  * 「各人の番がいつ来るか」を rotation から純粋計算する（#4）。
  * turnsAway: 0=今, 1=次, ... 飛ばされる席を数えずに歩いた順番（#276 D13）。
  * 飛ばされる席自身は null。minutesAway: 交代間隔からの概算（停止中/turnsAway=null は null）。
+ * ランダム交代（#660）では輪を歩かず、サーバーが決めた次の人だけに 1 を振る。
  */
 
 import type { SeatSkipReason } from "@tasuki/timer-core";
@@ -13,7 +14,10 @@ export interface MemberTurn {
   /** 画面に出す呼び名。同名が並ぶときは識別子が付く（RotationMember.label）。 */
   name: string;
   order: number;
-  /** 飛ばされる席は null（#276 D13）。番が回らないので「あと何人」を持たない。 */
+  /**
+   * 飛ばされる席は null（#276 D13）。番が回らないので「あと何人」を持たない。
+   * ランダム交代（#660）では、次の人より先の席も null（順番がまだ決まっていない）。
+   */
   turnsAway: number | null;
   isCurrent: boolean;
   isNext: boolean;
@@ -39,21 +43,31 @@ export function computeRotationStatus(args: {
    *  同名の別人と取り違えないよう、名前ではなく位置で自分を指す（D6b）。 */
   selfIndex: number;
   isPaused: boolean;
+  /**
+   * ランダム交代か（#660）。輪の並びは「次に替わる順」を表さないので、輪を歩いて順番を振らない。
+   * 分かるのはサーバーが決めた次の人（`nextIndex`）だけで、ほかの席の `turnsAway` は null になる。
+   */
+  random?: boolean;
 }): RotationStatus {
-  const { rotation, currentIndex, nextIndex, intervalSeconds, selfIndex, isPaused } = args;
+  const { rotation, currentIndex, nextIndex, intervalSeconds, selfIndex, isPaused, random = false } = args;
   const len = rotation.length;
   if (len === 0) return { members: [], self: null };
 
-  // 現在地から交代の向きへ歩き、飛ばされる席を数えずに順番を振る（#276 D13）。
-  // サーバーは不適格な席を飛ばして繰り上げるので、素朴な循環距離
-  // （(i - currentIndex + len) % len）は実際の交代と食い違う。
   const turns = new Map<number, number>();
-  let n = 0;
-  for (let step = 1; step <= len; step++) {
-    const idx = (currentIndex + step) % len;
-    if (idx === currentIndex) break;
-    if (rotation[idx]!.skipReason !== null) continue;
-    turns.set(idx, ++n);
+  if (random) {
+    // 次の人だけが 1。その先はサーバーも画面へ配らない（交代のたびに引く）
+    if (nextIndex !== null && nextIndex !== currentIndex) turns.set(nextIndex, 1);
+  } else {
+    // 現在地から交代の向きへ歩き、飛ばされる席を数えずに順番を振る（#276 D13）。
+    // サーバーは不適格な席を飛ばして繰り上げるので、素朴な循環距離
+    // （(i - currentIndex + len) % len）は実際の交代と食い違う。
+    let n = 0;
+    for (let step = 1; step <= len; step++) {
+      const idx = (currentIndex + step) % len;
+      if (idx === currentIndex) break;
+      if (rotation[idx]!.skipReason !== null) continue;
+      turns.set(idx, ++n);
+    }
   }
 
   const members: MemberTurn[] = rotation.map((member, i) => {
