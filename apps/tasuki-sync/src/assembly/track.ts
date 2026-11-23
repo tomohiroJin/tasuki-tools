@@ -5,6 +5,7 @@ import { InMemoryTrackStore } from "../adapters/in-memory-track-store.js";
 import { makeTrackAutoStop } from "../application/track-auto-stop.js";
 import { makeTrackBroadcaster } from "../application/track-broadcast.js";
 import { makeTrackHandlers, type TrackHandlers } from "../application/track-handlers.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import type { AssemblyBase, TimerSide, ToolPartBase } from "./context.js";
 
 export interface TrackPart extends ToolPartBase {
@@ -21,13 +22,17 @@ export interface TrackPart extends ToolPartBase {
  * うちわけのメッセージ層と配信（#476）。
  *
  * **参加の守りは進行タイマーと同じく `join-room.ts` を通し、レート制限のゲートも {@link TimerSide.rateLimitGate}
- * を渡す。新しく作らない**。時刻軸と全員切断の猶予は**単調時計**で測り、ハンドラも同じ単調時計を共有する。
+ * を渡す。新しく作らない**。時刻軸と全員切断の猶予は**単調時計**（整数の ms に切り捨てたもの）で測り、ハンドラも同じ単調時計を共有する。
  *
  * 名簿が配られるたびに（{@link ToolPartBase.onRosterBroadcast}）全員が不在かを数え直し、
  * 止めるとき・破棄のときに猶予の予約を解放する。
  */
 export function assembleTrack(base: AssemblyBase, timer: TimerSide): TrackPart {
-  const { config, store, timers, clock, codeGen, tokens, monotonicClock, logger, ws } = base;
+  const { config, store, timers, clock, codeGen, tokens, logger, ws } = base;
+  // **うちわけへ渡す単調時計は、整数の ms に切り捨てる。** 元の時計（`performance.now()`）は小数の ms を返す。
+  // 時刻軸の位置は整数で持つ約束で（`packages/track-core/src/limits.ts`）、境界のスキーマも整数の位置だけを受ける。
+  // 小数のまま渡すと区切りの位置が小数になり、画面が「いまの位置 ± 1 分」で送る手直しが境界で拒まれる。
+  const monotonicClock: MonotonicClock = { now: () => Math.floor(base.monotonicClock.now()) };
   const tracks = new InMemoryTrackStore();
   const broadcaster = makeTrackBroadcaster({
     store,

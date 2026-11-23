@@ -159,6 +159,37 @@ describe("うちわけの配信", () => {
   });
 });
 
+describe("うちわけの位置は整数の ms", () => {
+  it("開始・切り替え・停止で作った区切りの位置と、写しの「いま」は整数で、その位置から 1 分動かす手直しが通る", async () => {
+    // Given: 実の単調時計（小数の ms を返す）で、開始 → 切り替え → 停止する
+    const hub = await server.connectHub("hub");
+    const code = await hubCreate(hub, "モブ", "あや");
+    const track = await server.connectTrack("track");
+    await trackJoin(track, code, "いずみ");
+    track.send({ command: "track.start", label: "設計", kind: "work" });
+    await track.take(isTrackWith((v) => v.segments.length === 1), "開始");
+    await Bun.sleep(1100);
+    track.send({ command: "track.start", label: "実装", kind: "work" });
+    await track.take(isTrackWith((v) => v.segments.length === 2), "切り替え");
+    await Bun.sleep(1100);
+    track.send({ command: "track.stop" });
+    const stopped = viewOf(await track.take(isTrackWith((v) => v.segments.length === 2 && v.segments[1]!.endMs !== null), "停止"));
+
+    // Then: 位置はどれも整数（境界のスキーマは整数の位置だけを受ける）
+    const positions = [stopped.nowMs, ...stopped.segments.flatMap((g) => [g.startMs, g.endMs ?? 0])];
+    expect(positions.filter((n) => !Number.isInteger(n))).toEqual([]);
+
+    // When: 画面の ± のボタンと同じく、いまの位置からちょうど 1 分前へ最初の区切りの始まりを動かす
+    const first = stopped.segments[0]!;
+    track.send({ command: "track.segment.adjust", id: first.id, edge: "start", atMs: first.startMs - 60_000 });
+
+    // Then: 拒まれずに動く
+    const reply = await track.take((m) => m.type === "track" || m.type === "error", "手直しの返事");
+    expect(reply.type).toBe("track");
+    expect(viewOf(reply).segments[0]!.startMs).toBe(first.startMs - 60_000);
+  });
+});
+
 describe("うちわけを操作できるのは track の接続だけ", () => {
   it("ハブ・お題・進行タイマーの接続から track のコマンドを送っても、記録は変わらない", async () => {
     // Given

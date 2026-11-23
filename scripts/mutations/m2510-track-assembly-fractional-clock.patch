@@ -1,0 +1,22 @@
+# 変異 2510: track-assembly-fractional-clock
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.track.test.ts
+#
+# #476 うちわけへ、小数の ms を返す単調時計をそのまま渡す。#476 の /code-review。区切りの位置が小数になり、画面の ± のボタンが送る位置が境界（整数だけ）で拒まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2510-*.patch
+# 復元: git apply -R scripts/mutations/m2510-*.patch
+diff --git a/apps/tasuki-sync/src/assembly/track.ts b/apps/tasuki-sync/src/assembly/track.ts
+--- a/apps/tasuki-sync/src/assembly/track.ts
++++ b/apps/tasuki-sync/src/assembly/track.ts
+@@ -32,7 +32,7 @@
+   // **うちわけへ渡す単調時計は、整数の ms に切り捨てる。** 元の時計（`performance.now()`）は小数の ms を返す。
+   // 時刻軸の位置は整数で持つ約束で（`packages/track-core/src/limits.ts`）、境界のスキーマも整数の位置だけを受ける。
+   // 小数のまま渡すと区切りの位置が小数になり、画面が「いまの位置 ± 1 分」で送る手直しが境界で拒まれる。
+-  const monotonicClock: MonotonicClock = { now: () => Math.floor(base.monotonicClock.now()) };
++  const monotonicClock: MonotonicClock = { now: () => base.monotonicClock.now() };
+   const tracks = new InMemoryTrackStore();
+   const broadcaster = makeTrackBroadcaster({
+     store,

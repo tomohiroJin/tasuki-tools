@@ -12580,4 +12580,20 @@ export const MUTATIONS = [
     tests: ["tests/track-room.test.tsx"],
     note: RESERVED_2470_2599 + " " + "#476 のレビュー。FR-20 の後半（設計 J17）。",
   },
+  {
+    id: 2510,
+    label: "うちわけへ、小数の ms を返す単調時計をそのまま渡す",
+    patch: "m2510-track-assembly-fractional-clock.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.track.test.ts"],
+    note: RESERVED_2470_2599 + " " + "#476 の /code-review。区切りの位置が小数になり、画面の ± のボタンが送る位置が境界（整数だけ）で拒まれる。",
+  },
+  {
+    id: 2511,
+    label: "± の行き先を、いまの位置の端数を残したまま返す",
+    patch: "m2511-track-stepped-edge-fractional.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-view.test.ts"],
+    note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
 ];

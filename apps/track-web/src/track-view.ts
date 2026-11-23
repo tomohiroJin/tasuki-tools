@@ -80,7 +80,8 @@ export function steppedEdge(currentMs: number, deltaMs: number, range: { minMs: 
   const minMs = Math.ceil(range.minMs);
   const maxMs = Math.floor(range.maxMs);
   if (minMs > maxMs) return null;
-  const target = Math.min(maxMs, Math.max(minMs, currentMs + deltaMs));
+  // いまの位置が整数でなくても（古いサーバーの写しなど）、送る位置は整数にする
+  const target = Math.min(maxMs, Math.max(minMs, Math.round(currentMs + deltaMs)));
   // 範囲の外にいる端を、押した向きと逆へは引き戻さない
   if (deltaMs > 0 ? target <= currentMs : target >= currentMs) return null;
   return target;

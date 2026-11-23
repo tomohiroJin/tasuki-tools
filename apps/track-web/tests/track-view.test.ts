@@ -123,6 +123,11 @@ describe('± のボタンの行き先', () => {
     expect(steppedEdge(0, MIN, { minMs: -10.5, maxMs: 30_000.7 })).toBe(30_000);
     expect(steppedEdge(0, -MIN, { minMs: -10.5, maxMs: 30_000.7 })).toBe(-10);
   });
+
+  it('Given いまの位置に端数がある / When 範囲の中で動かす / Then 送る位置は整数になる', () => {
+    expect(steppedEdge(15 * MIN + 0.912, -MIN, range)).toBe(14 * MIN + 1);
+    expect(steppedEdge(15 * MIN + 0.4, MIN, range)).toBe(16 * MIN);
+  });
 });
 
 /**
