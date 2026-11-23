@@ -116,8 +116,11 @@ test.describe('お題ツールの生成中は作るの欄のボタンが押せ�
       await openTopicTool(page, 'gen-fit');
       await openMake(page);
       const make = page.getByRole('region', { name: '定型や AI で作る' });
+      // E2E の構成には AI が無く、「AI で作る」は出ない。AI が使えるルームの形（`aiUnlocked`）を先に配って、押せる姿を取ってから生成中にする
+      inject(state({}));
       const idle = make.getByRole('button', { name: AI_BUTTON });
       await expect(idle).toBeEnabled();
+      const idleBox = await idle.boundingBox();
 
       // When
       inject(state({ generating: true }));
@@ -131,6 +134,11 @@ test.describe('お題ツールの生成中は作るの欄のボタンが押せ�
       expect(area, '作るの欄の箱').not.toBeNull();
       expect(box!.x, 'ボタンの左端').toBeGreaterThanOrEqual(area!.x - 1);
       expect(box!.x + box!.width, 'ボタンの右端').toBeLessThanOrEqual(area!.x + area!.width + 1);
+      // 文言が変わっても、押した場所が逃げない（左端と上端が動かず、高さも変わらない）
+      expect(idleBox, '押せるときのボタンの箱').not.toBeNull();
+      expect(Math.abs(box!.x - idleBox!.x), `ボタンの左端の動き（${String(idleBox!.x)} → ${String(box!.x)}）`).toBeLessThanOrEqual(1);
+      expect(Math.abs(box!.y - idleBox!.y), `ボタンの上端の動き（${String(idleBox!.y)} → ${String(box!.y)}）`).toBeLessThanOrEqual(1);
+      expect(Math.abs(box!.height - idleBox!.height), 'ボタンの高さの変化').toBeLessThanOrEqual(1);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, '横のあふれ').toBeLessThanOrEqual(0);
     });
