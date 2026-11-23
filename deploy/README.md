@@ -121,8 +121,9 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 - [ ] **main の CI が緑**。配る元は main の HEAD で、作業ツリーに未コミットの変更が無い（`deploy.sh` は手元の作業ツリーをそのまま配る）
 - [ ] **道具の版が宣言と合う**: `node scripts/check-toolchain.mjs test`（Node・pnpm・Bun。`deploy.sh` は版を確かめない。
       v4.7.1 では人の端末が Node 22 で画面をビルドしていた）
-- [ ] **wire の差分**: `git diff <前のタグ>..HEAD --stat -- 'packages/*-core/src'` と、各 PR 本文の「配布の注意」。
-      `apps/tasuki-sync/src` に差分が無いことを「wire が変わっていない」と取り違えない（v4.6.0 の記録）
+- [ ] **wire の差分**: `git diff <前のタグ>..HEAD --stat -- 'packages/*-core/src/*'` と、各 PR 本文の「配布の注意」。
+      `apps/tasuki-sync/src` に差分が無いことを「wire が変わっていない」と取り違えない（v4.6.0 の記録）。
+      末尾の `/*` を落とさない（引用符つきの `'packages/*-core/src'` は下のファイルに届かず、差分があっても何も出ない。#675 のレビューで実測）
 - [ ] **`deploy/` の差分**: `git diff <前のタグ>..HEAD --stat -- deploy`。文書だけなら root の作業は無い。
       Caddy 断片・`app.env`・`service.tmpl`・`setup.sh` が変わっていれば、その道具の `NOTES.md` の手順を先に済ませる
 - [ ] **新しい道具を出す回**は、初回の用意（web root と Caddy 断片）を済ませ、冒頭の「[アプリ一覧](#アプリ一覧)」の状態を「公開中」に直しておく
@@ -282,7 +283,13 @@ ssh "$TASUKI_SSH_HOST" 'journalctl -u tasuki-sync -n 12 -o cat'
   `pnpm build` してから流す（版が違うとハッシュが変わりうる）
 - ずれがあれば exit 1、接続先・引数が決まらなければ exit 2
 - **見ないもの**: 同期サーバーの `ActiveState`・`NRestarts`・起動ログ（上の ③・④。`ssh` が要る）、ヘッダ（上の ②）、
-  画面の動き（`--e2e` で続けて流す `pnpm e2e:prod`）
+  画面の動き（`--e2e` で続けて流す `pnpm e2e:prod`）、js・css の本文（名前・状態コード・種類だけを見る）、
+  `index.html` が指さない遅延読み込みのファイル
+- **配り忘れは見つけない。** `deploy.sh` は渡した道具だけをビルドするので、配り忘れた道具は手元の `dist` も本番も前のままで、揃って見える。
+  配った道具の一覧は、人が配る順の控えと突き合わせる
+- **一部だけ配る回**（例: `v4.7.1` は timer だけ）で、配っていない道具に未配布の変更があり、手元でその道具をビルドし直していれば、
+  その道具は「ずれ」と出る（本番が手元より古い、という事実どおり）。道具を絞る引数は無い。その回は、配った道具の行が OK なのを読み、
+  `pnpm e2e:prod` は別に流す（`--e2e` は 1 本でもずれていれば E2E を流さない）
 
 ## 切り戻し
 

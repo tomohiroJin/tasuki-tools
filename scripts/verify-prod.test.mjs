@@ -37,7 +37,10 @@ const APPS = [
 /** 偽の取得。対応表（URL → 応答）に無い URL は 404。 */
 const STUB = `import fs from "node:fs";
 const pages = JSON.parse(fs.readFileSync(new URL("./pages.json", import.meta.url), "utf8"));
-export const fetchImpl = async (url) => {
+export const fetchImpl = async (url, init) => {
+  // リダイレクトを追わない・時間切れを持つ、の 2 つを入口が渡しているか（渡していなければ取得の失敗にする。#675 のレビュー）
+  if (init?.redirect !== "manual") throw new Error("redirect: manual が渡されていません");
+  if (!(init?.signal instanceof AbortSignal)) throw new Error("時間切れの signal が渡されていません");
   const hit = pages[String(url)] ?? { status: 404, contentType: "text/plain", body: "" };
   return new Response(hit.body, { status: hit.status, headers: { "content-type": hit.contentType } });
 };
@@ -191,6 +194,14 @@ describe("verify-prod --e2e", () => {
     assert.match(ok.stdout, new RegExp(`E2E-RAN ${BASE}`));
     const red = runFixture({ args: ["--e2e"], e2eCommand: fakeE2e(7) });
     assert.equal(red.status, 7, red.stdout + red.stderr);
+  });
+
+  test("E2E を起動できない・シグナルで落ちたときは、成功で終わらない", () => {
+    const missing = runFixture({ args: ["--e2e"], e2eCommand: [path.join(os.tmpdir(), "verify-prod-no-such-command"), []] });
+    assert.notEqual(missing.status, 0, missing.stdout + missing.stderr);
+    assert.match(missing.stderr, /起動できません/);
+    const killed = runFixture({ args: ["--e2e"], e2eCommand: [process.execPath, ["-e", 'process.kill(process.pid, "SIGKILL")']] });
+    assert.notEqual(killed.status, 0, killed.stdout + killed.stderr);
   });
 
   test("揃っていなければ E2E を流さない", () => {

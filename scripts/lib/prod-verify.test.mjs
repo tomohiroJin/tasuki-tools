@@ -227,7 +227,14 @@ describe("verifyProd", () => {
   });
 
   test("js・css の実体が取れない・html が返る（SPA のフォールバックに吸われた）ときは通さない", async () => {
-    const brokens = [{ status: 404, contentType: "text/plain", body: "" }, { status: 200, contentType: "text/html", body: html(JS) }, new Error("reset")];
+    const brokens = [
+      { status: 404, contentType: "text/plain", body: "" },
+      // 種類は名前どおりでも、200 でなければ通さない（状態コードと種類を別々に見る。#675 のレビュー）
+      { status: 404, contentType: "text/javascript", body: "" },
+      { status: 404, contentType: "text/css", body: "" },
+      { status: 200, contentType: "text/html", body: html(JS) },
+      new Error("reset"),
+    ];
     for (const name of [JS, CSS]) {
       for (const broken of brokens) {
         const pages = healthyPages(apps);

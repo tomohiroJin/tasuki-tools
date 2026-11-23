@@ -1,0 +1,13 @@
+diff --git a/scripts/verify-prod.mjs b/scripts/verify-prod.mjs
+index f6915e7..0f86886 100644
+--- a/scripts/verify-prod.mjs
++++ b/scripts/verify-prod.mjs
+@@ -37,7 +37,7 @@ const TAG = "[verify-prod]";
+ 
+ /** リダイレクトは追わない（別の場所の 200 を、公開パスの 200 と取り違えない）。 */
+ async function fetchText(url) {
+-  const res = await fetchImpl(url, { redirect: "manual", signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
++  const res = await fetchImpl(url, { redirect: "manual" });
+   return { status: res.status, contentType: res.headers.get("content-type"), body: await res.text() };
+ }
+ 

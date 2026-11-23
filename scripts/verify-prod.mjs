@@ -92,17 +92,22 @@ async function main() {
     return;
   }
 
+  // E2E の終了コードは、案内を出し終えてから最後に立てる（立てた後に処理を続けない。#540）
+  let e2eStatus = 0;
   if (runE2e) {
     const [command, commandArgs] = E2E_COMMAND;
     console.log(`${TAG} 続けて ${command} ${commandArgs.join(" ")} を流します`);
     const r = spawnSync(command, commandArgs, { cwd: REPO_ROOT, stdio: "inherit", env: process.env });
     if (r.error) console.error(`${TAG} ${command} を起動できません（${r.error.message}）`);
-    process.exitCode = r.status ?? 1;
+    // 起動できない・シグナルで落ちたとき（status が null）は失敗にする
+    e2eStatus = r.status ?? 1;
   }
 
   console.log(`${TAG} ここでは確かめていないもの:`);
   if (!runE2e) console.log("  画面の動き（外から通しで）: 同じ接続先で pnpm verify:prod --e2e");
   console.log("  同期サーバーの ActiveState・NRestarts（時間をおいた再確認）: deploy/README.md の「動作確認」の ③ を端末で流す");
+  console.log("  配り忘れ（配っていない道具は、手元の dist も前のままなら揃って見える）: 配った道具の一覧は人が確かめる");
+  process.exitCode = e2eStatus;
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();
