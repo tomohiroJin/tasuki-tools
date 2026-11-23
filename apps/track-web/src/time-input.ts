@@ -4,7 +4,7 @@
  * 入力は日付を持たないので、**基準の位置より前の直近のその時刻**として読む
  * （入れた時刻が基準より後に見えるときは前日）。時間帯は呼ぶ側が渡す（UTC からの進み・分）。
  */
-import { MIN_SEGMENT_MS, type SegmentView } from '@tasuki/track-core';
+import { MAX_LOOKBACK_MS, MIN_SEGMENT_MS, type SegmentView } from '@tasuki/track-core';
 
 const MS_PER_MIN = 60_000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MIN;
@@ -68,14 +68,15 @@ export function insertRangeOf(input: InsertInput, nowMs: number, epochWallMs: nu
 
 /**
  * 分ける時刻の位置。区切りの終わり（計測中は「いま」）より前の直近の時刻として読み、
- * 前半・後半のどちらも最短の長さを保てる位置だけを返す（それ以外は null）。
+ * 前半・後半のどちらも最短の長さを保て、「いま」から 24 時間より前でない位置だけを返す（それ以外は null）。
  */
 export function splitPositionOf(value: string, segment: Pick<SegmentView, 'startMs' | 'endMs'>, nowMs: number, epochWallMs: number, tzOffsetMin: number): number | null {
   const clock = parseClock(value);
   if (clock === null) return null;
   const endMs = segment.endMs ?? nowMs;
   const atMs = positionBefore(clock, endMs, epochWallMs, tzOffsetMin);
-  return atMs >= segment.startMs + MIN_SEGMENT_MS && atMs <= endMs - MIN_SEGMENT_MS ? atMs : null;
+  // サーバーの分割と同じ範囲にする（「いま」から 24 時間より前でも分けられない）。食い違うと、送ってから拒まれて入れた時刻が消える
+  return atMs >= segment.startMs + MIN_SEGMENT_MS && atMs <= endMs - MIN_SEGMENT_MS && atMs >= nowMs - MAX_LOOKBACK_MS ? atMs : null;
 }
 
 /**

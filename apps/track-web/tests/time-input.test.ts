@@ -120,6 +120,16 @@ describe('分ける時刻の位置', () => {
   });
 });
 
+describe('分ける時刻は、いまから 24 時間より前に置けない', () => {
+  it('Given 0〜2 時間の区切りで、いまが 25 時間 / When 下限（1 時間）の前後の時刻を入れる / Then 下限より前は分けられない', () => {
+    const old = seg('g-9', 'work', 'Build', 0, 2 * HOUR);
+    const now = 25 * HOUR;
+    // 位置 0 は 10:00。下限は位置 1 時間（11:00）
+    expect(splitPositionOf('10:59', old, now, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(splitPositionOf('11:00', old, now, EPOCH_WALL_MS, JST)).toBe(HOUR);
+  });
+});
+
 describe('始まり・終わりを合わせる時刻', () => {
   // 動かせる範囲は 10:10:00〜10:40:20（位置 10 分〜40 分 20 秒）
   const range = { minMs: 10 * MIN, maxMs: 40 * MIN + 20_000 };
