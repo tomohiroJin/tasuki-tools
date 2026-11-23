@@ -126,6 +126,23 @@ describe('結果のコピー（1 回で決める・3 人）', () => {
   });
 });
 
+describe('結果のコピー（結果が直に入れ替わる）', () => {
+  it('Given 失敗の欄が出ている / When 回っている間を挟まず別の結果が届く / Then 前の失敗の欄は残らない', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: () => Promise.reject(new Error('denied')) } });
+    document.execCommand = vi.fn(() => false);
+    enterRoom(spin3(1, STOPS.at(-1)!));
+    await act(async () => {
+      fireEvent.click(copyButton()!);
+    });
+    expect((screen.getByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD }) as HTMLTextAreaElement).value).toContain('れん');
+    // 受け取った時点でもう止まっている別の回転（再接続・動きを減らす設定の受け取り直後と同じ形）
+    const next = spin3(2, STOPS.at(-1)!);
+    deliver({ ...next, spin: { ...next.spin, picks: [{ index: 1, settle: 0.5 }, { index: 3, settle: 0.5 }, { index: 0, settle: 0.5 }] } });
+    expect(copyButton()).not.toBeNull();
+    expect(screen.queryByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD })).toBeNull();
+  });
+});
+
 describe('結果のコピー（順番に回す）', () => {
   const orderTurn = (turn: number, doneIdx: number[], elapsedMs: number) => ({
     ...IDLE_ROULETTE,
