@@ -187,8 +187,8 @@ test.describe('進行タイマーは終了の一覧を Markdown でコピーで�
 
     // 終わる前は操作が出ない
     await expect(page.getByRole('button', { name: 'Markdown でコピー', exact: true })).toHaveCount(0);
-    // 「次へ」を 4 回（K・P・投票・Try の議論。予備はスキップ済み）で終了する
-    for (const name of ['P を出す', '投票', 'Try の議論'] as const) {
+    // 「次へ」を 5 回（K・P・投票・Try の議論・予備。新しいルームなので予備はスキップしていない）で終了する
+    for (const name of ['P を出す', '投票', 'Try の議論', '予備'] as const) {
       await page.getByRole('button', { name: '次へ', exact: true }).click();
       await expect(dialName(page)).toHaveText(name);
     }
@@ -205,7 +205,7 @@ test.describe('進行タイマーは終了の一覧を Markdown でコピーで�
     const lines = markdown.split('\n');
     expect(lines[0]).toMatch(/^## 進行タイマー（\d{4}-\d{2}-\d{2} \d{2}:\d{2}）$/);
     expect(lines).toContain('| ステップ | 予定 | 追加 | かかった時間 | 予定より |');
-    for (const name of ['K を出す', 'P を出す', '投票', 'Try の議論']) {
+    for (const name of ['K を出す', 'P を出す', '投票', 'Try の議論', '予備']) {
       expect(lines.some((line) => line.startsWith(`| ${name} |`)), `${name} の行`).toBe(true);
     }
     expect(lines.at(-1)).toMatch(/^\| 合計 \|/);
