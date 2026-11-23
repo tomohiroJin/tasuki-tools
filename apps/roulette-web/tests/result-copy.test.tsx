@@ -1,9 +1,14 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResultCopy } from '../src/components/ResultCopy';
+import { resultMarkdown, stampText, type RouletteResult } from '../src/result-markdown';
 import { RESULT_COPY_BUTTON, RESULT_COPY_DONE, RESULT_COPY_FAILED, RESULT_COPY_MANUAL_FIELD } from '../src/copy';
 
-const MD = '## 進行役ルーレットの結果\n\n- 決め方：1 回で決める\n- 選ばれた人：あや';
+const RESULT: RouletteResult = { mode: 'once', names: ['あや'], seq: 1 };
+const RESULT2: RouletteResult = { mode: 'once', names: ['あや', 'ゆう'], seq: 1 };
+const TZ = -new Date().getTimezoneOffset();
+const HEADING = '## 進行役ルーレットの結果（' + stampText(Date.UTC(2026, 10, 23, 5, 5, 59), TZ) + '）';
+const MD = resultMarkdown(RESULT, Date.UTC(2026, 10, 23, 5, 5, 59), TZ);
 
 function stubClipboard(writeText: (text: string) => Promise<void>): void {
   vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
@@ -13,6 +18,7 @@ function stubClipboard(writeText: (text: string) => Promise<void>): void {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.setSystemTime(Date.UTC(2026, 10, 23, 5, 5, 59));
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -32,7 +38,7 @@ describe('ResultCopy', () => {
   it('Given 結果の Markdown / When 押す / Then その Markdown をクリップボードへ書き、成功を知らせる', async () => {
     const writeText = vi.fn(() => Promise.resolve());
     stubClipboard(writeText);
-    render(<ResultCopy markdown={MD} />);
+    render(<ResultCopy result={RESULT} />);
     expect(screen.getByRole('status')).toHaveTextContent('');
     await press();
     expect(writeText).toHaveBeenCalledWith(MD);
@@ -42,7 +48,7 @@ describe('ResultCopy', () => {
 
   it('Given コピーが拒まれる / When 押す / Then 失敗を知らせ、Markdown を手で選べる欄に出す（2 秒で消えない）', async () => {
     stubClipboard(() => Promise.reject(new Error('denied')));
-    render(<ResultCopy markdown={MD} />);
+    render(<ResultCopy result={RESULT} />);
     await press();
     expect(screen.getByRole('status')).toHaveTextContent(RESULT_COPY_FAILED);
     expect(screen.getByRole('status')).not.toHaveTextContent(RESULT_COPY_DONE);
@@ -59,7 +65,7 @@ describe('ResultCopy', () => {
   it('Given 失敗して欄が出ている / When 押し直して成功する / Then 欄が閉じる', async () => {
     const writeText = vi.fn<(text: string) => Promise<void>>().mockRejectedValueOnce(new Error('denied')).mockResolvedValue();
     stubClipboard(writeText);
-    render(<ResultCopy markdown={MD} />);
+    render(<ResultCopy result={RESULT} />);
     await press();
     expect(screen.getByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD })).toBeInTheDocument();
     await press();
@@ -69,11 +75,30 @@ describe('ResultCopy', () => {
 
   it('Given 失敗の欄が出ている / When 結果が変わる（部品を作り直す） / Then 前の失敗の欄が残らない', async () => {
     stubClipboard(() => Promise.reject(new Error('denied')));
-    const { rerender } = render(<ResultCopy key={1} markdown={MD} />);
+    const { rerender } = render(<ResultCopy key={1} result={RESULT} />);
     await press();
     expect(screen.getByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD })).toBeInTheDocument();
-    rerender(<ResultCopy key={2} markdown={MD + 'x'} />);
+    rerender(<ResultCopy key={2} result={RESULT2} />);
     expect(screen.queryByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD })).toBeNull();
     expect(screen.getByRole('status')).toHaveTextContent('');
+  });
+
+  it('Given 描き直しや時間の経過 / Then 見出しの時刻は最初に出した時刻のまま変わらない', async () => {
+    stubClipboard(() => Promise.reject(new Error('denied')));
+    const { rerender } = render(<ResultCopy key={1} result={RESULT} />);
+    vi.setSystemTime(Date.UTC(2026, 10, 23, 5, 25));
+    rerender(<ResultCopy key={1} result={{ ...RESULT }} />);
+    await press();
+    expect((screen.getByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD }) as HTMLTextAreaElement).value.split('\n')[0]).toBe(HEADING);
+  });
+
+  it('Given 結果が替わる（key が替わる） / Then 時刻を取り直す', async () => {
+    stubClipboard(() => Promise.reject(new Error('denied')));
+    const { rerender } = render(<ResultCopy key={1} result={RESULT} />);
+    vi.setSystemTime(Date.UTC(2026, 10, 23, 5, 25));
+    rerender(<ResultCopy key={2} result={RESULT2} />);
+    await press();
+    const first = (screen.getByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD }) as HTMLTextAreaElement).value.split('\n')[0];
+    expect(first).toBe('## 進行役ルーレットの結果（' + stampText(Date.UTC(2026, 10, 23, 5, 25), TZ) + '）');
   });
 });

@@ -83,6 +83,13 @@ const advance = (ms: number): void => {
     vi.advanceTimersByTime(ms);
   });
 };
+const HEAD = /^## 進行役ルーレットの結果（\d{4}-\d{2}-\d{2} \d{2}:\d{2}）$/;
+/** 見出しの行は日時が入るので正規表現で、残りは行ごとに比べる */
+function expectMarkdown(text: string, rest: string[]): void {
+  const [head, ...lines] = text.split('\n');
+  expect(head).toMatch(HEAD);
+  expect(lines).toEqual(['', ...rest]);
+}
 const copyButton = () => screen.queryByRole('button', { name: RESULT_COPY_BUTTON });
 
 describe('結果のコピー（1 回で決める・3 人）', () => {
@@ -95,7 +102,7 @@ describe('結果のコピー（1 回で決める・3 人）', () => {
   });
 
   it('Given 全員が止まった / When 押す / Then 札と同じ 3 人を止まった順に書き、成功を知らせる', async () => {
-    const writeText = vi.fn(() => Promise.resolve());
+    const writeText = vi.fn((_text: string) => Promise.resolve());
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     enterRoom(spin3(1, 0));
     advance(STOPS.at(-1)! + 100);
@@ -103,9 +110,7 @@ describe('結果のコピー（1 回で決める・3 人）', () => {
     await act(async () => {
       fireEvent.click(copyButton()!);
     });
-    expect(writeText).toHaveBeenCalledWith(
-      ['## 進行役ルーレットの結果', '', '- 決め方：1 回で決める', '- 選ばれた人：', '  1. れん', '  2. あや', '  3. みお'].join('\n'),
-    );
+    expectMarkdown(writeText.mock.calls[0]![0] as string, ['- 決め方：1 回で決める', '- 選ばれた人：', '  1. れん', '  2. あや', '  3. みお']);
     expect(screen.getByText(RESULT_COPY_DONE)).toBeInTheDocument();
   });
 
@@ -163,7 +168,7 @@ describe('結果のコピー（順番に回す）', () => {
   });
 
   it('Given 2 番を回している間 / Then 出ない。止まったら 1 番から順に書く', async () => {
-    const writeText = vi.fn(() => Promise.resolve());
+    const writeText = vi.fn((_text: string) => Promise.resolve());
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     enterRoom(orderTurn(2, [2, 0], 0));
     expect(copyButton()).toBeNull();
@@ -172,8 +177,20 @@ describe('結果のコピー（順番に回す）', () => {
     await act(async () => {
       fireEvent.click(copyButton()!);
     });
-    expect(writeText).toHaveBeenCalledWith(
-      ['## 進行役ルーレットの結果', '', '- 決め方：順番に回す', '- 順番：', '  1. れん', '  2. あや'].join('\n'),
-    );
+    expectMarkdown(writeText.mock.calls[0]![0] as string, ['- 決め方：順番に回す', '- 順番：', '  1. れん', '  2. あや']);
+  });
+
+  it('Given 2 番が止まって失敗の欄が出ている / When 最後の 1 人が決まる（回転は 2 番のまま） / Then 前の失敗の欄は残らない', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: () => Promise.reject(new Error('denied')) } });
+    document.execCommand = vi.fn(() => false);
+    enterRoom(orderTurn(2, [2, 0], 4000));
+    await act(async () => {
+      fireEvent.click(copyButton()!);
+    });
+    expect(screen.getByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD })).toBeInTheDocument();
+    const last = orderTurn(2, [2, 0], 4000);
+    deliver({ ...last, order: { done: [2, 0, 1].map(E), finished: true } });
+    expect(screen.queryByRole('textbox', { name: RESULT_COPY_MANUAL_FIELD })).toBeNull();
+    expect(copyButton()).not.toBeNull();
   });
 });

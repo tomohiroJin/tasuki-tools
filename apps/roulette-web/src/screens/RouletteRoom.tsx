@@ -41,7 +41,6 @@ import { motionNamesOf, pickStopsMs } from '@tasuki/roulette-core';
 import { batchNoticeText, planBatch, restoreOf } from '../regulars-view';
 import type { RegularGroup } from '../storage/regulars';
 import { usePressMotion } from '../hooks/use-press-motion';
-import { resultMarkdown } from '../result-markdown';
 import { pressButtonOf, pressCaptionOf, pressStopOfView, withPressStop } from '../press-view';
 
 /**
@@ -236,7 +235,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             captionHidden={pressCaption?.hidden ?? ''}
           />
           <div className="ui-workspace-side roulette-side">
-            {result !== null && <ResultCopy key={result.seq} markdown={resultMarkdown(result)} />}
+            {result !== null && <ResultCopy key={`${result.seq}-${result.names.length}`} result={result} />}
             {/* 脇は 決め方 → 入る人（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}
             <ModePanel
               mode={mode}
