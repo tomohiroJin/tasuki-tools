@@ -1,5 +1,5 @@
 diff --git a/apps/tasuki-sync/src/application/room-commands/server-values.ts b/apps/tasuki-sync/src/application/room-commands/server-values.ts
-index 9a5b6f9..02ab2a3 100644
+index 194bfea..a2e8d04 100644
 --- a/apps/tasuki-sync/src/application/room-commands/server-values.ts
 +++ b/apps/tasuki-sync/src/application/room-commands/server-values.ts
 @@ -39,7 +39,7 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue

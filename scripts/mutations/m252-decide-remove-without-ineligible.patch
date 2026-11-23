@@ -8,7 +8,7 @@
 #
 # #376（PR #392 の 2 巡目）。運転中の人が外れると、一時離脱・不在の人に運転が回る（本番の経路）。
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index 656feac..a6de28a 100644
+index 8d9af95..6863d9a 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
 @@ -363,7 +363,7 @@ function decideMemberRemove(
@@ -18,5 +18,5 @@ index 656feac..a6de28a 100644
 -  const nextDriver = nextDriverAfterRemoval(agg.session, index, ineligible);
 +  const nextDriver = nextDriverAfterRemoval(agg.session, index, undefined);
    // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
-   // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、引いていないので袋を変えない。
-   const drawn = index === agg.session.currentIndex ? nextDriverIndex(agg.session, index, ineligible) : index;
+   // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、袋から引いていないので、指名と同じく
+   // その人をこの周で運転した人に足すだけにする（周は始め直さない）。足さないと、全員が戻ったあとに

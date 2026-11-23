@@ -1,5 +1,5 @@
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index ba05890..e2c6747 100644
+index 14f59e1..fd95bec 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
 @@ -127,7 +127,7 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {

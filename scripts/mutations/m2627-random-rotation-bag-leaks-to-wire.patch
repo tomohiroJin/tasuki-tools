@@ -1,0 +1,12 @@
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+index 66adedb..d69d7e9 100644
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -386,6 +386,7 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
+       seats,
+       nextIndex,
+       previousDriverIndex,
++      randomRotation: timer.session.randomRotation,
+       // #402: 休憩の状態。画面が要る分だけを載せる（基準は載せない）。
+       break: {
+         since: timer.session.break.since,

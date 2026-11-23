@@ -1,5 +1,5 @@
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index 656feac..11662fe 100644
+index 8d9af95..c4708df 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
 @@ -308,7 +308,7 @@ function decideDriverAssign(

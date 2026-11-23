@@ -1,8 +1,8 @@
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index 656feac..10b2492 100644
+index 8d9af95..3cc2302 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
-@@ -463,8 +463,6 @@ function decideConfigSet(
+@@ -470,8 +470,6 @@ function decideConfigSet(
      const invalid = invalidRandomOrder(randomOrder, session.rotation.length);
      if (invalid !== null) return err(invalid);
      randomRotation = freshRandomRotation(session, randomOrder);

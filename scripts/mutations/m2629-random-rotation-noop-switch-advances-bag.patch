@@ -1,0 +1,15 @@
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 14f59e1..29e8cbd 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -101,9 +101,7 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
+       if (isOnBreak(agg.session)) return agg;
+       const switched = evolveDriverSwitched(agg, event.nextIndex, event.now);
+       // 袋を進めるのは運転者が替わったときだけ（範囲外の添字・同じ席への交代では、イベントの袋を使わない。#660）
+-      return switched.session.currentIndex === agg.session.currentIndex
+-        ? switched
+-        : withRandomRotation(switched, event.randomRotation);
++      return withRandomRotation(switched, event.randomRotation);
+     }
+ 
+     case "SessionPaused":

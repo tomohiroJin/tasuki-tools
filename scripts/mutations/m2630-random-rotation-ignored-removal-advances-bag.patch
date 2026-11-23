@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 14f59e1..52b912a 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -168,7 +168,7 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
+     case "MemberRemoved": {
+       const removed = evolveMemberRemoved(agg, event.index, event.nextDriverIndex);
+       // 席が外れなかった（範囲外の添字）なら、イベントの袋も使わない
+-      return removed === agg ? agg : withRandomRotation(removed, event.randomRotation);
++      return withRandomRotation(removed, event.randomRotation);
+     }
+ 
+     case "MemberMoved":
