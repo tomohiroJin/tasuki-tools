@@ -80,7 +80,9 @@ test.describe('お題ツールの生成中は作るの欄のボタンが押せ�
       const make = p.getByRole('region', { name: '定型や AI で作る' });
       await expect(make.getByRole('button', { name: AI_BUTTON })).toBeEnabled();
       await expect(make.getByRole('button', { name: FALLBACK_BUTTON })).toBeEnabled();
-      await expect(p.getByText(GENERATING)).toHaveCount(0);
+      // 「作っています…」は、幅を取っておくためにボタンの中に隠して置いてある。見えているものが無いことを見る
+      await expect(p.getByText(GENERATING).filter({ visible: true })).toHaveCount(0);
+      await expect(p.getByRole('status').filter({ hasText: GENERATING })).toHaveCount(0);
     }
   });
 

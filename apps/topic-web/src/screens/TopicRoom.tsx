@@ -69,13 +69,14 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
             <CurrentTopic state={sync.topicState} enabled={enabled} draft={draft} onCopyToDraft={(topic) => setFillRequest({ ...topic })} onClear={sync.clearTopic} />
           </div>
           <div className="ui-workspace-main topic-tools">
-            {/* 生成の知らせは操作の面の先頭に置く。読む面の札の最大の高さは脇に札しか載らない前提で決めてあり、
-                札の上に置くと脇の区画が画面の高さを超える（#316 最終レビュー I3）。aria-busy の section の外にも当たる */}
-            {generation && <p className="topic-notice ui-note" role="status">{generation}</p>}
             {/* 書くが主役。作るはその下のたためる欄（最初はたたむ）。#313 構成案 1 は作るが先だったが、
                 利用者が実物を見て #316 PR 1 で逆にした（設計正本 §10.1） */}
             <TopicEditor fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} generating={sync.topicState?.generating ?? false} onGenerate={sync.generate} onUnlock={sync.unlock} />
+            {/* 生成の知らせは操作の面の末尾（作るの欄のすぐ下）に置く。先頭に置くと、現れた瞬間に書く欄と作るの欄を押し下げ、
+                押したボタンが指の下から逃げる（幅 1280 で約 51px・#665）。読む面の札の上には置かない —— 札の最大の高さは脇に札しか
+                載らない前提で決めてあり、脇の区画が画面の高さを超える（#316 最終レビュー I3）。aria-busy の section の外にも当たる */}
+            {generation && <p className="topic-notice ui-note" role="status">{generation}</p>}
           </div>
         </div>
       </main>

@@ -202,7 +202,7 @@ describe('場のお題', () => {
   it.each([
     ['生成中', { generating: true }, copy.GENERATING_TEXT],
     ['定型に落ちた', { degraded: true }, copy.DEGRADED_TEXT],
-  ] as const)('Given %s / When 画面を見る / Then 知らせは読む面の外・操作の面の先頭（書く・作るより前）にある', (_, flags, text) => {
+  ] as const)('Given %s / When 画面を見る / Then 知らせは読む面の外・操作の面の末尾（書く・作るより後）にあり、たたんだ作る欄の外で見える', (_, flags, text) => {
     // Given / When: 読む面の札の最大の高さは脇に札しか載らない前提で決めてある（#316 最終レビュー I3）
     enterWith({ ...IDLE_STATE, ...flags, topic: FIZZ });
     // Then
@@ -213,9 +213,11 @@ describe('場のお題', () => {
     const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
     expect(reader.contains(notice)).toBe(false);
     expect(reader.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // 作る欄は最初たたまれている。たたんだままでも知らせは書くより前に見える（#316 Review Focus 4）
-    expect(notice.compareDocumentPosition(write) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(notice.compareDocumentPosition(make) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 知らせは書く・作るの後ろに置く。前に置くと、現れた瞬間に 2 つの欄を押し下げ、押したボタンが逃げる（#665）
+    expect(write.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(make.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(make.contains(notice)).toBe(false);
+    // 作る欄は最初たたまれている。たたんだままでも知らせは見える（欄の中に入れない・#316 Review Focus 4）
     expect(make.querySelector('details')).not.toHaveAttribute('open');
     expect(make.querySelector('details')?.contains(notice)).toBe(false);
   });
