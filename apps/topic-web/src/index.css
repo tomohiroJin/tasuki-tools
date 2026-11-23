@@ -200,6 +200,17 @@
   margin: 0;
 }
 
+/* 生成中の印（#665）。見出しの横に小さく添える。開いている間は中のボタンが「作っています…」と言うので隠す */
+.topic-make-busy {
+  margin-inline-start: var(--space-2);
+  color: var(--coal-soft);
+  font-size: var(--font-size-sm);
+}
+
+.topic-make-fold[open] .topic-make-busy {
+  display: none;
+}
+
 .topic-make-fold[open] > summary {
   margin-block-end: var(--space-3);
 }

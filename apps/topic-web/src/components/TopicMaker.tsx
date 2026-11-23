@@ -7,7 +7,9 @@ import {
   DIFFICULTY_LABEL,
   DIFFICULTY_NAMES,
   FALLBACK_BUTTON,
+  GENERATING_TEXT,
   LANGUAGE_LABEL,
+  MAKE_BUSY_MARK,
   MAKE_HEADING,
   UNLOCK_BUTTON,
   UNLOCK_LABEL,
@@ -17,6 +19,8 @@ import { canUnlock } from '../topic-view';
 interface Props {
   readonly aiUnlocked: boolean;
   readonly enabled: boolean;
+  /** 生成中か（全員に配られる `generating`）。生成中は作るの欄のボタンを押せなくする（#665）。 */
+  readonly generating: boolean;
   onGenerate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty, category: Category): void;
   onUnlock(key: string): void;
 }
@@ -33,7 +37,9 @@ interface Props {
  * **広いときは 1 行の帯に並べる**（#313 構成案 1）。ボタン 1 つで済む操作に、書くと同じ高さの面は要らない。
  * 並べるかどうかは CSS が面の幅で決める（`.topic-make` の容器クエリ）。
  */
-export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props) {
+export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlock }: Props) {
+  // 生成中に押すと進行中の生成が中断される（E11）。待ちきれず押して捨てさせないよう、作るの欄のボタンだけ止める（#665）
+  const canGenerate = enabled && !generating;
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [language, setLanguage] = useState<Language>(LANGUAGES[0]);
   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTIES[0]);
@@ -47,6 +53,12 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
       <details className="topic-make-fold">
         <summary>
           <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
+          {/* たたんでいる間に生成中になっても見出しの横で分かるようにする。開いている間は中のボタンが言う */}
+          {generating && (
+            <span className="topic-make-busy" aria-hidden="true">
+              {MAKE_BUSY_MARK}
+            </span>
+          )}
         </summary>
         <div className="topic-make-row">
           <div className="topic-make-field topic-make-category">
@@ -105,11 +117,11 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
           </div>
           <div className="ui-actions">
             {aiUnlocked && (
-              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!enabled}>
-                {AI_BUTTON}
+              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!canGenerate}>
+                {generating ? GENERATING_TEXT : AI_BUTTON}
               </button>
             )}
-            <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty, category)} disabled={!enabled}>
+            <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty, category)} disabled={!canGenerate}>
               {FALLBACK_BUTTON}
             </button>
           </div>

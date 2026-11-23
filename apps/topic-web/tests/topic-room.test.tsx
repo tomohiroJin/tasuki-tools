@@ -83,19 +83,68 @@ describe('場のお題', () => {
     expect(screen.queryByText(copy.GENERATING_TEXT)).toBeNull();
   });
 
-  it('Given お題があって生成中 / When 画面を見る / Then 作っていることが見え、掲げる・下ろす・作り直すはどれも押せる', () => {
+  it('Given お題があって生成中 / When 画面を見る / Then 作っていることが見え、場に出す・下ろすは押せて、作るの欄のボタンは押せない（#665）', () => {
     // Given
     enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true, topic: FIZZ });
     // When
     fireEvent.change(screen.getByLabelText(copy.TITLE_LABEL), { target: { value: 'FizzBuzz' } });
     fireEvent.click(screen.getByRole('tab', { name: copy.TAB_CURRENT }));
-    // Then: 生成中も押せる（押すと進行中の生成をサーバーが中断する・E11 はサーバー側の単体が見る）
+    // Then: 先頭の知らせは 1 つだけ（ボタンの文言は知らせではない）
     expect(screen.getByRole('region', { name: copy.READER_HEADING })).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByText(copy.GENERATING_TEXT)).toBeInTheDocument();
+    expect(screen.getAllByRole('status').map((n) => n.textContent)).toEqual([copy.GENERATING_TEXT]);
+    // 自分で書いたお題へ切り替える道は残す（押すと進行中の生成をサーバーが中断する・E11）
     expect(setButton()).toBeEnabled();
     expect(screen.getByRole('button', { name: copy.CLEAR_BUTTON })).toBeEnabled();
+    // 作るの欄は押せない。押した場所（「AI で作る」）が作っていることを言う
+    const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    expect(within(make).queryByRole('button', { name: copy.AI_BUTTON })).toBeNull();
+    expect(within(make).getByRole('button', { name: copy.GENERATING_TEXT })).toBeDisabled();
+    expect(within(make).getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeDisabled();
+  });
+
+  it('Given 生成中 / When 作るの欄がたたまれている / Then 見出しの横にも作成中と分かる印が出る。生成中でなければ出ない（#665）', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true, topic: FIZZ });
+    const make = screen.getByRole('region', { name: copy.MAKE_HEADING });
+    // Then: 見出し（region の名前）は変えず、印は読み上げから外す（読み上げは先頭の知らせの 1 か所）
+    expect(make.querySelector('details')).not.toHaveAttribute('open');
+    const mark = within(make).getByText(copy.MAKE_BUSY_MARK);
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    expect(mark.closest('summary')).not.toBeNull();
+    expect(screen.getByRole('region', { name: copy.MAKE_HEADING })).toBeInTheDocument();
+  });
+
+  it('Given 生成中でない / When 画面を見る / Then 作るの欄のボタンは押せて、作成中の印は無い（#665）', () => {
+    enterWith({ ...IDLE_STATE, aiUnlocked: true, topic: FIZZ });
     expect(screen.getByRole('button', { name: copy.AI_BUTTON })).toBeEnabled();
     expect(screen.getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeEnabled();
+    expect(screen.queryByText(copy.MAKE_BUSY_MARK)).toBeNull();
+  });
+
+  it.each([
+    ['AI の成功', { topic: FIZZ, generating: false, degraded: false }],
+    ['定型への縮退', { topic: { ...FIZZ, source: 'fallback' as const }, generating: false, degraded: true }],
+    ['中断（手で掲げた）', { topic: FIZZ, generating: false, degraded: false }],
+  ] as const)('Given 生成中 / When %s で generating が下りる / Then 作るの欄のボタンが押せる状態に戻る（#665）', (_, next) => {
+    // Given
+    enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true });
+    expect(screen.getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeDisabled();
+    // When
+    act(() => {
+      latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, aiUnlocked: true, ...next } });
+    });
+    // Then
+    expect(screen.getByRole('button', { name: copy.AI_BUTTON })).toBeEnabled();
+    expect(screen.getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeEnabled();
+    expect(screen.queryByText(copy.MAKE_BUSY_MARK)).toBeNull();
+  });
+
+  it('Given 生成中 / When 押せない作るのボタンを押す / Then 何も送られない（#665）', () => {
+    enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true });
+    const before = latestSocket().sentJson().length;
+    fireEvent.click(screen.getByRole('button', { name: copy.GENERATING_TEXT }));
+    fireEvent.click(screen.getByRole('button', { name: copy.FALLBACK_BUTTON }));
+    expect(latestSocket().sentJson()).toHaveLength(before);
   });
 
   it('Given 生成中 / When 画面を見る / Then 作っています…は aria-busy の要素の外にある', () => {

@@ -75,7 +75,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
             {/* 書くが主役。作るはその下のたためる欄（最初はたたむ）。#313 構成案 1 は作るが先だったが、
                 利用者が実物を見て #316 PR 1 で逆にした（設計正本 §10.1） */}
             <TopicEditor fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
-            <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
+            <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} generating={sync.topicState?.generating ?? false} onGenerate={sync.generate} onUnlock={sync.unlock} />
           </div>
         </div>
       </main>
