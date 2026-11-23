@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index e2e43c6c..d7120052 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -435,7 +435,7 @@ export function resultOf(input: { view: RouletteView; phase: Phase; revealed: nu
+     const done = view.order?.done ?? [];
+     return { mode, names: done.slice(0, order.doneCount).map((e) => e.name), seq: view.spin?.seq ?? done.length };
+   }
+-  if (phase !== 'settled' || view.spin === null) return null;
++  if (view.spin === null) return null;
+   const names = revealedPicksOf(view, revealed).map((e) => e.name);
+   return names.length === 0 ? null : { mode, names, seq: view.spin.seq };
+ }
