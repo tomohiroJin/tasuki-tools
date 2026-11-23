@@ -67,4 +67,36 @@ describe('札ごとの置き場所', () => {
     expect(handPlacements(6).map((x) => x.start4)).toEqual([2, null, null, 2, null, null]);
     expect(handPlacements(6).map((x) => x.start3)).toEqual([1, null, null, 1, null, null]);
   });
+
+  /**
+   * 置き場所の幾何（#684 のレビュー）。段の不足が 2 枚以上の段（5 枚・4 列の 2 段目など）は、上の例では値が分かれない。
+   * 格子は「列の数 × 2」本・札 1 枚が 2 本ぶん。始まりの列から数えて、**左の空きと右の空きが等しい**ことを全部の段で見る。
+   */
+  it('Given 0〜40 枚・2〜4 列 / When 置き場所を出す / Then どの段も、左の空きと右の空きが同じ本数で、格子からはみ出さない', () => {
+    let rowsChecked = 0;
+    for (let count = 0; count <= 40; count += 1) {
+      const placements = handPlacements(count);
+      expect(placements).toHaveLength(count);
+      for (const [max, key] of [[2, 'start2'], [3, 'start3'], [4, 'start4']] as const) {
+        let index = 0;
+        for (const size of balancedRows(count, max)) {
+          const where = `${String(count)} 枚・${String(max)} 列・${String(index + 1)} 枚目から ${String(size)} 枚の段`;
+          const start = placements[index]![key];
+          expect(start, `${where}: 段の頭は始まりの列を持つ`).not.toBeNull();
+          for (let i = 1; i < size; i += 1) expect(placements[index + i]![key], `${where}: 段の頭でない札は持たない`).toBeNull();
+          const left = start! - 1;
+          const right = 2 * max - left - 2 * size;
+          expect(left, `${where}: 左の空きは 0 本以上`).toBeGreaterThanOrEqual(0);
+          expect(right, `${where}: 左 ${String(left)} 本・右 ${String(right)} 本`).toBe(left);
+          index += size;
+          rowsChecked += 1;
+        }
+        expect(index, `${String(count)} 枚・${String(max)} 列: 全部の札を段に置く`).toBe(count);
+      }
+    }
+    // 空振りの歯止め: 不足が 2 枚以上の段（始まりの列が 3 以上）を実際に通っている
+    expect(rowsChecked).toBeGreaterThan(500);
+    expect(handPlacements(5).map((x) => x.start4)).toEqual([2, null, null, 3, null]);
+    expect(handPlacements(1).map((x) => x.start4)).toEqual([4]);
+  });
 });

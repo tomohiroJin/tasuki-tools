@@ -79,6 +79,19 @@ describe('合言葉はふだんたたんでおく', () => {
     expect(panel().getByRole('button', { name: '設定する' })).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('Given 開いた口に合言葉を入れかけた / When 送らずに閉じて、開き直す / Then 入れかけた値は残っていない（見えない欄に平文を残さない）', () => {
+    showChoice();
+    fireEvent.click(panel().getByRole('button', { name: '設定する' }));
+    const input = panel().getByLabelText('新しい合言葉', { selector: 'input' });
+    fireEvent.change(input, { target: { value: 'ひみつ' } });
+    expect(input).toHaveValue('ひみつ');
+    fireEvent.click(panel().getByRole('button', { name: '閉じる' }));
+    // 閉じた時点で、隠れた欄にも残っていない
+    expect(input).toHaveValue('');
+    fireEvent.click(panel().getByRole('button', { name: '設定する' }));
+    expect(panel().getByLabelText('新しい合言葉', { selector: 'input' })).toHaveValue('');
+  });
+
   it('Given 合言葉が付いているルーム / When 選択画面を開く / Then たたんだ行のボタンは「変更・解除」になる', () => {
     showChoice({ protectedNow: true });
     expect(panel().getByText('合言葉を設定中です。', { exact: false })).toBeVisible();

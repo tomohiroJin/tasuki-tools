@@ -1,0 +1,11 @@
+--- a/apps/landing/src/index.css
++++ b/apps/landing/src/index.css
+@@ -201,7 +201,7 @@
+ @container hub-tools (width >= 64.5rem) {
+   .hand {
+     /* 札 1 枚 = 列 2 本 + 間 1 つ = 15rem */
+-    grid-template-columns: repeat(8, calc((15rem - var(--space-5)) / 2));
++    grid-template-columns: repeat(8, calc((12.5rem - var(--space-5)) / 2));
+     gap: var(--space-5);
+     justify-content: center;
+   }

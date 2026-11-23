@@ -1,0 +1,10 @@
+--- a/apps/landing/src/index.css
++++ b/apps/landing/src/index.css
+@@ -398,6 +398,7 @@
+      参加者と招待は高さを揃える（既定の stretch）。段の下端が揃い、下の合言葉の行と面が続く。 */
+   display: grid;
+   grid-template-columns: minmax(0, 1fr);
++  align-items: start;
+   gap: var(--space-4);
+   min-width: 0;
+ }

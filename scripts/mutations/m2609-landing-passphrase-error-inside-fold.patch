@@ -1,6 +1,6 @@
 --- a/apps/landing/src/screens/RoomPassphrase.tsx
 +++ b/apps/landing/src/screens/RoomPassphrase.tsx
-@@ -59,13 +59,13 @@
+@@ -65,13 +65,13 @@
            {open ? '閉じる' : protectedNow === true ? '変更・解除' : '設定する'}
          </button>
        </div>

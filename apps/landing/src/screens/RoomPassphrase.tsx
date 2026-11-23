@@ -35,6 +35,12 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
   // ボタンから。取り違えて外してしまわないため。
   const canSubmit = online && value.trim() !== '';
 
+  // 閉じるときは、入れかけた値を捨てる。見えない欄に合言葉の平文を残さない（#638 の「画面にも状態にも残さない」）
+  const toggle = (): void => {
+    if (open) setValue('');
+    setOpen(!open);
+  };
+
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -55,7 +61,7 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
               ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
               : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
         </p>
-        <button type="button" className="ui-button ui-button--quiet" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
+        <button type="button" className="ui-button ui-button--quiet" aria-expanded={open} aria-controls={bodyId} onClick={toggle}>
           {open ? '閉じる' : protectedNow === true ? '変更・解除' : '設定する'}
         </button>
       </div>

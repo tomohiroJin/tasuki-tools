@@ -78,6 +78,9 @@
   /* 札の幅（rem で測る）で、横長のままか、絵を上に回すかを決める（下の `@container`）。文字を大きくすると rem が伸び、
      絵・余白・列の間が一緒に倍になって、名前の列が 36px まで細くなった（文字 200%・320px・#555 PR 575 の指摘） */
   container-type: inline-size;
+  /* 配る演出（下の「配る演出」の節）。遅れは並び順で決まる */
+  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation-delay: calc(0.06s * (var(--hand-index, 0) + 1));
 }
 
 /*
@@ -168,12 +171,9 @@
   卓の中央上から札が順に配られる。1 度きりの短い所作に留める
   （動きを抑えたい環境では @tasuki/ui の base.css が止める）。
   配る順は並び順（`--hand-index`）。枚数が増えても 1 枚ごとの間は同じ。
+  動きの宣言は、上の `.hand li`（同じセレクタの規則を 2 つに分けない）に置いてある。
 */
-.hand li {
-  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
-  animation-delay: calc(0.06s * (var(--hand-index, 0) + 1));
-}
-
+（規則は上の `.hand li` に置いてある。同じセレクタの規則を 2 つに分けない）
 @keyframes deal {
   from {
     opacity: 0;
@@ -187,24 +187,7 @@
 
 /* ---------- 札の並び（幅ごと） ---------- */
 
-@media (width >= 40rem) {
-  .hand {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .hand li {
-    grid-column: var(--hand-start-2, auto) / span 2;
-  }
-}
-
-@media (width >= 64rem) {
-  .hand {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: var(--space-4);
-  }
-  .hand li {
-    grid-column: var(--hand-start-3, auto) / span 2;
-  }
-}
+/* 2 列（40rem 以上）と 3 列（64rem 以上）は、下の「選択画面の幅ごとの並び」の同じ幅の段にまとめて置く（幅の段ごとに @media を 1 つにする）。 */
 
 /*
   扇。札の列の箱に、実物大（15rem）の札が 4 枚と間 3 つ入る幅（64.5rem）があるときだけ。
@@ -535,6 +518,13 @@
 
 /* ---------- 選択画面の幅ごとの並び ---------- */
 @media (width >= 40rem) {
+  /* 札は 2 列（格子は 4 本・札 1 枚が 2 本ぶん） */
+  .hand {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .hand li {
+    grid-column: var(--hand-start-2, auto) / span 2;
+  }
   .hub-room {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -544,6 +534,14 @@
 }
 
 @media (width >= 64rem) {
+  /* 札は 3 列（格子は 6 本） */
+  .hand {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .hand li {
+    grid-column: var(--hand-start-3, auto) / span 2;
+  }
   /* 扇に切り替える幅を測る箱（上の「札の並び」の `@container hub-tools`）。幅だけを測る */
   .hub-tools {
     container: hub-tools / inline-size;
