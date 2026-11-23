@@ -49,9 +49,11 @@ interface Props {
   consumeStartArrival: () => boolean;
   /** 接続の告知の帯。映す表示のときだけ受け取り、映す表示の中に置く（手元の画面では呼ぶ側が外に置く） */
   banner?: ReactNode;
+  /** 終了の一覧を最初に出した瞬間の時計（epoch ms）。試験で差し替える。省くと `Date.now` */
+  now?: () => number;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival, banner }: Props) {
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival, banner, now = Date.now }: Props) {
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLParagraphElement>(null);
@@ -72,8 +74,11 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
   // ここ（映す表示の出入りで捨てられない所）で持つ。終了でなくなったら（最初からやり直し）捨て、もう一度終わったら取り直す
   const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
   const finished = view.phase === 'finished';
-  if (finished && summaryAt === null) setSummaryAt({ wallMs: wallNow.getTime(), tzOffsetMin: -wallNow.getTimezoneOffset() });
-  else if (!finished && summaryAt !== null) setSummaryAt(null);
+  // 盤の時刻（`wallNow`）は 10 秒ごと（裏のタブでは 1 分ほど）にしか進まないので使わず、その瞬間の時計を読む（roulette・checkin と同じ作法）
+  if (finished && summaryAt === null) {
+    const ms = now();
+    setSummaryAt({ wallMs: ms, tzOffsetMin: -new Date(ms).getTimezoneOffset() });
+  } else if (!finished && summaryAt !== null) setSummaryAt(null);
 
   useEffect(() => {
     if (projecting || !returnFocus) return;

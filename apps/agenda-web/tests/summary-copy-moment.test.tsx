@@ -32,10 +32,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const screenAt = (view: typeof finished, wallNow: Date, projecting: boolean) => (
+/** 終わった瞬間の時計。省くと盤の時刻（`wallNow`）と同じ値を返す */
+const screenAt = (view: typeof finished, wallNow: Date, projecting: boolean, now: () => number = () => wallNow.getTime()) => (
   <RunScreen
     view={view}
     wallNow={wallNow}
+    now={now}
     reducedMotion
     striking={false}
     canOperate
@@ -77,5 +79,11 @@ describe('終了の一覧の Markdown の日時', () => {
     expect(screen.queryByRole('button', { name: SUMMARY_COPY_BUTTON })).toBeNull();
     rerender(screenAt(finished, T3, false));
     expect(await copiedHeading()).toBe(headingAt(T3));
+  });
+
+  it('Given 盤の時刻（10 秒ごとにしか進まない）が古い / When その後に会が終わった / Then 見出しの日時は終わった瞬間の時計の時刻', async () => {
+    render(screenAt(finished, T1, false, () => T2.getTime()));
+    expect(await copiedHeading()).toBe(headingAt(T2));
+    expect(headingAt(T1)).not.toBe(headingAt(T2));
   });
 });
