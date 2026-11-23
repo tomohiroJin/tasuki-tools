@@ -1,0 +1,23 @@
+# 変異 2635: topic-editor-locked-while-generating
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 生成中に「場に出す」まで押せなくなる（案 B への取り違え。自分で書いたお題へ切り替える道を残す）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2635-*.patch
+# 復元: git apply -R scripts/mutations/m2635-*.patch
+diff --git a/apps/topic-web/src/screens/TopicRoom.tsx b/apps/topic-web/src/screens/TopicRoom.tsx
+index 997f1615..218aec1b 100644
+--- a/apps/topic-web/src/screens/TopicRoom.tsx
++++ b/apps/topic-web/src/screens/TopicRoom.tsx
+@@ -74,7 +74,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
+             {generation && <p className="topic-notice ui-note" role="status">{generation}</p>}
+             {/* 書くが主役。作るはその下のたためる欄（最初はたたむ）。#313 構成案 1 は作るが先だったが、
+                 利用者が実物を見て #316 PR 1 で逆にした（設計正本 §10.1） */}
+-            <TopicEditor fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
++            <TopicEditor fillRequest={fillRequest} enabled={enabled && !(sync.topicState?.generating ?? false)} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
+             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} generating={sync.topicState?.generating ?? false} onGenerate={sync.generate} onUnlock={sync.unlock} />
+           </div>
+         </div>

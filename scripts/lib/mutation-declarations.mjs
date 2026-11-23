@@ -265,6 +265,9 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
+const RESERVED_2630_2649 =
+  "**対応表より後に足した変異。** 2630〜2649 は #665（topic の生成中は作るの欄のボタンを押せなくする）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12595,5 +12598,53 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2630,
+    label: "生成中でも、作るの欄のボタン（AI で作る・定型から選ぶ）が押せる",
+    patch: "m2630-topic-make-ignores-generating.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。E11 の見直し（設計 §11）。",
+  },
+  {
+    id: 2631,
+    label: "定型へ縮退して生成が終わっても、作るの欄のボタンが押せないまま戻らない",
+    patch: "m2631-topic-make-stays-locked-after-degraded.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。`generating` が下りれば（縮退でも）戻る。",
+  },
+  {
+    id: 2632,
+    label: "生成中でも「AI で作る」の文言が変わらず、押した場所で作っていると分からない",
+    patch: "m2632-topic-make-button-keeps-label.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。決めること 3。",
+  },
+  {
+    id: 2633,
+    label: "たたんだ作るの欄の見出しの横に、生成中の印が出ない",
+    patch: "m2633-topic-make-no-busy-mark.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。決めること 3（たたまれている間の見え方）。",
+  },
+  {
+    id: 2634,
+    label: "「AI で作る」だけが生成中でも押せる（定型から選ぶは止まる）",
+    patch: "m2634-topic-make-ai-button-ignores-generating.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。決めること 1。",
+  },
+  {
+    id: 2635,
+    label: "生成中に「場に出す」まで押せなくなる（案 B への取り違え）",
+    patch: "m2635-topic-editor-locked-while-generating.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。決めること 1。自分で書いたお題へ切り替える道を残す。",
   },
 ];

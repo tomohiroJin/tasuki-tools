@@ -1,0 +1,23 @@
+# 変異 2634: topic-make-ai-button-ignores-generating
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 「AI で作る」だけが生成中でも押せる（定型のボタンは止まる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2634-*.patch
+# 復元: git apply -R scripts/mutations/m2634-*.patch
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+index 603eccbf..9cea85c3 100644
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -117,7 +117,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+           </div>
+           <div className="ui-actions">
+             {aiUnlocked && (
+-              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!canGenerate}>
++              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!enabled}>
+                 {generating ? GENERATING_TEXT : AI_BUTTON}
+               </button>
+             )}

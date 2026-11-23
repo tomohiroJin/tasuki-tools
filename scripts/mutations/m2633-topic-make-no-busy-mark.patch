@@ -1,0 +1,23 @@
+# 変異 2633: topic-make-no-busy-mark
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 たたんだ作るの欄の見出しの横に、生成中の印が出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2633-*.patch
+# 復元: git apply -R scripts/mutations/m2633-*.patch
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+index 603eccbf..5cc05ff6 100644
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -54,7 +54,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+         <summary>
+           <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
+           {/* たたんでいる間に生成中になっても見出しの横で分かるようにする。開いている間は中のボタンが言う */}
+-          {generating && (
++          {false && (
+             <span className="topic-make-busy" aria-hidden="true">
+               {MAKE_BUSY_MARK}
+             </span>
