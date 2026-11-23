@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { CATEGORIES, DIFFICULTIES, LANGUAGES, MAX_AI_UNLOCK_KEY, type Category, type Difficulty, type Language } from '@tasuki/topic-core';
 import {
   AI_BUTTON,
@@ -45,13 +45,24 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTIES[0]);
   const [key, setKey] = useState('');
   const id = useId();
+  const summaryRef = useRef<HTMLElement>(null);
+  const aiRef = useRef<HTMLButtonElement>(null);
+  const fallbackRef = useRef<HTMLButtonElement>(null);
+
+  // 押せなくなるボタンにフォーカスがあったら、見出し（summary）へ移す。移さないとフォーカスが文書の先頭へ落ちる。
+  // ほかにあるとき（書く欄で打っている最中など）は動かさない。ほかの参加者の画面でも同じ規則（#665）
+  useLayoutEffect(() => {
+    if (!generating) return;
+    const active = document.activeElement;
+    if (active !== null && (active === aiRef.current || active === fallbackRef.current)) summaryRef.current?.focus();
+  }, [generating]);
 
   return (
     <section className="topic-panel topic-make ui-panel" aria-labelledby={`${id}-heading`}>
       {/* 書くが主役なので、作るは最初たたむ（`<details>`）。見出しは summary の中に置き、region の名前を保つ。
           生成中・定型に切り替えた知らせは `TopicRoom` が操作の面の先頭に置くので、たたんだままでも見える。 */}
       <details className="topic-make-fold">
-        <summary>
+        <summary ref={summaryRef}>
           <h2 id={`${id}-heading`}>{MAKE_HEADING}</h2>
           {/* たたんでいる間に生成中になっても見出しの横で分かるようにする。開いている間は中のボタンが言う */}
           {generating && (
@@ -117,11 +128,15 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
           </div>
           <div className="ui-actions">
             {aiUnlocked && (
-              <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!canGenerate}>
-                {generating ? GENERATING_TEXT : AI_BUTTON}
+              <button ref={aiRef} type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!canGenerate}>
+                {/* 幅は 2 つの文言の長いほうで最初から取る（文言が変わっても押した場所が動かない）。出していないほうは隠して読み上げから外す */}
+                <span className="topic-make-label">
+                  <span aria-hidden={generating} className={generating ? 'topic-make-label-off' : undefined}>{AI_BUTTON}</span>
+                  <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{GENERATING_TEXT}</span>
+                </span>
               </button>
             )}
-            <button type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty, category)} disabled={!canGenerate}>
+            <button ref={fallbackRef} type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('fallback', language, difficulty, category)} disabled={!canGenerate}>
               {FALLBACK_BUTTON}
             </button>
           </div>

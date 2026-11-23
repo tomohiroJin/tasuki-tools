@@ -207,6 +207,19 @@
   font-size: var(--font-size-sm);
 }
 
+.topic-make-label {
+  display: inline-grid;
+}
+
+/* 2 つの文言を同じマスに重ね、幅を長いほうで取る。出していないほうは見えないだけで幅は残す */
+.topic-make-label > * {
+  grid-area: 1 / 1;
+}
+
+.topic-make-label-off {
+  visibility: hidden;
+}
+
 .topic-make-fold[open] .topic-make-busy {
   display: none;
 }

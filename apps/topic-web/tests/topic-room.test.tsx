@@ -122,9 +122,9 @@ describe('場のお題', () => {
   });
 
   it.each([
-    ['AI の成功', { topic: FIZZ, generating: false, degraded: false }],
+    ['AI の成功', { topic: { ...FIZZ, source: 'ai' as const }, generating: false, degraded: false }],
     ['定型への縮退', { topic: { ...FIZZ, source: 'fallback' as const }, generating: false, degraded: true }],
-    ['中断（手で掲げた）', { topic: FIZZ, generating: false, degraded: false }],
+    ['中断（別の人が手で掲げた）', { topic: { title: '別のお題', body: '手で書いた', source: 'manual' as const }, generating: false, degraded: false }],
   ] as const)('Given 生成中 / When %s で generating が下りる / Then 作るの欄のボタンが押せる状態に戻る（#665）', (_, next) => {
     // Given
     enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true });
@@ -137,6 +137,45 @@ describe('場のお題', () => {
     expect(screen.getByRole('button', { name: copy.AI_BUTTON })).toBeEnabled();
     expect(screen.getByRole('button', { name: copy.FALLBACK_BUTTON })).toBeEnabled();
     expect(screen.queryByText(copy.MAKE_BUSY_MARK)).toBeNull();
+  });
+
+  it('Given 生成中でない / When 見る / Then 「AI で作る」の幅は「作っています…」の分も取ってあり、読み上げ名は出している文言だけ（#665）', () => {
+    enterWith({ ...IDLE_STATE, aiUnlocked: true });
+    const button = screen.getByRole('button', { name: copy.AI_BUTTON });
+    // 出していない文言は幅のためだけに置く（隠して読み上げから外す）
+    const hidden = within(button).getByText(copy.GENERATING_TEXT, { ignore: '' });
+    expect(hidden).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('button', { name: copy.GENERATING_TEXT })).toBeNull();
+  });
+
+  it('Given 生成中 / When 見る / Then 読み上げ名は「作っています…」だけで、「AI で作る」は幅のために隠れている（#665）', () => {
+    enterWith({ ...IDLE_STATE, generating: true, aiUnlocked: true });
+    const button = screen.getByRole('button', { name: copy.GENERATING_TEXT });
+    expect(within(button).getByText(copy.AI_BUTTON)).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('button', { name: copy.AI_BUTTON })).toBeNull();
+  });
+
+  it.each([
+    ['AI で作る', copy.AI_BUTTON],
+    ['定型から選ぶ', copy.FALLBACK_BUTTON],
+  ])('Given 「%s」にフォーカスがある / When 生成中が届く / Then フォーカスは作るの欄の見出し（summary）へ移る（#665）', (_, name) => {
+    enterWith({ ...IDLE_STATE, aiUnlocked: true });
+    screen.getByRole('button', { name }).focus();
+    act(() => {
+      latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, aiUnlocked: true, generating: true } });
+    });
+    const summary = screen.getByRole('region', { name: copy.MAKE_HEADING }).querySelector('summary');
+    expect(document.activeElement).toBe(summary);
+  });
+
+  it('Given 書く欄にフォーカスがある / When 生成中が届く / Then フォーカスは動かない（#665）', () => {
+    enterWith({ ...IDLE_STATE, aiUnlocked: true });
+    const title = screen.getByLabelText(copy.TITLE_LABEL);
+    title.focus();
+    act(() => {
+      latestSocket().deliver({ type: 'topic', state: { ...IDLE_STATE, aiUnlocked: true, generating: true } });
+    });
+    expect(document.activeElement).toBe(title);
   });
 
   it('Given 生成中 / When 押せない作るのボタンを押す / Then 何も送られない（#665）', () => {
