@@ -131,10 +131,9 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
     setDraft(moveStep(draft, i, delta));
     setFocusRequest(request);
   };
-  // 空にしたら、押せなくなった「下書きを空にする」ではなく「ステップを追加」へフォーカスを移す（組み直しの次の一手）
+  // フォーカスの移し先は ClearDraftControl が決める（押せなくなった「下書きを空にする」ではなく「ステップを追加」へ）
   const clear = (): void => {
     setDraft(clearedDraft());
-    setFocusRequest('add');
   };
   const clearAsking = confirming?.kind === 'clear' && confirming.draft === draft;
   const add = (): void => {
