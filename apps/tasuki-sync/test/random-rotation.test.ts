@@ -217,6 +217,19 @@ describe("ランダム交代: 予告と実際の交代先", () => {
     expect(new Set(rounds).size).toBeGreaterThan(1);
   });
 
+  it("手動の交代でも時間切れでも、交代のたびにサーバーが引く順を作り直す", async () => {
+    const f = await lobbyOf(NAMES, { random: true });
+    await start(f);
+    const afterStart = f.random.calls;
+
+    await send(f, "conn-0", { command: "session.act", action: "SWITCH" });
+    const afterManual = f.random.calls;
+    f.handlers.advanceForAbsence(f.code);
+
+    expect(afterManual).toBeGreaterThan(afterStart);
+    expect(f.random.calls).toBeGreaterThan(afterManual);
+  });
+
   it("交代のあとのナビゲーター（直前に運転した人）は、交代前の運転者", async () => {
     const f = await lobbyOf(NAMES, { random: true });
     await start(f);
