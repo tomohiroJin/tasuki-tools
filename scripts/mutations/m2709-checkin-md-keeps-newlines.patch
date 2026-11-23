@@ -9,7 +9,7 @@
 #       git apply scripts/mutations/m2709-*.patch
 # 復元: git apply -R scripts/mutations/m2709-*.patch
 diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
-index 63e1fd91..5caa0a14 100644
+index 44f11126..f7d344e2 100644
 --- a/apps/checkin-web/src/reveal-markdown.ts
 +++ b/apps/checkin-web/src/reveal-markdown.ts
 @@ -44,7 +44,6 @@ function formatDateTime(wallMs: number, tzOffsetMin: number): string {
@@ -19,4 +19,4 @@ index 63e1fd91..5caa0a14 100644
 -    .replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
      .trim()
      .replace(/[\\`*_[\]<>#~&!.:@|]/g, '\\$&')
-     .replace(/^[-+]/, '\\$&');
+     .replace(/^[-+]/, '\\$&')

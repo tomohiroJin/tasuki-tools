@@ -9,14 +9,14 @@
 #       git apply scripts/mutations/m2701-*.patch
 # 復元: git apply -R scripts/mutations/m2701-*.patch
 diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
-index a3c2967d..d9745175 100644
+index 4e23e581..af31a799 100644
 --- a/apps/checkin-web/src/screens/CheckinRoom.tsx
 +++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
-@@ -161,6 +161,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
+@@ -164,6 +164,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
            />
            {round.status === 'open' && (
              <>
-+              <RevealCopy method={round.method} visibility={round.visibility} piles={[]} />
++              <RevealCopy method={round.method} visibility={round.visibility} piles={[]} session={{ at: 0, manualKept: false, setManualKept: () => {} }} />
                <SeatRow
                  seats={round.seats}
                  selfId={view.you}

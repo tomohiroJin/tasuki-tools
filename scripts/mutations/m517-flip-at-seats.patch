@@ -42,5 +42,5 @@ diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src
 +                <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
 +              </div>
                {/* 結果の持ち出し（#676）。開いた後だけ。回ごとに作り直す（前の回の失敗の欄を持ち越さない） */}
-               <RevealCopy key={round.seq} method={round.method} visibility={round.visibility} piles={round.piles} />
-             </>
+               {revealExport !== null && (
+                 <RevealCopy key={round.seq} method={round.method} visibility={round.visibility} piles={round.piles} session={revealExport} />

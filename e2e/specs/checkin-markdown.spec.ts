@@ -41,16 +41,13 @@ test('Given 2 人が同じ回で札を出して開いた / When 結果をコピ�
   await expect(page.getByRole('status').filter({ hasText: 'コピーしました' })).toBeVisible();
   const named = (await readClipboard()).split('\n');
   expect(named[0]).toMatch(/^## チェックイン・チェックアウトの記録（\d{4}-\d{2}-\d{2} \d{2}:\d{2}）$/);
-  expect(named).toEqual(
-    expect.arrayContaining([
-      '### チェックイン: 今日の天気',
-      '公開の仕方: 名前つき',
-      '- 晴れ: 1 人',
-      `  - ${NAME_A}`,
-      '- 雨: 1 人',
-    ]),
-  );
-  expect(named.join('\n')).toContain(NAME_B);
+  // 名前が、出した札の山の下にある（どの山の下かまで見る）。晴れは A・雨は B
+  const at = (line: string) => named.indexOf(line);
+  expect(named).toEqual(expect.arrayContaining(['### チェックイン: 今日の天気', '公開の仕方: 名前つき']));
+  expect(at('- 晴れ: 1 人')).toBeGreaterThan(-1);
+  expect(named[at('- 晴れ: 1 人') + 1]).toBe(`  - ${NAME_A}`);
+  expect(named[at('- 雨: 1 人') + 1]).toBe(`  - ${NAME_B}`);
+  expect(named.filter((l) => l.startsWith('  - ')), '名前の行は出した 2 人だけ').toEqual([`  - ${NAME_A}`, `  - ${NAME_B}`]);
 
   // 失敗: どちらの経路も使えないとき、手で選べる欄に同じ文が出る
   await page.evaluate(() => {
@@ -65,6 +62,14 @@ test('Given 2 人が同じ回で札を出して開いた / When 結果をコピ�
     await manualField(page).evaluate((f: HTMLTextAreaElement) => f.value.slice(f.selectionStart, f.selectionEnd)),
     '欄に入ると全文が選ばれる',
   ).toBe(named.join('\n'));
+
+  // 別のやり方を開いて、いまの回に戻っても、失敗の欄と見出しの日時は変わらない（時刻と欄は回ごとに 1 度・設計 §16）
+  const failedText = await manualField(page).inputValue();
+  await page.getByRole('button', { name: '別のやり方', exact: true }).click();
+  await expect(copyButton(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'いまの回に戻る', exact: true }).click();
+  await expect(manualField(page)).toHaveValue(failedText);
+  expect((await manualField(page).inputValue()).split('\n')[0]).toBe(named[0]);
 
   // もう一回: 次の回では前の失敗の欄が残らない
   await page.getByRole('button', { name: 'もう一回', exact: true }).click();

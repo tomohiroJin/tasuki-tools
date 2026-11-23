@@ -1,0 +1,23 @@
+# 変異 2801: checkin-md-manual-lost-on-remount
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 卓の出し入れで失敗の欄が消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2801-*.patch
+# 復元: git apply -R scripts/mutations/m2801-*.patch
+diff --git a/apps/checkin-web/src/hooks/use-reveal-export.ts b/apps/checkin-web/src/hooks/use-reveal-export.ts
+index 7b6c8cec..dca6994f 100644
+--- a/apps/checkin-web/src/hooks/use-reveal-export.ts
++++ b/apps/checkin-web/src/hooks/use-reveal-export.ts
+@@ -31,7 +31,7 @@ export function useRevealExport(revealedSeq: number | null, now: () => number =
+   if (revealedSeq === null || session === null) return null;
+   return {
+     at: session.at,
+-    manualKept: session.manualKept,
++    manualKept: false,
+     setManualKept: (kept) => setSession((s) => (s !== null && s.seq === session.seq ? { ...s, manualKept: kept } : s)),
+   };
+ }

@@ -298,6 +298,9 @@ const RESERVED_2080_2109 =
 const RESERVED_2110_2129 =
   "**対応表より後に足した変異。** 2110〜2129 は #640（ルーレットの変わった動き）の追加（2080〜2109 を使い切ったため）に割り当てた範囲。";
 
+const RESERVED_2800_2819 =
+  "**対応表より後に足した変異。** 2800〜2819 は #676（Check-in Cards の結果の Markdown のコピー）の敵対的レビューの指摘に割り当てた範囲（2700〜2709 を使い切ったため）。";
+
 const RESERVED_2700_2709 =
   "**対応表より後に足した変異。** 2700〜2709 は #676（Check-in Cards の結果を Markdown でコピーして持ち出す）に割り当てた範囲。";
 
@@ -12678,5 +12681,45 @@ export const MUTATIONS = [
     pkg: "apps/checkin-web",
     tests: ["tests/reveal-markdown.test.ts"],
     note: RESERVED_2700_2709 + " " + "#676。改行を含む名前で、偽の行・見出しを差し込める。",
+  },
+  {
+    id: 2800,
+    label: "書き出す時刻を描くたびに取り直す",
+    patch: "m2800-checkin-md-time-per-render.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。別のやり方から戻ると、見出しの日時が変わる（回ごとに 1 度の決めが破れる）。",
+  },
+  {
+    id: 2801,
+    label: "卓の出し入れで、手で選べる欄が消える",
+    patch: "m2801-checkin-md-manual-lost-on-remount.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。失敗した後に別のやり方を開いて戻ると、選びかけの欄が消える。",
+  },
+  {
+    id: 2802,
+    label: "次の回でも、前の回の時刻と失敗の欄を持ち越す",
+    patch: "m2802-checkin-md-time-kept-across-rounds.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。次の回の Markdown の日時が前の回のままで、前の失敗の欄が残る。",
+  },
+  {
+    id: 2803,
+    label: "名前の先頭の「数字 + )」を逃がさない",
+    patch: "m2803-checkin-md-no-leading-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。名前の先頭の 1) が入れ子の番号付きの列に読まれ、貼った先で名前の 1) が消える。",
+  },
+  {
+    id: 2804,
+    label: "名前の先頭の - と + を逃がさない",
+    patch: "m2804-checkin-md-no-bullet-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。名前の先頭の - が入れ子の箇条書きに読まれる。",
   },
 ];

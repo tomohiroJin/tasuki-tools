@@ -9,7 +9,7 @@
 #       git apply scripts/mutations/m2702-*.patch
 # 復元: git apply -R scripts/mutations/m2702-*.patch
 diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
-index 63e1fd91..090aa365 100644
+index 44f11126..047af3a4 100644
 --- a/apps/checkin-web/src/reveal-markdown.ts
 +++ b/apps/checkin-web/src/reveal-markdown.ts
 @@ -46,7 +46,6 @@ export function escapeName(name: string): string {
@@ -17,6 +17,6 @@ index 63e1fd91..090aa365 100644
      .replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
      .trim()
 -    .replace(/[\\`*_[\]<>#~&!.:@|]/g, '\\$&')
-     .replace(/^[-+]/, '\\$&');
+     .replace(/^[-+]/, '\\$&')
+     .replace(/^(\d+)\)/, '$1\\)');
  }
- 
