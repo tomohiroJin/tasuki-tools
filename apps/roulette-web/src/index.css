@@ -804,3 +804,23 @@
 .roulette-add > label {
   text-wrap: balance;
 }
+
+/* 結果のコピー（#676）。脇の先頭に置く（舞台の並び・回すの下端留めに触れない）。知らせの行は空でも高さを持つ */
+.roulette-result-copy {
+  padding-bottom: var(--space-3);
+}
+.roulette-result-copy .ui-button {
+  width: 100%;
+}
+.roulette-result-copy-status {
+  margin: 0;
+  min-height: 1lh;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+.roulette-result-copy-manual {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--font-mono);
+  resize: vertical;
+}
