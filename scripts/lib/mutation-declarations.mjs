@@ -304,6 +304,12 @@ const RESERVED_2080_2109 =
 const RESERVED_2110_2129 =
   "**対応表より後に足した変異。** 2110〜2129 は #640（ルーレットの変わった動き）の追加（2080〜2109 を使い切ったため）に割り当てた範囲。";
 
+const RESERVED_2800_2819 =
+  "**対応表より後に足した変異。** 2800〜2819 は #676（Check-in Cards の結果の Markdown のコピー）の敵対的レビューの指摘に割り当てた範囲（2700〜2709 を使い切ったため）。";
+
+const RESERVED_2700_2709 =
+  "**対応表より後に足した変異。** 2700〜2709 は #676（Check-in Cards の結果を Markdown でコピーして持ち出す）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -12817,5 +12823,125 @@ export const MUTATIONS = [
     pkg: "apps/roulette-web",
     tests: ["tests/result-copy.test.tsx"],
     note: RESERVED_2685_2699 + " " + "#676 のレビュー。同じ結果のあいだに見出しの時刻が変わり、コピーの内容も変わる。",
+  },
+  {
+    id: 2700,
+    label: "匿名の回でも、山が名前を持っていれば Markdown に名前を書く",
+    patch: "m2700-checkin-md-anonymous-shows-names.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。匿名の回の結果をコピーすると、誰がどれを出したかが持ち出される（設計 §6 の匿名が破れる）。",
+  },
+  {
+    id: 2701,
+    label: "札が開く前にも［Markdown でコピー］が出る",
+    patch: "m2701-checkin-md-copy-before-reveal.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。開く前の操作が出て、結果の持ち出しが開く前に押せる。",
+  },
+  {
+    id: 2702,
+    label: "名前の記号を逃がさず Markdown に書く",
+    patch: "m2702-checkin-md-no-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。名前の `|`・`*`・`#` が表・強調・見出しとして読まれ、貼った先で崩れる。",
+  },
+  {
+    id: 2703,
+    label: "コピーに失敗したのに「コピーしました」と知らせる",
+    patch: "m2703-checkin-md-failure-reported-as-done.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。失敗に気づかず、貼った先が空のまま会が終わる。",
+  },
+  {
+    id: 2704,
+    label: "別の回が開いても前の回の失敗の欄を持ち越す（回ごとの key を外す）",
+    patch: "m2704-checkin-md-failure-box-survives-next-round.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。前の回の結果の Markdown が、次の回の画面に残る。",
+  },
+  {
+    id: 2705,
+    label: "山を札の定義の順に並べ直さず、受けた順のまま書く",
+    patch: "m2705-checkin-md-server-pile-order.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。画面と Markdown で山の並びが食い違う。",
+  },
+  {
+    id: 2706,
+    label: "数のやり方の札に、画面の山の下にある意味を添えない",
+    patch: "m2706-checkin-md-numeric-no-meaning.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。貼った先で「4」だけが残り、何の数か分からない。",
+  },
+  {
+    id: 2707,
+    label: "日時が時間帯を無視して UTC のまま出る",
+    patch: "m2707-checkin-md-ignores-timezone.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。日本時間の利用者の記録の時刻が 9 時間ずれる。",
+  },
+  {
+    id: 2708,
+    label: "コピーに失敗しても手で選べる欄を出さない",
+    patch: "m2708-checkin-md-no-manual-field.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。失敗すると持ち出す道が無くなる（poker #653・track と同じ作法を外す）。",
+  },
+  {
+    id: 2709,
+    label: "名前の中の改行を通す",
+    patch: "m2709-checkin-md-keeps-newlines.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。改行を含む名前で、偽の行・見出しを差し込める。",
+  },
+  {
+    id: 2800,
+    label: "書き出す時刻を描くたびに取り直す",
+    patch: "m2800-checkin-md-time-per-render.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。別のやり方から戻ると、見出しの日時が変わる（回ごとに 1 度の決めが破れる）。",
+  },
+  {
+    id: 2801,
+    label: "卓の出し入れで、手で選べる欄が消える",
+    patch: "m2801-checkin-md-manual-lost-on-remount.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。失敗した後に別のやり方を開いて戻ると、選びかけの欄が消える。",
+  },
+  {
+    id: 2802,
+    label: "次の回でも、前の回の時刻と失敗の欄を持ち越す",
+    patch: "m2802-checkin-md-time-kept-across-rounds.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。次の回の Markdown の日時が前の回のままで、前の失敗の欄が残る。",
+  },
+  {
+    id: 2803,
+    label: "名前の先頭の「数字 + )」を逃がさない",
+    patch: "m2803-checkin-md-no-leading-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。名前の先頭の 1) が入れ子の番号付きの列に読まれ、貼った先で名前の 1) が消える。",
+  },
+  {
+    id: 2804,
+    label: "名前の先頭の - と + を逃がさない",
+    patch: "m2804-checkin-md-no-bullet-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。名前の先頭の - が入れ子の箇条書きに読まれる。",
   },
 ];

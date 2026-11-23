@@ -66,3 +66,13 @@ export function spectatorCountText(count: number): string {
 // ---- 開いた後の画面（#406 3.5）。要約の行は `reveal-view.ts` ----
 export const REVEAL_LABEL = '開いた札';
 export const PILE_UNIT_SR = ' 人';
+
+// ---- 結果の持ち出し（#676）。Markdown の文も、手で選ぶ欄に出るのでここに置き、base 層に収める ----
+export const MD_COPY_BUTTON = 'Markdown でコピー';
+export const MD_COPY_DONE = 'コピーしました';
+export const MD_COPY_FAILED = 'コピーできませんでした。下の欄から選んでコピーしてください。';
+/** コピーに失敗したとき、手で選んで持ち出す欄の名前（poker #653・track #476 と同じ作法） */
+export const MD_COPY_MANUAL_FIELD = '結果の Markdown';
+export const MD_HEADING = 'チェックイン・チェックアウトの記録';
+export const MD_VISIBILITY_LABEL = '公開の仕方';
+export const mdPeople = (count: number): string => `${count} 人`;

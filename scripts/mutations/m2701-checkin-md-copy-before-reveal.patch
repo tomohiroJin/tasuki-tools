@@ -1,0 +1,22 @@
+# 変異 2701: checkin-md-copy-before-reveal
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 札が開く前にも［Markdown でコピー］が出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2701-*.patch
+# 復元: git apply -R scripts/mutations/m2701-*.patch
+diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
+index 4e23e581..af31a799 100644
+--- a/apps/checkin-web/src/screens/CheckinRoom.tsx
++++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
+@@ -164,6 +164,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
+           />
+           {round.status === 'open' && (
+             <>
++              <RevealCopy method={round.method} visibility={round.visibility} piles={[]} session={{ at: 0, manualKept: false, setManualKept: () => {} }} />
+               <SeatRow
+                 seats={round.seats}
+                 selfId={view.you}
