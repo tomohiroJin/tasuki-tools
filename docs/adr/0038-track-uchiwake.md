@@ -1,6 +1,6 @@
 # ADR-0038: 作業の内訳の記録（うちわけ）を 8 つ目の文脈にし、時刻軸を単調時計で持ち、誰が操作したかを持たない
 
-- **ステータス**: Proposed（2026-11-23）
+- **ステータス**: Accepted（2026-11-23）
 - **関連**: [#476](https://github.com/tomohiroJin/tasuki-tools/issues/476) /
   [設計正本](../superpowers/specs/2026-11-23-track-uchiwake-design.md)（§3 利用者の決め・§4 作りの枠組み・§10 書き手の判断 J1〜J16） /
   [`docs/adr/0016`](./0016-core-domain-representation.md)（ドメインの表現は選択制。決定 6 の記録先） /

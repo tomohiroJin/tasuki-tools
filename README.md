@@ -120,7 +120,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - 休憩は作業と分けて数え、合計と割合から外す。合計と割合は丸める前の値から計算する
   - **誰が切り替えたかを残さない**。記録が持つのは作業名と時間だけで、個人ごとの集計はできない
   - 記録は保存しない（揮発インメモリ）。全員が離れると区切りを閉じ、戻った人に再開するかを尋ねる
-- 設計判断: [`docs/adr/0038`](docs/adr/0038-track-uchiwake.md)（Proposed）・設計正本 [`docs/superpowers/specs/2026-11-23-track-uchiwake-design.md`](docs/superpowers/specs/2026-11-23-track-uchiwake-design.md)
+- 設計判断: [`docs/adr/0038`](docs/adr/0038-track-uchiwake.md)・設計正本 [`docs/superpowers/specs/2026-11-23-track-uchiwake-design.md`](docs/superpowers/specs/2026-11-23-track-uchiwake-design.md)
 
 ## 🔗 ライブデモ
 

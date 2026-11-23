@@ -302,9 +302,9 @@ ISSUE の完了条件にある「`audit-structure` の対象に入る」は（�
 2. **#594（写しを寄せる）**: 3 つの写しを `packages/test-css/src/` へ移す。書体の判定は `.mjs` ＋ `.d.mts`、偽の WebSocket は `.ts`（決まり 4）。`spacing-css` の補助は、`read` が `node:fs` の `readFileSync` を使う（`apps/poker-web/tests/spacing-css.test.ts` の 5・10 行目）ので、決まり 4 のとおり `.mjs` ＋ `.d.mts` にする。`packages/test-css/package.json` の `exports` はいま `.` だけなので、移したものごとにサブパスの入口を足す（例: `./font-base`・`./scripted-web-socket`。`.mjs` には `types` と `default`、`.ts` には `.ts` を指す 1 行）。**`css-text.mjs` は書き換えず、新しいファイルとして足す。** `css-text.mjs` には変異のパッチ 5 本（`grep -l "css-text.mjs" scripts/mutations/*.patch`。m1303・m1307・m1308・m1313・m1324）が当たっていて、書き換えると当たらなくなる恐れがある。書き換えるしかないときは、5 本が当たるかを `git apply --check` で確かめ、当たらなければ作り直す（`docs/guides/procedures/mutations.md`）。読む側の `devDependencies` と `ALLOWED` を足して写しを消す。`spacing-css` の補助を既存の `rules` と 1 つにするか、別の関数として並べるかは、そこで決める（セレクタの持ち方が違う）。写しの場所を名指ししている文（`scripts/fonts/build-base-fonts.py` の docstring・`packages/ui/README.md` の `tests/support/font-base.ts`）も直す
 3. **この追記を Accepted にするのは人**。採択の日付と判断した場所を、この節の「状態」の行に書く
 
-## 追記（2026-11-23・#476） — 文脈を 8 つにする（Proposed）
+## 追記（2026-11-23・#476） — 文脈を 8 つにする（Accepted）
 
-> この追記は [`docs/adr/0038`](./0038-track-uchiwake.md)（Proposed）と一緒に採択する。採択までは案である。
+> この追記は [`docs/adr/0038`](./0038-track-uchiwake.md) と一緒に採択した（2026-11-23）。
 
 [#476](https://github.com/tomohiroJin/tasuki-tools/issues/476) で**作業の内訳の記録の文脈** = `packages/track-core`
 （区切りの列の遷移・手直し・集計と候補・Markdown の組み立て・境界のスキーマ）が加わる。決定と理由は
