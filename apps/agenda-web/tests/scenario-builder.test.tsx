@@ -975,4 +975,68 @@ describe('下書きを空にする', () => {
     fireEvent.click(clearButton());
     expect(screen.getByRole('button', { name: CLEAR_DRAFT_YES }).classList.contains('ui-button--danger')).toBe(true);
   });
+
+  const clearConfirm = () => screen.queryAllByRole('group', { name: CLEAR_DRAFT_CONFIRM });
+  const sampleConfirm = () => screen.queryAllByRole('group', { name: SAMPLE_REPLACE_CONFIRM });
+
+  it('Given リファインメントをルームへ読み込んだまま / When 朝会を選ぶ / Then くりかえしの欄は戻らないので、ルームの写しでも確かめる（空にする操作と同じ基準）', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    fireEvent.click(loadButton());
+    const sent = sentCommands('agenda.scenario.set')[0]?.['scenario'] as { title: string; steps: { name: string; durationSec: number }[] };
+    deliverAgenda(idleAgenda(sent.title, sent.steps.map((st) => [st.name, st.durationSec / 60] as const)));
+    pickRow(/朝会/);
+    expect(sampleConfirm()).toHaveLength(1);
+    expect(screen.getByRole('combobox', { name: 'サンプルのくりかえし' })).toBeDefined();
+  });
+
+  it('Given 「下書きを空にする」の確かめを開いている / When 「サンプルから選ぶ」で別のサンプルの確かめへ進む / Then 確かめは 1 つだけで、押せるのはサンプルの側（空にする側は閉じる）', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    fireEvent.click(clearButton());
+    expect(clearConfirm()).toHaveLength(1);
+    pickRow(/リファインメント/);
+    expect(sampleConfirm()).toHaveLength(1);
+    expect(clearConfirm()).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: SAMPLE_REPLACE_YES }));
+    expect(titleField().value).toContain('リファインメント');
+    expect(clearConfirm()).toHaveLength(0);
+  });
+
+  it('Given サンプルの確かめを開いている / When 「下書きを空にする」を押す / Then 確かめは 1 つだけで、空にする側になる', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    pickRow(/リファインメント/);
+    expect(sampleConfirm()).toHaveLength(1);
+    fireEvent.click(clearButton());
+    expect(clearConfirm()).toHaveLength(1);
+    expect(sampleConfirm()).toHaveLength(0);
+  });
+
+  it('Given 「下書きを空にする」の確かめを開いている / When 下書きが別の下書きに入れ替わる（ルームのシナリオに戻す） / Then 確かめは閉じ、入れ替えた後の下書きは消えない', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    fireEvent.click(clearButton());
+    expect(clearConfirm()).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: BACK_TO_ROOM_SCENARIO_BUTTON }));
+    expect(clearConfirm()).toHaveLength(0);
+    expect(nameField(1).value).toBe('Theirs');
+  });
+
+  it('Given 「下書きを空にする」の確かめを開いている / When 下書きを編集する / Then 確かめは閉じる（開いたときの下書きと違う）', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    fireEvent.click(clearButton());
+    typeName(1, 'Edited');
+    expect(clearConfirm()).toHaveLength(0);
+    expect(nameField(1).value).toBe('Edited');
+  });
+
+  it('Given 確かめで「空にする」を押した / When 下書きが空になる / Then フォーカスは押せなくなったボタンではなく「ステップを追加」にある（確かめを飛ばす経路でも同じ）', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    fireEvent.click(clearButton());
+    expect(clearConfirm()).toHaveLength(0);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: ADD_STEP_BUTTON }));
+  });
 });

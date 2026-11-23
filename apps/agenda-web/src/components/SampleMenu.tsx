@@ -15,7 +15,19 @@ import { SAMPLE_GROUPS, type SampleScenario } from '../sample-scenarios';
  * 下書きに中身があり、ルームのシナリオとも違うときに選んだら、その場で「いまの下書きを消して読み込みますか」と確かめる（「最初から」と同じ作り:
  * 確かめを開いたら安全な側＝やめる にフォーカス、閉じたら開閉のボタンへ返す）。
  */
-export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean; onPick: (scenario: SampleScenario) => void }) {
+export function SampleMenu({
+  draftIsDisposable,
+  suppressed,
+  onAsk,
+  onPick,
+}: {
+  draftIsDisposable: boolean;
+  /** 別の確かめ（下書きを空にする）を開いている間は、こちらの確かめを出さない（同時に 2 つ並べない） */
+  suppressed: boolean;
+  /** 確かめを開いた・閉じたを持ち主へ伝える */
+  onAsk: (asking: boolean) => void;
+  onPick: (scenario: SampleScenario) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<SampleScenario | null>(null);
   const [returnFocus, setReturnFocus] = useState(false);
@@ -32,6 +44,13 @@ export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: b
   useEffect(() => {
     if (pending !== null) noRef.current?.focus();
   }, [pending]);
+  useEffect(() => {
+    onAsk(pending !== null);
+  }, [pending, onAsk]);
+  // 別の確かめが開いたら、こちらは閉じる（フォーカスは開いた側が持つので返さない）
+  useEffect(() => {
+    if (suppressed && pending !== null) setPending(null);
+  }, [suppressed, pending]);
   // 確かめを出している間に要らなくなったら（下書きがルームと同じになった）閉じる。確かめの要素は同じ描画で消えるので、
   // フォーカスが中にあったかは onFocus / onBlur で持った ref を見る（消えた要素には blur が来ない）。外にあるフォーカスは奪わない
   useEffect(() => {
@@ -80,7 +99,15 @@ export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: b
                       <button
                         type="button"
                         className="builder-sample-row"
-                        onClick={() => (needsConfirm ? setPending(scenario) : load(scenario))}
+                        onClick={() => {
+                          if (!needsConfirm) {
+                            load(scenario);
+                            return;
+                          }
+                          // 開く操作と同じ処理で伝える（effect を待つと、開いている別の確かめの側がこちらを閉じてしまう）
+                          onAsk(true);
+                          setPending(scenario);
+                        }}
                       >
                         <span className="builder-sample-title">{sampleTitle(scenario.title)}</span>
                         <span className="builder-sample-detail">
@@ -94,7 +121,7 @@ export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: b
             ))}
           </div>
         )}
-        {open && pending !== null && needsConfirm && (
+        {open && pending !== null && needsConfirm && !suppressed && (
           <div
             ref={confirmRef}
             onFocus={() => {
