@@ -131,19 +131,22 @@ for (const width of [1280, 1024, 768, 640, 320]) {
     const toolBox = await tools.boundingBox();
     const inviteBox = await invite.boundingBox();
     expect(toolBox!.y).toBeLessThan(inviteBox!.y);
-    // 縦に積む幅（64rem 未満）では、札の幅がどの札も揃う（寸法の規則が積む境目と同じ幅で効く）。
+    // 札の枚数は画面から読む（枚数を決め打ちにすると、札を足すたびにここを直すことになる・#684）。0 枚で黙って通らないことだけ固定する
+    const toolCount = await page.getByRole('list', { name: 'ツール' }).getByRole('listitem').count();
+    expect(toolCount).toBeGreaterThan(0);
+    // 横長の札を並べる幅（扇にならない幅）では、札の幅がどの札も揃う。並びそのもの（段の割り方）は `landing-arrangement.spec.ts` が見る
     if (width < 1024) {
       const widths = await page.locator('.hub-tools .tool-card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));
-      expect(widths.length).toBe(7);
+      expect(widths.length).toBe(toolCount);
       expect(new Set(widths).size, `札の幅 ${widths.join(',')}`).toBe(1);
     }
     for (const p of [page, guest.page]) {
       expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-    await checkText(page, 7);
+    await checkText(page, toolCount);
     await guest.page.goto('about:blank');
     await expect(page.getByText('切断中', { exact: true })).toBeVisible();
-    await checkText(page, 7);
+    await checkText(page, toolCount);
     await page.getByRole('button', { name: 'QR コードを表示' }).click();
     await expect(page.getByRole('img', { name: '参加用 URL の QR コード' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
