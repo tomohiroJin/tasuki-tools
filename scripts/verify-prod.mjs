@@ -101,6 +101,8 @@ async function main() {
     if (r.error) console.error(`${TAG} ${command} を起動できません（${r.error.message}）`);
     // 起動できない・シグナルで落ちたとき（status が null）は失敗にする
     e2eStatus = r.status ?? 1;
+    if (r.signal) console.error(`${TAG} ${command} がシグナル ${r.signal} で終わりました`);
+    if (e2eStatus !== 0) console.error(`${TAG} NG: E2E が通っていません（終了コード ${e2eStatus}）`);
   }
 
   console.log(`${TAG} ここでは確かめていないもの:`);

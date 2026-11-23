@@ -194,6 +194,8 @@ describe("verify-prod --e2e", () => {
     assert.match(ok.stdout, new RegExp(`E2E-RAN ${BASE}`));
     const red = runFixture({ args: ["--e2e"], e2eCommand: fakeE2e(7) });
     assert.equal(red.status, 7, red.stdout + red.stderr);
+    assert.match(red.stderr, /NG: E2E が通っていません（終了コード 7）/);
+    assert.doesNotMatch(ok.stderr, /NG/);
   });
 
   test("E2E を起動できない・シグナルで落ちたときは、成功で終わらない", () => {
@@ -202,6 +204,9 @@ describe("verify-prod --e2e", () => {
     assert.match(missing.stderr, /起動できません/);
     const killed = runFixture({ args: ["--e2e"], e2eCommand: [process.execPath, ["-e", 'process.kill(process.pid, "SIGKILL")']] });
     assert.notEqual(killed.status, 0, killed.stdout + killed.stderr);
+    // 終了コードだけでなく、なぜ赤なのかが出力から分かる（揃ったときの終わり方と同じ見た目にしない。#675 の 2 回目のレビュー）
+    assert.match(killed.stderr, /SIGKILL/);
+    assert.match(killed.stderr, /NG: E2E が通っていません/);
   });
 
   test("揃っていなければ E2E を流さない", () => {
