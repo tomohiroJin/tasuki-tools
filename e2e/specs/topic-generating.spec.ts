@@ -108,6 +108,24 @@ test.describe('お題ツールの生成中は作るの欄のボタンが押せ�
     await expect(make.getByRole('button', { name: FALLBACK_BUTTON })).toBeEnabled();
   });
 
+  test('Given キーボードで「定型から選ぶ」にフォーカスがある / When 生成中になる / Then フォーカスは作るの欄の見出しへ移り、body へ落ちない', async ({ page }) => {
+    // Given
+    const inject = await relay(page);
+    await openTopicTool(page, 'gen-focus');
+    await openMake(page);
+    const make = page.getByRole('region', { name: '定型や AI で作る' });
+    const fallback = make.getByRole('button', { name: FALLBACK_BUTTON });
+    await fallback.focus();
+    await expect(fallback).toBeFocused();
+
+    // When
+    inject(state({ generating: true }));
+    await expect(fallback).toBeDisabled();
+
+    // Then
+    await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).toBe('SUMMARY');
+  });
+
   for (const width of [320, 1280]) {
     test(`Given 幅 ${String(width)} / When 生成中になる / Then 作っています…のボタンが欄からはみ出さず、ページが横にあふれない`, async ({ page }) => {
       // Given

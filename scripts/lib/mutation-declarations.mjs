@@ -12647,4 +12647,28 @@ export const MUTATIONS = [
     tests: ["tests/topic-room.test.tsx"],
     note: RESERVED_2630_2649 + " " + "#665。決めること 1。自分で書いたお題へ切り替える道を残す。",
   },
+  {
+    id: 2636,
+    label: "押せなくなるボタンにフォーカスがあっても、作るの欄の見出しへ移さない",
+    patch: "m2636-topic-make-focus-not-moved.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。フォーカスが文書の先頭へ落ちる。",
+  },
+  {
+    id: 2637,
+    label: "フォーカスがほかにあっても、生成中になると見出しへ奪う",
+    patch: "m2637-topic-make-steals-focus.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。書く欄で打っている最中でも奪う。",
+  },
+  {
+    id: 2638,
+    label: "生成中、出していない「AI で作る」の文言を描かず、ボタンの幅が変わる",
+    patch: "m2638-topic-make-label-width-not-reserved.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/topic-room.test.tsx"],
+    note: RESERVED_2630_2649 + " " + "#665。幅を長いほうの文言で取っておく。",
+  },
 ];
