@@ -188,59 +188,8 @@
 
 /* 2 列（40rem 以上）と 3 列（64rem 以上）は、下の「選択画面の幅ごとの並び」の同じ幅の段にまとめて置く（幅の段ごとに @media を 1 つにする）。 */
 
-/*
-  扇。札の列の箱に、実物大（15rem）の札が 4 枚と間 3 つ入る幅（64.5rem）があるときだけ。
-  幅の段（40・64・90rem）でなく箱の幅で決める —— 器の幅は 72rem で頭打ちなので、画面の幅では「4 枚入るか」を言えない
-  （コンテナクエリは幅の段の対象外・`docs/adr/0025` 決定 1）。容器は下の `.hub-tools`。
+/* 扇（4 列・縦長の札）は、ファイルの末尾に置く。同じ詳細度の 2 列・3 列の規則（下の幅の段）より後ろに無いと負ける。 */
 
-  段の両端の札を逆向きに傾け、あいだは正位置に置く。狙いは「並べた」ではなく「配った」に見せること。
-  名前の由来（襷＝斜めに掛けるもの）とも響く。傾ける札は段ごとに決める（`data-row-edge`）——
-  並び全体の最初と最後を傾けると、段をまたいで離れた 2 枚だけが傾く。
-*/
-@container hub-tools (width >= 64.5rem) {
-  .hand {
-    /* 札 1 枚 = 列 2 本 + 間 1 つ = 15rem */
-    grid-template-columns: repeat(8, calc((15rem - var(--space-5)) / 2));
-    gap: var(--space-5);
-    justify-content: center;
-  }
-  .hand li {
-    grid-column: var(--hand-start-4, auto) / span 2;
-    /* 縦長の札は箱の幅で並びを変えない（上の 16rem の規則に当てない） */
-    container-type: normal;
-  }
-  /*
-    実物大の札。5:7 はトランプの比率。札の面の組み方もトランプに倣う: 図案が中央、名前は下端。
-    1fr の行が図案を上半分の中心に置き、名前と一行説明が足元に落ち着く。
-  */
-  .tool-card {
-    aspect-ratio: 5 / 7;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 1fr auto auto;
-    justify-items: center;
-    row-gap: var(--space-2);
-    padding: var(--space-5) var(--space-4) var(--space-6);
-    text-align: center;
-  }
-  .tool-mark {
-    grid-row: auto;
-  }
-  .tool-name,
-  .tool-summary {
-    grid-column: 1;
-  }
-  .hand li[data-row-edge='start'] .tool-card {
-    transform: rotate(-4deg);
-  }
-  .hand li[data-row-edge='end'] .tool-card {
-    transform: rotate(4deg);
-  }
-  /* 傾けて配った札は、手をかざすと起き上がって前に出る（傾きを 0 に戻す） */
-  .hand li .tool-card:hover,
-  .hand li .tool-card:focus-visible {
-    transform: translateY(-14px) rotate(0deg);
-  }
-}
 /* ---------- 玄関の共通部品（`.hub-*` は玄関配下のどの画面でも共有する。
               画面名で節を切ると使用箇所とずれるので、役割で切っている） ---------- */
 /* 面は部品（`.ui-panel`）が持つ。フォームは卓の上に浮かせる札なので、内側の余白を広く取り影を落とす。 */
@@ -556,5 +505,61 @@
   }
   .hub-tools {
     padding: 0;
+  }
+}
+
+/* ---------- 札の扇（4 列）。**上の幅の段の規則より後ろに置く**（同じ詳細度なので、前に置くと 3 列の規則に負けて扇にならない） ---------- */
+
+/*
+  扇。札の列の箱に、実物大（15rem）の札が 4 枚と間 3 つ入る幅（64.5rem）があるときだけ。
+  幅の段（40・64・90rem）でなく箱の幅で決める —— 器の幅は 72rem で頭打ちなので、画面の幅では「4 枚入るか」を言えない
+  （コンテナクエリは幅の段の対象外・`docs/adr/0025` 決定 1）。容器は下の `.hub-tools`。
+
+  段の両端の札を逆向きに傾け、あいだは正位置に置く。狙いは「並べた」ではなく「配った」に見せること。
+  名前の由来（襷＝斜めに掛けるもの）とも響く。傾ける札は段ごとに決める（`data-row-edge`）——
+  並び全体の最初と最後を傾けると、段をまたいで離れた 2 枚だけが傾く。
+*/
+@container hub-tools (width >= 64.5rem) {
+  .hand {
+    /* 札 1 枚 = 列 2 本 + 間 1 つ = 15rem */
+    grid-template-columns: repeat(8, calc((15rem - var(--space-5)) / 2));
+    gap: var(--space-5);
+    justify-content: center;
+  }
+  .hand li {
+    grid-column: var(--hand-start-4, auto) / span 2;
+    /* 縦長の札は箱の幅で並びを変えない（上の 16rem の規則に当てない） */
+    container-type: normal;
+  }
+  /*
+    実物大の札。5:7 はトランプの比率。札の面の組み方もトランプに倣う: 図案が中央、名前は下端。
+    1fr の行が図案を上半分の中心に置き、名前と一行説明が足元に落ち着く。
+  */
+  .tool-card {
+    aspect-ratio: 5 / 7;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr auto auto;
+    justify-items: center;
+    row-gap: var(--space-2);
+    padding: var(--space-5) var(--space-4) var(--space-6);
+    text-align: center;
+  }
+  .tool-mark {
+    grid-row: auto;
+  }
+  .tool-name,
+  .tool-summary {
+    grid-column: 1;
+  }
+  .hand li[data-row-edge='start'] .tool-card {
+    transform: rotate(-4deg);
+  }
+  .hand li[data-row-edge='end'] .tool-card {
+    transform: rotate(4deg);
+  }
+  /* 傾けて配った札は、手をかざすと起き上がって前に出る（傾きを 0 に戻す） */
+  .hand li .tool-card:hover,
+  .hand li .tool-card:focus-visible {
+    transform: translateY(-14px) rotate(0deg);
   }
 }
