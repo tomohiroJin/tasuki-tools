@@ -1,0 +1,13 @@
+diff --git a/scripts/verify-prod.mjs b/scripts/verify-prod.mjs
+index 91bd27a..1ab2123 100644
+--- a/scripts/verify-prod.mjs
++++ b/scripts/verify-prod.mjs
+@@ -86,7 +86,7 @@ async function main() {
+ 
+   const report = await verifyProd({ baseUrl: base.baseUrl, targets: plan.targets, readLocalIndex, fetchText });
+   console.log(formatReport(report));
+-  if (!report.ok) {
++  if (!report.ok && !runE2e) {
+     if (runE2e) console.log(`${TAG} 揃っていないので、E2E は流しません`);
+     process.exitCode = 1;
+     return;

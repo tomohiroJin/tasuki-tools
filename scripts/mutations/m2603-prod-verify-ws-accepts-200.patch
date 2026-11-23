@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..a50f81c 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -200,7 +200,7 @@ async function checkWs(baseUrl, fetchText) {
+   } catch (e) {
+     return { label: "/ws", ok: false, detail: `取得に失敗しました（${errorText(e)}）` };
+   }
+-  if (res.status !== 426) {
++  if (res.status !== 426 && res.status !== 200) {
+     return { label: "/ws", ok: false, detail: `${res.status} を返しました（426 を期待。200 なら SPA のフォールバックに吸われている）` };
+   }
+   return { label: "/ws", ok: true, detail: "426" };

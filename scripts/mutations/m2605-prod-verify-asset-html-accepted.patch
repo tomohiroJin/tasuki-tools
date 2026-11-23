@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..f802ca4 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -153,7 +153,7 @@ async function checkAsset(pageUrl, name, fetchText) {
+     return `${name} の取得に失敗しました（${errorText(e)}）`;
+   }
+   if (asset.status !== 200) return `${name} が ${asset.status} を返しました（200 を期待）`;
+-  const expected = isJs(name) ? /javascript/i : /css/i;
++  const expected = isJs(name) ? /javascript|html/i : /css|html/i;
+   if (!expected.test(asset.contentType ?? "")) {
+     return `${name} が ${isJs(name) ? "JavaScript" : "CSS"} として返りません（content-type: ${asset.contentType ?? "無し"}。SPA のフォールバックに吸われている疑い）`;
+   }

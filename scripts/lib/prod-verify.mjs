@@ -140,6 +140,8 @@ export function extractAssets(html) {
 }
 
 const isJs = (name) => name.endsWith(".js");
+/** 比べてよい `index.html` か（js を 1 本も指さないものは、空の応答か別のページ。空どうしを「一致」にしない）。 */
+const hasEntry = (assets) => assets.some(isJs);
 const errorText = (e) => String(e?.cause?.message ?? e?.message ?? e).split("\n")[0];
 
 /** `assets/` の 1 本が 200 で、名前どおりの種類（js・css）として返るか。揃っていれば null、そうでなければ理由。 */
@@ -165,7 +167,7 @@ async function checkApp(baseUrl, { app, publicPath, webDist }, readLocalIndex, f
   const localHtml = readLocalIndex(webDist);
   if (localHtml === null) return fail(`手元の ${webDist}/index.html がありません（先に pnpm build）`);
   const local = extractAssets(localHtml);
-  if (!local.some(isJs)) return fail(`手元の ${webDist}/index.html に assets/ の js がありません（ビルドが不完全）`);
+  if (!hasEntry(local)) return fail(`手元の ${webDist}/index.html に assets/ の js がありません（ビルドが不完全）`);
 
   const pageUrl = `${baseUrl}${publicPath}`;
   let page;
@@ -176,7 +178,7 @@ async function checkApp(baseUrl, { app, publicPath, webDist }, readLocalIndex, f
   }
   if (page.status !== 200) return fail(`が ${page.status} を返しました（200 を期待）`);
   const remote = extractAssets(page.body);
-  if (!remote.some(isJs)) return fail("の応答に assets/ の js がありません（空の応答か、別のページ）");
+  if (!hasEntry(remote)) return fail("の応答に assets/ の js がありません（空の応答か、別のページ）");
 
   if (local.join("\n") !== remote.join("\n")) {
     const onlyLocal = local.filter((a) => !remote.includes(a));

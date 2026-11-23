@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..723fde7 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -176,7 +176,7 @@ async function checkApp(baseUrl, { app, publicPath, webDist }, readLocalIndex, f
+   } catch (e) {
+     return fail(`取得に失敗しました（${errorText(e)}）`);
+   }
+-  if (page.status !== 200) return fail(`が ${page.status} を返しました（200 を期待）`);
++  if (page.status >= 600) return fail(`が ${page.status} を返しました（200 を期待）`);
+   const remote = extractAssets(page.body);
+   if (!hasEntry(remote)) return fail("の応答に assets/ の js がありません（空の応答か、別のページ）");
+ 

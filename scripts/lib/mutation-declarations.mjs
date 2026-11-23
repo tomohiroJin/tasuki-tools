@@ -265,6 +265,9 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
+const RESERVED_2600_2619 =
+  "**対応表より後に足した変異。** 2600〜2619 は #675（本番に配った後の確かめを 1 コマンドにする）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12595,5 +12598,85 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2600,
+    label: "本番の確かめが、assets を 1 つも指さない index.html を比べてよいものとして扱う",
+    patch: "m2600-prod-verify-empty-index-comparable.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。手元も配信も空のとき、空どうしを比べて「一致」と出る（過去に実際に出た偽の一致）。",
+  },
+  {
+    id: 2601,
+    label: "本番の確かめが、手元の dist が無い道具を揃っているものとして通す",
+    patch: "m2601-prod-verify-missing-dist-passes.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。ビルドの無い端末で流すと、何も比べないまま全部 OK と出る。",
+  },
+  {
+    id: 2602,
+    label: "本番の確かめが、「アプリ一覧」の表に行の無い道具を、未公開として黙って飛ばす",
+    patch: "m2602-prod-verify-unlisted-app-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。道具を足して表を直し忘れると、その道具を確かめないまま OK と出る（道具の数の漏れ）。",
+  },
+  {
+    id: 2603,
+    label: "本番の確かめが、/ws の 200 を 426 と同じく通す",
+    patch: "m2603-prod-verify-ws-accepts-200.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。/ws が SPA のフォールバックに吸われて、同期サーバーへ届かないのに OK と出る。",
+  },
+  {
+    id: 2604,
+    label: "本番の確かめが、公開パスの状態コードを見ない",
+    patch: "m2604-prod-verify-page-status-ignored.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。公開パスが 5xx でも、本文に同じ名前があれば OK と出る。",
+  },
+  {
+    id: 2605,
+    label: "本番の確かめが、assets の js・css として html が返っても通す",
+    patch: "m2605-prod-verify-asset-html-accepted.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。転送が途中で止まり、js の実体が無くフォールバックの index.html が返っているのに OK と出る。",
+  },
+  {
+    id: 2606,
+    label: "本番の確かめが、index.html の指す css の名前を比べない",
+    patch: "m2606-prod-verify-css-not-compared.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。見た目だけを直した版が出ていなくても OK と出る。",
+  },
+  {
+    id: 2607,
+    label: "本番の確かめが、対象の道具が 0 本でも ok を返す",
+    patch: "m2607-prod-verify-zero-targets-ok.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。確かめが空振りしたまま OK と出る。",
+  },
+  {
+    id: 2608,
+    label: "pnpm verify:prod が、ずれを名指ししても exit 0 で終わる",
+    patch: "m2608-verify-prod-mismatch-exits-zero.patch",
+    pkg: "scripts",
+    tests: ["verify-prod.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。ずれを出力しても終了コードが成功なので、続けて流すコマンドや && がそのまま進む。",
+  },
+  {
+    id: 2609,
+    label: "pnpm verify:prod --e2e が、揃っていなくても E2E を流す",
+    patch: "m2609-verify-prod-e2e-runs-on-mismatch.patch",
+    pkg: "scripts",
+    tests: ["verify-prod.test.mjs"],
+    note: RESERVED_2600_2619 + " " + "#675。古い版が出ている本番に E2E を当て、E2E の終了コードでずれの赤が上書きされる。",
   },
 ];

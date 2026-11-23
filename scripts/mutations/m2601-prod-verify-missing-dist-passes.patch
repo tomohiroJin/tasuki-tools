@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..ccc9b93 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -165,7 +165,7 @@ async function checkApp(baseUrl, { app, publicPath, webDist }, readLocalIndex, f
+   const fail = (detail) => ({ label: app, ok: false, detail: `${publicPath} ${detail}` });
+ 
+   const localHtml = readLocalIndex(webDist);
+-  if (localHtml === null) return fail(`手元の ${webDist}/index.html がありません（先に pnpm build）`);
++  if (localHtml === null) return { label: app, ok: true, detail: `${publicPath} 手元の ${webDist}/index.html がありません（先に pnpm build）` };
+   const local = extractAssets(localHtml);
+   if (!hasEntry(local)) return fail(`手元の ${webDist}/index.html に assets/ の js がありません（ビルドが不完全）`);
+ 

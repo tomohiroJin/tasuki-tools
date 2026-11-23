@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..26b4a97 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -141,7 +141,7 @@ export function extractAssets(html) {
+ 
+ const isJs = (name) => name.endsWith(".js");
+ /** 比べてよい `index.html` か（js を 1 本も指さないものは、空の応答か別のページ。空どうしを「一致」にしない）。 */
+-const hasEntry = (assets) => assets.some(isJs);
++const hasEntry = (assets) => assets.length === 0 || assets.some(isJs);
+ const errorText = (e) => String(e?.cause?.message ?? e?.message ?? e).split("\n")[0];
+ 
+ /** `assets/` の 1 本が 200 で、名前どおりの種類（js・css）として返るか。揃っていれば null、そうでなければ理由。 */
