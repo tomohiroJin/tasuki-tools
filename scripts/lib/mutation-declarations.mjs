@@ -12687,4 +12687,28 @@ export const MUTATIONS = [
     tests: ["tests/result-copy-room.test.tsx"],
     note: RESERVED_2685_2699 + " " + "#676。回っている間を挟まず別の結果が届くと、前の結果の失敗の欄が残る。",
   },
+  {
+    id: 2696,
+    label: "結果の部品の key を回転の番号だけにする（決まった人数を混ぜない）",
+    patch: "m2696-roulette-copy-key-without-count.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy-room.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676 のレビュー。順番に回す回の最後の 1 人は回転が変わらず、前の失敗の欄が残る。",
+  },
+  {
+    id: 2697,
+    label: "結果の見出しの日時で、時間帯のずれを足さない",
+    patch: "m2697-roulette-md-stamp-ignores-tz.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676 のレビュー。日本の利用者の見出しが UTC の日時になり、日付も時刻もずれる。",
+  },
+  {
+    id: 2698,
+    label: "結果の見出しの時刻を、描き直すたびに取り直す",
+    patch: "m2698-roulette-copy-stamp-every-render.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676 のレビュー。同じ結果のあいだに見出しの時刻が変わり、コピーの内容も変わる。",
+  },
 ];

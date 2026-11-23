@@ -1,10 +1,10 @@
 diff --git a/apps/roulette-web/src/result-markdown.ts b/apps/roulette-web/src/result-markdown.ts
-index 0aeaf4fc..c76a7faf 100644
+index ef2f3192..60a63569 100644
 --- a/apps/roulette-web/src/result-markdown.ts
 +++ b/apps/roulette-web/src/result-markdown.ts
-@@ -44,7 +44,7 @@ export function resultMarkdown(result: RouletteResult): string {
+@@ -71,7 +71,7 @@ export function resultMarkdown(result: RouletteResult, wallMs: number, tzOffsetM
    const names = result.names.map(escapeName);
-   const head = ['## ' + RESULT_MD_HEADING, '', '- ' + RESULT_MD_MODE + '：' + MODE_NAME[result.mode]];
+   const head = ['## ' + RESULT_MD_HEADING + '（' + stampText(wallMs, tzOffsetMin) + '）', '', '- ' + RESULT_MD_MODE + '：' + MODE_NAME[result.mode]];
    if (result.mode === 'order') {
 -    return [...head, '- ' + RESULT_MD_ORDER + '：', ...names.map((n, i) => `  ${i + 1}. ${n}`)].join('\n');
 +    return [...head, '- ' + RESULT_MD_ORDER + '：', ...[...names].reverse().map((n, i) => `  ${i + 1}. ${n}`)].join('\n');

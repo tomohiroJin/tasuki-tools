@@ -1,8 +1,8 @@
 diff --git a/apps/roulette-web/src/result-markdown.ts b/apps/roulette-web/src/result-markdown.ts
-index 0aeaf4fc..338d3781 100644
+index ef2f3192..478a0ea5 100644
 --- a/apps/roulette-web/src/result-markdown.ts
 +++ b/apps/roulette-web/src/result-markdown.ts
-@@ -35,8 +35,7 @@ export function escapeName(name: string): string {
+@@ -37,8 +37,7 @@ export function escapeName(name: string): string {
    return name
      .replace(/\s+/gu, ' ')
      .trim()
@@ -11,4 +11,4 @@ index 0aeaf4fc..338d3781 100644
 +    .replace(/[\\`*_[\]<>#~&!.:@|()]/g, '\\$&');
  }
  
- /** 結果を Markdown にする。 */
+ const MS_PER_MIN = 60_000;

@@ -1,13 +1,13 @@
 diff --git a/apps/roulette-web/src/screens/RouletteRoom.tsx b/apps/roulette-web/src/screens/RouletteRoom.tsx
-index 03af2f2a..7bbe78da 100644
+index 18098c6a..413659dd 100644
 --- a/apps/roulette-web/src/screens/RouletteRoom.tsx
 +++ b/apps/roulette-web/src/screens/RouletteRoom.tsx
-@@ -236,7 +236,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
+@@ -235,7 +235,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
              captionHidden={pressCaption?.hidden ?? ''}
            />
            <div className="ui-workspace-side roulette-side">
--            {result !== null && <ResultCopy key={result.seq} markdown={resultMarkdown(result)} />}
-+            {result !== null && <ResultCopy markdown={resultMarkdown(result)} />}
+-            {result !== null && <ResultCopy key={`${result.seq}-${result.names.length}`} result={result} />}
++            {result !== null && <ResultCopy result={result} />}
              {/* 脇は 決め方 → 入る人（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}
              <ModePanel
                mode={mode}
