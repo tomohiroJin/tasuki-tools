@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 656feac..07b4e12 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -244,8 +244,6 @@ function decideSessionAct(
+           requiredPhase: "session",
+         });
+       }
+-      const invalid = session.randomRotation === null ? null : invalidRandomOrder(randomOrder, session.rotation.length);
+-      if (invalid !== null) return err(invalid);
+       // 交代先は輪の順でもランダム交代でも nextDriverIndex が決める（driverSwitchedEvent）。
+       // ineligible 省略時（undefined）は全員適格として扱う。
+       return ok([driverSwitchedEvent(session, ineligible, now, randomOrder)]);

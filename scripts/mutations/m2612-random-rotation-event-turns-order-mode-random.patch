@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index ba05890..43f9a36 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -88,7 +88,7 @@ function stopWithoutDriver(agg: Aggregate, now: number): Aggregate {
+  * （モードを変えるのは `ConfigSet` だけ）。
+  */
+ function withRandomRotation(agg: Aggregate, randomRotation: RandomRotation | undefined): Aggregate {
+-  if (randomRotation === undefined || agg.session.randomRotation === null) return agg;
++  if (randomRotation === undefined) return agg;
+   return { ...agg, session: { ...agg.session, randomRotation } };
+ }
+ 

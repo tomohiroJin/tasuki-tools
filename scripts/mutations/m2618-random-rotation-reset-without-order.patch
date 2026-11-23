@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/room-commands/server-values.ts b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+index 9a5b6f9..02ab2a3 100644
+--- a/apps/tasuki-sync/src/application/room-commands/server-values.ts
++++ b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+@@ -39,7 +39,7 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue
+       return draft.action === "START" ? { ...draft, randomOrder: sources.randomOrder() } : draft;
+     case "session.reset":
+       // 2 回目以降のセッションは、画面がリセットで始める。開始と同じく引く順を作り直す（#660）。
+-      return { ...draft, randomOrder: sources.randomOrder() };
++      return draft;
+     case "config.set":
+       // ランダム交代を入れる設定には、最初の引く順を付ける。既にランダム交代なら decide は使わない。
+       return draft.config.rotationMode === "random" ? { ...draft, randomOrder: sources.firstRandomOrder() } : draft;

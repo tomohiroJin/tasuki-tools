@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/room-commands/shuffle-order.ts b/apps/tasuki-sync/src/application/room-commands/shuffle-order.ts
+index f41012a..f7403b2 100644
+--- a/apps/tasuki-sync/src/application/room-commands/shuffle-order.ts
++++ b/apps/tasuki-sync/src/application/room-commands/shuffle-order.ts
+@@ -28,7 +28,7 @@ export function randomOrderFor(
+   session: { rotation: readonly unknown[]; randomRotation: unknown | null },
+   randomInt: RandomInt,
+ ): number[] | undefined {
+-  return session.randomRotation === null ? undefined : drawSeatOrder(session.rotation.length, randomInt);
++  return drawSeatOrder(session.rotation.length, randomInt);
+ }
+ 
+ /** 席の添字 `[0..len-1]` の一様な並べ替え。ランダム交代を入れるとき（まだ袋が無い）はこちらを直接使う。 */

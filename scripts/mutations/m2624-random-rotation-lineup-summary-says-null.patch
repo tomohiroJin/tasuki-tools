@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/ui/components/RotationLineup.tsx b/apps/timer-web/src/ui/components/RotationLineup.tsx
+index 82f0231..f08deb2 100644
+--- a/apps/timer-web/src/ui/components/RotationLineup.tsx
++++ b/apps/timer-web/src/ui/components/RotationLineup.tsx
+@@ -43,7 +43,6 @@ function buildSelfSummary(self: MemberTurn): string {
+   // 飛ばされる席は順番を持たない（#276 D11）。「あとnull人」を出さない。
+   if (self.skipReason !== null) return `あなた: 番が回りません（${SKIP_TEXT[self.skipReason].label}）`;
+   // 番は回るが、順番がまだ決まっていない（ランダム交代・#660）
+-  if (!self.isNext && self.turnsAway === null) return "あなた: 順番はランダムです";
+   const turns = self.isNext ? "次です" : `あと${self.turnsAway}人`;
+   const mins = self.minutesAway !== null && !self.isNext ? `・約${self.minutesAway}分後` : "";
+   return `あなた: ${turns}${mins}`;

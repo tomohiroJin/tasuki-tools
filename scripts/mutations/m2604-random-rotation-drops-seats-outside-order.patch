@@ -1,0 +1,12 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 70a2bc2..6b89252 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -417,7 +417,6 @@ function nextRandomIndex(
+     if (i !== undefined) ordered.add(i);
+   }
+   // 引く順に居ない席（作り直したあとに入った人）は、その後ろに輪の順で並べる
+-  for (let step = 1; step <= len; step++) ordered.add((fromIndex + step) % len);
+ 
+   const open = [...ordered].filter((i) => i !== fromIndex && !ineligible?.has(i));
+   const drove = new Set(random.drove);

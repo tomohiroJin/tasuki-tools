@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index ba05890..e2c6747 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -127,7 +127,7 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
+       const random = agg.session.randomRotation;
+       return {
+         session:
+-          random === null
++          random !== undefined
+             ? fresh.session
+             : {
+                 ...fresh.session,

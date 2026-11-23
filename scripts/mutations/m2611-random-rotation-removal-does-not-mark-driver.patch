@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 656feac..d67801b 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -367,7 +367,7 @@ function decideMemberRemove(
+   // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
+   // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、引いていないので袋を変えない。
+   const drawn = index === agg.session.currentIndex ? nextDriverIndex(agg.session, index, ineligible) : index;
+-  const randomRotation = drawn === index ? null : randomRotationAfterSwitch(agg.session, drawn, undefined);
++  const randomRotation = null;
+   return ok([
+     { type: "MemberRemoved", index, nextDriverIndex: nextDriver, ...(randomRotation !== null && { randomRotation }), now },
+   ]);

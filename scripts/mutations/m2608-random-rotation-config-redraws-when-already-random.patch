@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 656feac..1b2a052 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -459,7 +459,7 @@ function decideConfigSet(
+   // 既にランダム交代なら、もう一度選ばれても袋を作り直さない（周の途中の「運転した人」を消さない）。
+   const { session } = agg;
+   let randomRotation: RandomRotation | null | undefined;
+-  if (partial.rotationMode === "random" && session.randomRotation === null) {
++  if (partial.rotationMode === "random") {
+     const invalid = invalidRandomOrder(randomOrder, session.rotation.length);
+     if (invalid !== null) return err(invalid);
+     randomRotation = freshRandomRotation(session, randomOrder);

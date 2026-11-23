@@ -12,7 +12,7 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | # | タイトル | ステータス |
 |---|---|---|
 | [0001](./0001-monorepo-shared-core.md) | モノレポ + 共有 core パッケージ | Accepted |
-| [0002](./0002-decider-pure-domain.md) | Decider パターンと純粋ドメイン | Accepted |
+| [0002](./0002-decider-pure-domain.md) | Decider パターンと純粋ドメイン | Accepted（追記（2026-11-23・#660）は Proposed） |
 | [0003](./0003-server-authoritative-clock.md) | サーバー権威 ServerClock と時刻導出 | Accepted |
 | [0004](./0004-full-snapshot-sync.md) | full snapshot による状態同期（差分なし） | Accepted |
 | [0005](./0005-secret-zero-byok-problem.md) | 秘密ゼロ + BYOK + 代表生成によるお題 | Superseded by 0008 |

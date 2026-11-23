@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 656feac..6e7f761 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -233,7 +233,7 @@ function decideSessionAct(
+       const invalid = invalidRandomOrder(randomOrder, session.rotation.length);
+       if (invalid !== null) return err(invalid);
+       const randomRotation = freshRandomRotation(session, randomOrder, session.randomRotation.order);
+-      return ok([{ type: "SessionStarted", randomRotation, now }]);
++      return ok([{ type: "SessionStarted", now }]);
+     }
+ 
+     case "SWITCH": {
