@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/components/RunScreen.tsx b/apps/agenda-web/src/components/RunScreen.tsx
+index b59c3529..e6b4600a 100644
+--- a/apps/agenda-web/src/components/RunScreen.tsx
++++ b/apps/agenda-web/src/components/RunScreen.tsx
+@@ -73,7 +73,6 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate,
+   const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
+   const finished = view.phase === 'finished';
+   if (finished && summaryAt === null) setSummaryAt({ wallMs: wallNow.getTime(), tzOffsetMin: -wallNow.getTimezoneOffset() });
+-  else if (!finished && summaryAt !== null) setSummaryAt(null);
+ 
+   useEffect(() => {
+     if (projecting || !returnFocus) return;
