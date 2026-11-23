@@ -1,0 +1,22 @@
+# 変異 2709: checkin-md-keeps-newlines
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-markdown.test.ts
+#
+# #676 名前の中の改行を通し、偽の行・見出しを差し込める。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2709-*.patch
+# 復元: git apply -R scripts/mutations/m2709-*.patch
+diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
+index 63e1fd91..5caa0a14 100644
+--- a/apps/checkin-web/src/reveal-markdown.ts
++++ b/apps/checkin-web/src/reveal-markdown.ts
+@@ -44,7 +44,6 @@ function formatDateTime(wallMs: number, tzOffsetMin: number): string {
+  */
+ export function escapeName(name: string): string {
+   return name
+-    .replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
+     .trim()
+     .replace(/[\\`*_[\]<>#~&!.:@|]/g, '\\$&')
+     .replace(/^[-+]/, '\\$&');

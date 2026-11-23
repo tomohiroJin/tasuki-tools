@@ -1,0 +1,23 @@
+# 変異 2708: checkin-md-no-manual-field
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 コピーに失敗しても手で選べる欄を出さない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2708-*.patch
+# 復元: git apply -R scripts/mutations/m2708-*.patch
+diff --git a/apps/checkin-web/src/components/RevealCopy.tsx b/apps/checkin-web/src/components/RevealCopy.tsx
+index 563e1d1a..d687ac01 100644
+--- a/apps/checkin-web/src/components/RevealCopy.tsx
++++ b/apps/checkin-web/src/components/RevealCopy.tsx
+@@ -30,7 +30,7 @@ export function RevealCopy({ method, visibility, piles }: Props) {
+     if (state === 'failed') setManualKept(true);
+     else if (state === 'done') setManualKept(false);
+   }, [state]);
+-  const manualOpen = state === 'failed' || (manualKept && state === 'idle');
++  const manualOpen = false;
+ 
+   return (
+     <section className="reveal-copy">

@@ -1,0 +1,22 @@
+# 変異 2702: checkin-md-no-escape
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-markdown.test.ts
+#
+# #676 名前の記号を逃がさず、強調・見出し・表の区切りとして読まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2702-*.patch
+# 復元: git apply -R scripts/mutations/m2702-*.patch
+diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
+index 63e1fd91..090aa365 100644
+--- a/apps/checkin-web/src/reveal-markdown.ts
++++ b/apps/checkin-web/src/reveal-markdown.ts
+@@ -46,7 +46,6 @@ export function escapeName(name: string): string {
+   return name
+     .replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
+     .trim()
+-    .replace(/[\\`*_[\]<>#~&!.:@|]/g, '\\$&')
+     .replace(/^[-+]/, '\\$&');
+ }
+ 
