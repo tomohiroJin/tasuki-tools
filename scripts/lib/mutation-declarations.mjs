@@ -265,6 +265,9 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
+const RESERVED_2650_2669 =
+  "**対応表より後に足した変異。** 2650〜2669 は #667（agenda の下書きを空に戻す）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12595,5 +12598,61 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2650,
+    label: "「下書きを空にする」が、サンプルのくりかえしを残す",
+    patch: "m2650-agenda-clear-keeps-sample-repeat.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。空にしたのにくりかえしの欄が残り、空の下書きに見えない。",
+  },
+  {
+    id: 2651,
+    label: "「下書きを空にする」が、中身があっても確かめずに消す",
+    patch: "m2651-agenda-clear-skips-confirm.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。押し間違いで手元の下書きが黙って消える。",
+  },
+  {
+    id: 2652,
+    label: "「下書きを空にする」が、ルームへもシナリオを送る",
+    patch: "m2652-agenda-clear-sends-to-room.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。手元の下書きだけのはずが、ルームのシナリオを全員の画面で置き換えてしまう。",
+  },
+  {
+    id: 2653,
+    label: "「下書きを空にする」の確かめの「やめる」が、空にしてしまう",
+    patch: "m2653-agenda-clear-cancel-clears.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。やめたのに下書きが消える。",
+  },
+  {
+    id: 2654,
+    label: "空の下書きでも「下書きを空にする」を押せる",
+    patch: "m2654-agenda-clear-always-enabled.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft.test.ts", "tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。戻す先の無い操作が押せて、確かめの出る・出ないの根拠が崩れる。",
+  },
+  {
+    id: 2655,
+    label: "空にした後、フォーカスを「ステップを追加」へ移さない",
+    patch: "m2655-agenda-clear-no-focus-to-add.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。押せなくなったボタンにフォーカスが残り、キーボードの利用者が組み直しの次の一手を見失う。",
+  },
+  {
+    id: 2656,
+    label: "空にした下書きからルームのシナリオへ戻る操作を出さない",
+    patch: "m2656-agenda-clear-no-way-back.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2650_2669 + " " + "#667。空にした後、ルームのシナリオを取り戻す手段が（再読み込み以外）無い。",
   },
 ];

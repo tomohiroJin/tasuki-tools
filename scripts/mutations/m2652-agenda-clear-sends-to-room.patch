@@ -1,0 +1,22 @@
+# 変異 2652: agenda-clear-sends-to-room
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-sends-to-room
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2652-*.patch
+# 復元: git apply -R scripts/mutations/m2652-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 54524efa..f7ddc588 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -121,6 +121,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+   // 空にしたら、押せなくなった「下書きを空にする」ではなく「ステップを追加」へフォーカスを移す（組み直しの次の一手）
+   const clear = (): void => {
+     setDraft(clearedDraft());
++    onLoad({ title: '', steps: [] });
+     setFocusRequest('add');
+   };
+   const add = (): void => {
