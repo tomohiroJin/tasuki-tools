@@ -69,12 +69,24 @@ function invariantViolations(s: TrackState, now: number): string[] {
   // 4. 作業の合計 ＋ 休憩の合計 ＝ 区切りの長さの総和
   const view = toView(s, now);
   const totals = totalsOf(view, view.nowMs);
+  out.push(...totalsViolations(totals, sum));
+  return out;
+}
+
+/** 不変条件 4 の比べ方。合計は製品コードが出すので、破れた合計を手で渡して確かめられるよう、比べる所だけを分けてある。 */
+function totalsViolations(totals: { readonly workMs: number; readonly breakMs: number; readonly totalMs: number; readonly rows: readonly { readonly ms: number }[] }, sum: number): string[] {
+  const out: string[] = [];
   if (totals.workMs + totals.breakMs !== sum) out.push(`作業 ${String(totals.workMs)} ＋ 休憩 ${String(totals.breakMs)} が、長さの総和 ${String(sum)} と合わない`);
   if (totals.totalMs !== sum) out.push(`合計 ${String(totals.totalMs)} が、長さの総和 ${String(sum)} と合わない`);
   let rows = 0;
   for (const r of totals.rows) rows += r.ms;
   if (rows !== totals.workMs) out.push(`行の合計 ${String(rows)} が、作業の合計 ${String(totals.workMs)} と合わない`);
   return out;
+}
+
+/** 状態が変わったら rev は 1 つ進む。変わらなければ見ない。 */
+function revViolations(before: TrackState, after: TrackState): string[] {
+  return after !== before && after.rev !== before.rev + 1 ? [`rev が ${String(before.rev)} から ${String(after.rev)} になった（変われば 1 つ進むはず）`] : [];
 }
 
 function step(s: TrackState, rnd: () => number, now: number): TrackState {
@@ -117,7 +129,7 @@ function step(s: TrackState, rnd: () => number, now: number): TrackState {
 
 /**
  * 判定そのもの（`invariantViolations`）が破れを拾うこと。判定を素の比較で書いたので、判定が黙って何も返さなくなると、
- * 下の性質テストは何を当てても緑になる。破れた状態を手で作り、条件ごとに破れが返ることを固定する（#692）。
+ * 下の性質テストは何を当てても緑になる。破れた状態（合計と rev は、破れた値）を手で作り、条件ごとに破れが返ることを固定する（#692）。
  */
 describe("不変条件の判定は、破れた状態を見逃さない", () => {
   const seg = (id: string, startMs: number, endMs: number | null, over: Partial<Segment> = {}): Segment => ({ id, kind: "work", label: "実装", startMs, endMs, autoClosed: false, ...over });
@@ -141,6 +153,28 @@ describe("不変条件の判定は、破れた状態を見逃さない", () => {
     const violations = invariantViolations(state, NOW);
     expect(violations.join("\n")).toContain(expected);
   });
+
+  it.each([
+    ["4. 作業 ＋ 休憩が総和と合わない", { workMs: 6_000, breakMs: 4_000, totalMs: 9_000, rows: [{ ms: 6_000 }] }, "＋ 休憩"],
+    ["4. 合計が総和と合わない", { workMs: 5_000, breakMs: 4_000, totalMs: 9_001, rows: [{ ms: 5_000 }] }, "合計 9001 が"],
+    ["4. 行の合計が作業の合計と合わない", { workMs: 5_000, breakMs: 4_000, totalMs: 9_000, rows: [{ ms: 3_000 }, { ms: 1_999 }] }, "行の合計"],
+  ])("Given %s / When 合計を比べる / Then その破れだけを返す", (_, totals, expected) => {
+    const violations = totalsViolations(totals, 9_000);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain(expected);
+  });
+
+  it("Given 合計が総和と合っている / When 合計を比べる / Then 破れは無い", () => {
+    expect(totalsViolations({ workMs: 5_000, breakMs: 4_000, totalMs: 9_000, rows: [{ ms: 3_000 }, { ms: 2_000 }] }, 9_000)).toEqual([]);
+  });
+
+  it("Given 状態が変わった / When rev を比べる / Then 1 つ進んでいなければ破れを返し、変わらなければ見ない", () => {
+    const before = stateOf([]);
+    expect(revViolations(before, { ...before, rev: before.rev })).toHaveLength(1);
+    expect(revViolations(before, { ...before, rev: before.rev + 2 })).toHaveLength(1);
+    expect(revViolations(before, { ...before, rev: before.rev + 1 })).toEqual([]);
+    expect(revViolations(before, before)).toEqual([]);
+  });
 });
 
 describe("うちわけの不変条件", () => {
@@ -156,8 +190,7 @@ describe("うちわけの不変条件", () => {
           now += rnd() < 0.3 ? int(rnd, 0, 999) : int(rnd, 1_000, 400_000);
           const before = s;
           s = step(s, rnd, now);
-          const violations = invariantViolations(s, now);
-          if (s !== before && s.rev !== before.rev + 1) violations.push(`rev が ${String(before.rev)} から ${String(s.rev)} になった（変われば 1 つ進むはず）`);
+          const violations = [...invariantViolations(s, now), ...revViolations(before, s)];
           // 破れた種と手を名指しする（どの列で破れたかを、失敗の文だけで再現できるように）
           expect(violations, `種 ${String(seed)}・${String(i + 1)} 手目`).toEqual([]);
         }
