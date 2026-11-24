@@ -1,0 +1,23 @@
+# 変異 2665: agenda-sample-confirm-keeps-clear-confirm-open
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-sample-confirm-keeps-clear-confirm-open
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2665-*.patch
+# 復元: git apply -R scripts/mutations/m2665-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 427029d3..f993032b 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -90,7 +90,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+   // 開いている確かめ（同時に開くのは 1 つ）。空にする確かめは、開いたときの下書きと同じ間だけ有効（別の下書きに入れ替わったら閉じる）
+   const [confirming, setConfirming] = useState<{ kind: 'clear'; draft: Draft } | { kind: 'sample' } | null>(null);
+   const onSampleAsk = useCallback((asking: boolean): void => {
+-    setConfirming((c) => (asking ? { kind: 'sample' } : c?.kind === 'sample' ? null : c));
++    setConfirming((c) => (asking ? c : c?.kind === 'sample' ? null : c));
+   }, []);
+   const closeClear = useCallback((): void => {
+     setConfirming((c) => (c?.kind === 'clear' ? null : c));

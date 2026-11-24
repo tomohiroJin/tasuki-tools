@@ -1,0 +1,23 @@
+# 変異 2660: agenda-clear-room-copy-skips-confirm-with-repeat
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-room-copy-skips-confirm-with-repeat
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2660-*.patch
+# 復元: git apply -R scripts/mutations/m2660-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 427029d3..b46f64a0 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -113,7 +113,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+   const draftIsRoom = roomReady && isUntouchedCopy(draft, roomKey);
+   // 確かめずに捨ててよい下書きか（「サンプルから選ぶ」と「下書きを空にする」で同じ基準）。
+   // ルームの写しのままなら取り戻せるが、サンプルのくりかえしの欄は「ルームのシナリオに戻す」で戻らないので除く
+-  const draftIsDisposable = (draftIsEmpty || draftIsRoom) && draft.sampleRepeat === undefined;
++  const draftIsDisposable = (draftIsEmpty || draftIsRoom);
+   // 空にした下書きからも、ルームのシナリオへ戻れるようにする（ルームにシナリオがあるときだけ・知らせの文は「変わりました」のときだけ）
+   const showBack = changed || (roomReady && draftIsEmpty);
+   const preview = previewView(draft);

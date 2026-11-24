@@ -1,0 +1,22 @@
+# 変異 2631: topic-make-stays-locked-after-degraded
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 定型への縮退で生成が終わっても、作るの欄のボタンが押せないまま戻らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2631-*.patch
+# 復元: git apply -R scripts/mutations/m2631-*.patch
+diff --git a/apps/topic-web/src/screens/TopicRoom.tsx b/apps/topic-web/src/screens/TopicRoom.tsx
+--- a/apps/topic-web/src/screens/TopicRoom.tsx
++++ b/apps/topic-web/src/screens/TopicRoom.tsx
+@@ -72,7 +72,7 @@
+             {/* 書くが主役。作るはその下のたためる欄（最初はたたむ）。#313 構成案 1 は作るが先だったが、
+                 利用者が実物を見て #316 PR 1 で逆にした（設計正本 §10.1） */}
+             <TopicEditor fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
+-            <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} generating={sync.topicState?.generating ?? false} onGenerate={sync.generate} onUnlock={sync.unlock} />
++            <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} generating={(sync.topicState?.generating ?? false) || (sync.topicState?.degraded ?? false)} onGenerate={sync.generate} onUnlock={sync.unlock} />
+             {/* 生成の知らせは操作の面の末尾（作るの欄のすぐ下）に置く。先頭に置くと、現れた瞬間に書く欄と作るの欄を押し下げ、
+                 押したボタンが指の下から逃げる（幅 1280 で約 51px・#665）。読む面の札の上には置かない —— 札の最大の高さは脇に札しか
+                 載らない前提で決めてあり、脇の区画が画面の高さを超える（#316 最終レビュー I3）。aria-busy の section の外にも当たる */}

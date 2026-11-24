@@ -1,0 +1,11 @@
+--- a/apps/landing/src/index.css
++++ b/apps/landing/src/index.css
+@@ -523,7 +523,7 @@
+     grid-template-columns: repeat(4, minmax(0, 1fr));
+   }
+   .hand li {
+-    grid-column: var(--hand-start-2, auto) / span 2;
++    grid-column: auto / span 2;
+   }
+   .hub-room {
+     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,0 +1,23 @@
+# 変異 2638: topic-make-label-width-not-reserved
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 出していない文言を描かず、文言が変わるとボタンの幅が変わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2638-*.patch
+# 復元: git apply -R scripts/mutations/m2638-*.patch
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+index 542e3968..8cd23892 100644
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -131,7 +131,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+               <button ref={aiRef} type="button" className="ui-button ui-button--secondary" onClick={() => onGenerate('ai', language, difficulty, category)} disabled={!canGenerate}>
+                 {/* 幅は 2 つの文言の長いほうで最初から取る（文言が変わっても押した場所が動かない）。出していないほうは隠して読み上げから外す */}
+                 <span className="topic-make-label">
+-                  <span aria-hidden={generating} className={generating ? 'topic-make-label-off' : undefined}>{AI_BUTTON}</span>
++                  {!generating && <span>{AI_BUTTON}</span>}
+                   <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{GENERATING_TEXT}</span>
+                 </span>
+               </button>

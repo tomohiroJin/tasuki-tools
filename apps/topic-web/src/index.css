@@ -200,6 +200,30 @@
   margin: 0;
 }
 
+/* 生成中の印（#665）。見出しの横に小さく添える。開いている間は中のボタンが「作っています…」と言うので隠す */
+.topic-make-busy {
+  margin-inline-start: var(--space-2);
+  color: var(--coal-soft);
+  font-size: var(--font-size-sm);
+}
+
+.topic-make-label {
+  display: inline-grid;
+}
+
+/* 2 つの文言を同じマスに重ね、幅を長いほうで取る。出していないほうは見えないだけで幅は残す */
+.topic-make-label > * {
+  grid-area: 1 / 1;
+}
+
+.topic-make-label-off {
+  visibility: hidden;
+}
+
+.topic-make-fold[open] .topic-make-busy {
+  display: none;
+}
+
 .topic-make-fold[open] > summary {
   margin-block-end: var(--space-3);
 }

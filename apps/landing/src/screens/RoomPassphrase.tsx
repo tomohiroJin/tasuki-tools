@@ -25,12 +25,21 @@ export interface RoomPassphraseProps {
 
 export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomPassphraseProps) {
   const [value, setValue] = useState('');
+  // 設定する人は少なく、説明が長い。ふだんは状態の一言だけの 1 行にたたみ、押したときだけ設定の口を開く（#673）
+  const [open, setOpen] = useState(false);
   const headingId = useId();
+  const bodyId = useId();
   // 状態が分かるまでは押せない。付いている合言葉を、付いていないと思って黙って上書きしないため。
   const online = connection === 'online' && protectedNow !== null;
   // 空白だけの値は解除と同じ意味になる（サーバーが前後の空白を落とす）。設定の口からは送らせない —— 解除は専用の
   // ボタンから。取り違えて外してしまわないため。
   const canSubmit = online && value.trim() !== '';
+
+  // 閉じるときは、入れかけた値を捨てる。見えない欄に合言葉の平文を残さない（#638 の「画面にも状態にも残さない」）
+  const toggle = (): void => {
+    if (open) setValue('');
+    setOpen(!open);
+  };
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -40,22 +49,29 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
   };
 
   return (
-    <section className="hub-panel ui-panel" aria-labelledby={headingId}>
-      <h2 className="hub-heading" id={headingId}>合言葉</h2>
-      {/* 状態の変化（設定した・外れた）を読み上げる。`role="status"` にしない —— 招待のコピーの結果（`role="status"`）と
-            並ぶと、画面に status が 2 つ在って取り違える（既存の検査も 1 つを前提にする）。 */}
-      <p className="hub-passphrase-status ui-note" aria-live="polite">
-        {protectedNow === null
-          ? '合言葉の状態を調べています…'
-          : protectedNow
-            ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
-            : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
-      </p>
+    <section className="hub-panel ui-panel hub-passphrase" aria-labelledby={headingId}>
+      <div className="hub-passphrase-head">
+        <h2 className="hub-heading" id={headingId}>合言葉</h2>
+        {/* 状態の変化（設定した・外れた）を読み上げる。`role="status"` にしない —— 招待のコピーの結果（`role="status"`）と
+              並ぶと、画面に status が 2 つ在って取り違える（既存の検査も 1 つを前提にする）。 */}
+        <p className="hub-passphrase-status ui-note" aria-live="polite">
+          {protectedNow === null
+            ? '合言葉の状態を調べています…'
+            : protectedNow
+              ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
+              : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
+        </p>
+        <button type="button" className="ui-button ui-button--quiet" aria-expanded={open} aria-controls={bodyId} onClick={toggle}>
+          {open ? '閉じる' : protectedNow === true ? '変更・解除' : '設定する'}
+        </button>
+      </div>
+      {/* 失敗はたたんだままでも見せる（口を閉じたあとに届くことがある） */}
       {error !== null && (
         <p className="hub-error ui-note ui-note--error" role="alert">
           {error}
         </p>
       )}
+      <div id={bodyId} hidden={!open} className="hub-passphrase-body">
       <form className="hub-passphrase-form" onSubmit={submit}>
         <label className="hub-field">
           <span className="hub-label">新しい合言葉</span>
@@ -84,6 +100,7 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
       <p className="hub-passphrase-note ui-note">
         ルームに参加している人なら、だれでも設定・変更・解除できます。すでに入っている人は、変えても入り直す必要はありません。
       </p>
+      </div>
     </section>
   );
 }

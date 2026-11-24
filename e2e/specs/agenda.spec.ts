@@ -16,6 +16,7 @@ import {
   dialName,
   joinAgendaTool,
   loadSampleAndStart,
+  loadSampleThenClearDraft,
   openAgendaTool,
   parseDriftMinutes,
   setRoundsAndStart,
@@ -65,6 +66,12 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
     // Given: A がルームを作って進行タイマーを開き、サンプルを読み込んで開始する。B は別の文脈で招待 URL から入る
     const sentA = watchSentFrames(page);
     const inviteUrl = await openAgendaTool(page, NAME_A);
+    // #667: サンプルを下書きに入れて「下書きを空にする」で空に戻し、組み直す。空にしてもルームへは何も送らない
+    await loadSampleThenClearDraft(page);
+    expect(
+      parseFrames(sentA.payloads).filter((f) => (f as { command?: unknown }).command === 'agenda.scenario.set'),
+      '空にしただけではルームのシナリオを送らない',
+    ).toHaveLength(0);
     await loadSampleAndStart(page);
     const peer = await openPeer('agenda-b');
     const sentB = watchSentFrames(peer.page);

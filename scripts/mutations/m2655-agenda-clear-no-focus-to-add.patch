@@ -1,0 +1,22 @@
+# 変異 2655: agenda-clear-no-focus-to-add
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-no-focus-to-add
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2655-*.patch
+# 復元: git apply -R scripts/mutations/m2655-*.patch
+diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
+index 3f529e5e..529bc242 100644
+--- a/apps/agenda-web/src/components/ClearDraftControl.tsx
++++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
+@@ -64,7 +64,6 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+             return;
+           }
+           onClear();
+-          onFocusFallback();
+         }}
+       >
+         {CLEAR_DRAFT_BUTTON}

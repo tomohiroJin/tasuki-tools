@@ -1,0 +1,11 @@
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -26,7 +26,7 @@
+ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomPassphraseProps) {
+   const [value, setValue] = useState('');
+   // 設定する人は少なく、説明が長い。ふだんは状態の一言だけの 1 行にたたみ、押したときだけ設定の口を開く（#673）
+-  const [open, setOpen] = useState(false);
++  const [open, setOpen] = useState(true);
+   const headingId = useId();
+   const bodyId = useId();
+   // 状態が分かるまでは押せない。付いている合言葉を、付いていないと思って黙って上書きしないため。

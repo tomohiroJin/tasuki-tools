@@ -69,6 +69,34 @@ export async function loadSampleAndStart(page: Page): Promise<void> {
 }
 
 /**
+ * 組む画面でサンプル（くりかえしのあるリファインメント → KPT）を下書きへ読み込み、「下書きを空にする」（確かめつき）で空に戻す（#667）。
+ * 空に戻ったこと（会の名前・行・くりかえしのサンプル欄）と、空では押せないことまで確かめる。ルームへは何も読み込まない。
+ */
+export async function loadSampleThenClearDraft(page: Page): Promise<void> {
+  const repeat = page.getByRole('combobox', { name: 'サンプルのくりかえし' });
+  const clear = page.getByRole('button', { name: '下書きを空にする', exact: true });
+  const confirm = page.getByRole('group', { name: 'いまの下書きを空にしますか' });
+  // くりかえしのあるサンプル（リファインメント）で、欄が見えていることを先に確かめてから、空にして消えることを見る
+  await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
+  await page.getByRole('button', { name: /サンプル：リファインメント/ }).click();
+  await expect(repeat).toBeVisible();
+  await clear.click();
+  await confirm.getByRole('button', { name: '空にする', exact: true }).click();
+  await expect(repeat).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: '会の名前', exact: true })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'ステップ 1 の名前' })).toHaveCount(0);
+  await expect(clear).toBeDisabled();
+  // 続けて、いまの流れどおり KPT を入れて自分で組み直す（空の下書きなので確かめは出ない）
+  await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
+  await page.getByRole('button', { name: /サンプル：KPT のふりかえり/ }).click();
+  await expect(page.getByRole('textbox', { name: 'ステップ 1 の名前' })).toBeVisible();
+  await clear.click();
+  await confirm.getByRole('button', { name: '空にする', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'ステップ 1 の名前' })).toHaveCount(0);
+  await expect(clear).toBeDisabled();
+}
+
+/**
  * 組む画面に残っている下書きのくりかえしを `rounds` 回にして、ルームに読み込んで開始する。
  * 「最初から」のあとはルームにシナリオが残っているので、サンプルは選び直さず、いまの下書きを使う。
  */

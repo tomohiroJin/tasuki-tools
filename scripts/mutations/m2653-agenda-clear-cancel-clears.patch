@@ -1,0 +1,26 @@
+# 変異 2653: agenda-clear-cancel-clears
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-cancel-clears
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2653-*.patch
+# 復元: git apply -R scripts/mutations/m2653-*.patch
+diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
+index 3f529e5e..f3f1ab2d 100644
+--- a/apps/agenda-web/src/components/ClearDraftControl.tsx
++++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
+@@ -97,7 +97,10 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+           ref={noRef}
+           type="button"
+           className="ui-button ui-button--secondary ui-button--sm"
+-          onClick={onClose}
++          onClick={() => {
++            onClose();
++            onClear();
++          }}
+         >
+           {CLEAR_DRAFT_NO}
+         </button>

@@ -26,6 +26,8 @@ function showChoice(overrides: { protectedNow?: boolean; connection?: 'online' |
       onSetPassphrase={onSetPassphrase}
     />,
   );
+  // 合言葉の口はふだんたたんである（#673）。利用者と同じく、開いてから操作する（たたんだ姿は `room-choice-hub-arrangement.test.tsx`）
+  fireEvent.click(screen.getByRole('button', { name: overrides.protectedNow === true ? '変更・解除' : '設定する' }));
   return { onSetPassphrase };
 }
 

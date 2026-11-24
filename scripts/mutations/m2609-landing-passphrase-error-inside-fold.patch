@@ -1,0 +1,17 @@
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -65,13 +65,13 @@
+           {open ? '閉じる' : protectedNow === true ? '変更・解除' : '設定する'}
+         </button>
+       </div>
++      <div id={bodyId} hidden={!open} className="hub-passphrase-body">
+       {/* 失敗はたたんだままでも見せる（口を閉じたあとに届くことがある） */}
+       {error !== null && (
+         <p className="hub-error ui-note ui-note--error" role="alert">
+           {error}
+         </p>
+       )}
+-      <div id={bodyId} hidden={!open} className="hub-passphrase-body">
+       <form className="hub-passphrase-form" onSubmit={submit}>
+         <label className="hub-field">
+           <span className="hub-label">新しい合言葉</span>
