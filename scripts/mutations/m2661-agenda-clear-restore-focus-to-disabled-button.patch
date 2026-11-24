@@ -1,0 +1,24 @@
+# 変異 2661: agenda-clear-restore-focus-to-disabled-button
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-restore-focus-to-disabled-button
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2661-*.patch
+# 復元: git apply -R scripts/mutations/m2661-*.patch
+diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
+index 3f529e5e..d277df51 100644
+--- a/apps/agenda-web/src/components/ClearDraftControl.tsx
++++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
+@@ -44,8 +44,7 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+   useEffect(() => {
+     if (wasShownRef.current && !showConfirm && focusInConfirmRef.current) {
+       const open = openRef.current;
+-      if (open !== null && !open.disabled) open.focus();
+-      else onFocusFallback();
++      if (open !== null) open.focus();
+     }
+     if (!showConfirm) focusInConfirmRef.current = false;
+     wasShownRef.current = showConfirm;

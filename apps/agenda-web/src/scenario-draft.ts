@@ -72,6 +72,12 @@ export const clipTitle = (s: string): string => s.slice(0, MAX_SCENARIO_TITLE);
 /** 回数の欄が既定の '1' でないなら、利用者が触ったので空と見なさない */
 export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.length === 0 && d.rounds === '1';
 
+/** 空の下書き（会の名前・行・サンプルのくりかえしが無く、回数は既定の '1'）。`isEmptyDraft` が真になる */
+export const clearedDraft = (): Draft => ({ title: '', steps: [], rounds: '1' });
+
+/** 「下書きを空にする」を押せるか。空（`isEmptyDraft`）で、サンプルのくりかえしも無いなら、戻す先が無い */
+export const canClearDraft = (d: Draft): boolean => !isEmptyDraft(d) || d.sampleRepeat !== undefined;
+
 export function draftFromInput(input: ScenarioInput): Draft {
   return {
     title: input.title,

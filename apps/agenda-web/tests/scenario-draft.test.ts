@@ -8,6 +8,8 @@ import {
   addBlockedByItems,
   bumpRounds,
   canAddStep,
+  canClearDraft,
+  clearedDraft,
   isEmptyDraft,
   checkDraft,
   draftFromInput,
@@ -152,5 +154,27 @@ describe('下書きの回数', () => {
       expect(v?.rounds).toBe(1);
       expect(v?.steps).toHaveLength(2);
     }
+  });
+});
+
+/**
+ * @requirements #667（組む画面で下書きをまとめて空に戻す）
+ */
+describe('下書きを空にする', () => {
+  it('Given サンプルのくりかえしを持つ下書き / When 空にする / Then isEmptyDraft が真で、sampleRepeat も消える', () => {
+    const repeat = { start: 0, count: 2, steps: [step('話す', 60)] };
+    const sample: Draft = { ...draftFromInput({ title: '朝会', steps: [step('話す', 60), step('話す', 60)], rounds: 3 }), sampleRepeat: repeat };
+    const cleared = clearedDraft();
+    expect(isEmptyDraft(cleared)).toBe(true);
+    expect(cleared.sampleRepeat).toBeUndefined();
+    expect(canClearDraft(sample)).toBe(true);
+  });
+
+  it('Given 空の下書き / When 空にできるか見る / Then できない。会の名前・行・回数のどれかがあればできる', () => {
+    const empty = clearedDraft();
+    expect(canClearDraft(empty)).toBe(false);
+    expect(canClearDraft({ ...empty, title: 'x' })).toBe(true);
+    expect(canClearDraft({ ...empty, rounds: '3' })).toBe(true);
+    expect(canClearDraft(draftOf([step('a', 60)], '1'))).toBe(true);
   });
 });

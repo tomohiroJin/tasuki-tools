@@ -1,0 +1,23 @@
+# 変異 2663: agenda-clear-confirm-survives-draft-swap
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-confirm-survives-draft-swap
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2663-*.patch
+# 復元: git apply -R scripts/mutations/m2663-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 427029d3..f31fb334 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -135,7 +135,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+   const clear = (): void => {
+     setDraft(clearedDraft());
+   };
+-  const clearAsking = confirming?.kind === 'clear' && confirming.draft === draft;
++  const clearAsking = confirming?.kind === 'clear';
+   const add = (): void => {
+     const next = addStep(draft);
+     setDraft(next);

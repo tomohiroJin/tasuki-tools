@@ -1,0 +1,23 @@
+# 変異 2664: agenda-sample-confirm-not-suppressed-by-clear
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-sample-confirm-not-suppressed-by-clear
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2664-*.patch
+# 復元: git apply -R scripts/mutations/m2664-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 427029d3..1fadb356 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -256,7 +256,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+         <div className="builder-draft-tools">
+           <SampleMenu
+             draftIsDisposable={draftIsDisposable}
+-            suppressed={clearAsking}
++            suppressed={false}
+             onAsk={onSampleAsk}
+             onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
+           />

@@ -1,0 +1,23 @@
+# 変異 2654: agenda-clear-always-enabled
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-always-enabled
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2654-*.patch
+# 復元: git apply -R scripts/mutations/m2654-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft.ts b/apps/agenda-web/src/scenario-draft.ts
+index 0652dd58..385befcd 100644
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -76,7 +76,7 @@ export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.len
+ export const clearedDraft = (): Draft => ({ title: '', steps: [], rounds: '1' });
+ 
+ /** 「下書きを空にする」を押せるか。空（`isEmptyDraft`）で、サンプルのくりかえしも無いなら、戻す先が無い */
+-export const canClearDraft = (d: Draft): boolean => !isEmptyDraft(d) || d.sampleRepeat !== undefined;
++export const canClearDraft = (d: Draft): boolean => true || !isEmptyDraft(d) || d.sampleRepeat !== undefined;
+ 
+ export function draftFromInput(input: ScenarioInput): Draft {
+   return {

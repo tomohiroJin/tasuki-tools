@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MAX_ROUNDS, MAX_SCENARIO_TITLE, MIN_ROUNDS, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
 import {
   ADD_STEP_BUTTON,
@@ -29,6 +29,8 @@ import {
   bumpRounds,
   addBlockedByItems,
   canAddStep,
+  canClearDraft,
+  clearedDraft,
   changeSampleRepeats,
   checkDraft,
   clipTitle,
@@ -45,8 +47,10 @@ import {
   scenarioKey,
   totalMinutes,
   updateStep,
+  type Draft,
   type DraftCheck,
 } from '../scenario-draft';
+import { ClearDraftControl } from './ClearDraftControl';
 import { Dial } from './Dial';
 import { SavedScenarioList } from './SavedScenarioList';
 import { SampleMenu } from './SampleMenu';
@@ -83,6 +87,15 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const roundsId = useId();
   const addRef = useRef<HTMLButtonElement>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null);
+  // 開いている確かめ（同時に開くのは 1 つ）。空にする確かめは、開いたときの下書きと同じ間だけ有効（別の下書きに入れ替わったら閉じる）
+  const [confirming, setConfirming] = useState<{ kind: 'clear'; draft: Draft } | { kind: 'sample' } | null>(null);
+  const onSampleAsk = useCallback((asking: boolean): void => {
+    setConfirming((c) => (asking ? { kind: 'sample' } : c?.kind === 'sample' ? null : c));
+  }, []);
+  const closeClear = useCallback((): void => {
+    setConfirming((c) => (c?.kind === 'clear' ? null : c));
+  }, []);
+  const focusAdd = useCallback((): void => setFocusRequest('add'), []);
 
   useEffect(() => {
     if (focusRequest !== 'add') return;
@@ -98,6 +111,11 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const draftIsEmpty = isEmptyDraft(draft);
   // ルームのシナリオの写しのままの下書き（ルームが空なら写しではない）。消えても取り戻せるので確かめない
   const draftIsRoom = roomReady && isUntouchedCopy(draft, roomKey);
+  // 確かめずに捨ててよい下書きか（「サンプルから選ぶ」と「下書きを空にする」で同じ基準）。
+  // ルームの写しのままなら取り戻せるが、サンプルのくりかえしの欄は「ルームのシナリオに戻す」で戻らないので除く
+  const draftIsDisposable = (draftIsEmpty || draftIsRoom) && draft.sampleRepeat === undefined;
+  // 空にした下書きからも、ルームのシナリオへ戻れるようにする（ルームにシナリオがあるときだけ・知らせの文は「変わりました」のときだけ）
+  const showBack = changed || (roomReady && draftIsEmpty);
   const preview = previewView(draft);
   const reason = actionReason(check, draft.steps.length > 0, sameAsRoom);
   const roundsNow = roundsOfDraft(draft);
@@ -113,6 +131,11 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
     setDraft(moveStep(draft, i, delta));
     setFocusRequest(request);
   };
+  // フォーカスの移し先は ClearDraftControl が決める（押せなくなった「下書きを空にする」ではなく「ステップを追加」へ）
+  const clear = (): void => {
+    setDraft(clearedDraft());
+  };
+  const clearAsking = confirming?.kind === 'clear' && confirming.draft === draft;
   const add = (): void => {
     const next = addStep(draft);
     setDraft(next);
@@ -123,13 +146,13 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   return (
     <div className="ui-workspace ui-workspace--side-end builder">
       <div className="ui-workspace-main builder-main">
-        <div className={changed ? 'builder-changed' : 'builder-changed builder-changed--idle'}>
+        <div className={showBack ? 'builder-changed' : 'builder-changed builder-changed--idle'}>
           {/* ライブリージョンは常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある）。
               ボタンは領域の外（読み上げに操作の名前を混ぜない） */}
           <p role="status" className="builder-changed-text ui-note">
             {changed ? SCENARIO_CHANGED_NOTE : ''}
           </p>
-          {changed && (
+          {showBack && (
             <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={adoptRoom}>
               {BACK_TO_ROOM_SCENARIO_BUTTON}
             </button>
@@ -230,10 +253,23 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
           </div>
         </section>
         {/* 主の欄（会の名前・ステップ・くりかえし）の下に控えめに置く（主役を押しのけない） */}
-        <SampleMenu
-          draftIsDisposable={draftIsEmpty || draftIsRoom}
-          onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
-        />
+        <div className="builder-draft-tools">
+          <SampleMenu
+            draftIsDisposable={draftIsDisposable}
+            suppressed={clearAsking}
+            onAsk={onSampleAsk}
+            onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
+          />
+          <ClearDraftControl
+            asking={clearAsking}
+            canClear={canClearDraft(draft)}
+            needsConfirm={!draftIsDisposable}
+            onOpen={() => setConfirming({ kind: 'clear', draft })}
+            onClose={closeClear}
+            onClear={clear}
+            onFocusFallback={focusAdd}
+          />
+        </div>
       </div>
       <div className="ui-workspace-side builder-side">
         <section className="ui-panel builder-preview">

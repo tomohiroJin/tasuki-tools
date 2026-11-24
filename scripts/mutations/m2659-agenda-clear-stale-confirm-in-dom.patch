@@ -1,0 +1,23 @@
+# 変異 2659: agenda-clear-stale-confirm-in-dom
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-stale-confirm-in-dom
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2659-*.patch
+# 復元: git apply -R scripts/mutations/m2659-*.patch
+diff --git a/apps/agenda-web/src/components/ClearDraftControl.tsx b/apps/agenda-web/src/components/ClearDraftControl.tsx
+index 3f529e5e..a11a1feb 100644
+--- a/apps/agenda-web/src/components/ClearDraftControl.tsx
++++ b/apps/agenda-web/src/components/ClearDraftControl.tsx
+@@ -30,7 +30,7 @@ export function ClearDraftControl({ asking, canClear, needsConfirm, onOpen, onCl
+   const openRef = useRef<HTMLButtonElement>(null);
+   const textId = useId();
+ 
+-  const showConfirm = asking && canClear && needsConfirm;
++  const showConfirm = asking;
+ 
+   useEffect(() => {
+     if (showConfirm) noRef.current?.focus();
