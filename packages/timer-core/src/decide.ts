@@ -363,7 +363,8 @@ function decideMemberRemove(
 
   // 運転中の人を外すなら、次の担当を交代と同じ資格の規則で選ぶ（#376）。
   // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
-  // 開始前（ロビー）の「運転中の席」は運転していない。ランダム交代でも袋から引かず、輪の順で詰める
+  // 開始前（ロビー）の「運転中の席」は運転していない。ランダム交代でも袋から引かず、輪の順のモードと同じ規則
+  // （外れた席の次の適格な席・#376）で選ぶ。始まっていれば、一時停止中・休憩中でも袋から引く
   // （袋から引くと、開始の運転者が輪の途中の席になり、画面が最初の開始をリセットで送る。#660 の 2 巡目のレビュー）。
   const session = sessionHasStarted(agg) ? agg.session : { ...agg.session, randomRotation: null };
   const nextDriver = nextDriverAfterRemoval(session, index, ineligible);

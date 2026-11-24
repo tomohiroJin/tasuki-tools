@@ -472,6 +472,27 @@ describe("開始・リセット", () => {
     expect(next.session.randomRotation).toEqual({ order: ["d", "c", "b", "a"], drove: ["a"] });
   });
 
+  it("一時停止中に運転中の人を外すと、輪の隣でなく、袋の予告した人が運転者になる（始まっていれば時計が止まっていても袋から引く）", () => {
+    const paused = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]).paused().build();
+    expect(forecastId(paused)).toBe("d");
+
+    const next = run(paused, { command: "member.remove", index: 0 });
+
+    expect(driverId(next)).toBe("d");
+    expect(next.session.randomRotation?.drove).toEqual(["a", "d"]);
+  });
+
+  it("休憩中に運転中の人を外すと、輪の隣でなく、袋の予告した人が運転者になる", () => {
+    const running = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]).running().build();
+    const onBreak = run(running, { command: "break.start" });
+    expect(onBreak.clock.running).toBe(false);
+
+    const next = run(onBreak, { command: "member.remove", index: 0 });
+
+    expect(driverId(next)).toBe("d");
+    expect(next.session.randomRotation?.drove).toEqual(["a", "d"]);
+  });
+
   it("開始のとき、順列でない randomOrder は InvalidIndex で断る", () => {
     const lobby = anAggregate().withRotation("a", "b").withRandomRotation([]).build();
 

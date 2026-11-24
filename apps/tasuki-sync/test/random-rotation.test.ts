@@ -325,6 +325,18 @@ describe("ランダム交代: 予告と実際の交代先", () => {
     expect(driver(f.view())).toBe(expected);
   });
 
+  it("Given 一時停止中に運転者が退出した / Then 輪の隣でなく、予告した人が運転者になる", async () => {
+    const f = await lobbyOf(NAMES, { random: true, seed: SEED_NOT_RING_NEXT });
+    await start(f);
+    await send(f, "conn-1", { command: "session.act", action: "PAUSE" });
+    const expected = forecast(f.view())!;
+    expect(expected).not.toBe("いお");
+
+    await send(f, "conn-0", { command: "participant.remove", participantId: participantIdOfConn(f.store, "conn-0") });
+
+    expect(driver(f.view())).toBe(expected);
+  });
+
   it("Given ほかの全員が一時離脱 / Then 予告は出さず（null）、交代しても運転者は変わらない", async () => {
     const f = await lobbyOf(NAMES, { random: true });
     await start(f);
