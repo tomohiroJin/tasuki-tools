@@ -12909,7 +12909,7 @@ export const MUTATIONS = [
     patch: "m2638-session-started-ignores-paused.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2649 + " " + "#660 の 4 巡目のレビュー。開始してすぐ一時停止した間に運転者が抜けると、予告と違う人が運転者になる。",
+    note: RESERVED_2600_2649 + " " + "#660 の 4 巡目のレビュー。稼働の累計が 0 のまま一時停止した間に運転者が抜けると、予告と違う人が運転者になる。",
   },
   {
     id: 2639,

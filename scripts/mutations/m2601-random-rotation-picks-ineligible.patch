@@ -1,8 +1,8 @@
 diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
-index 70a2bc2..061952f 100644
+index 167fc68..4d41f0d 100644
 --- a/packages/timer-core/src/aggregate.ts
 +++ b/packages/timer-core/src/aggregate.ts
-@@ -419,7 +419,7 @@ function nextRandomIndex(
+@@ -421,7 +421,7 @@ function nextRandomIndex(
    // 引く順に居ない席（作り直したあとに入った人）は、その後ろに輪の順で並べる
    for (let step = 1; step <= len; step++) ordered.add((fromIndex + step) % len);
  

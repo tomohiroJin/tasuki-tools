@@ -1,8 +1,8 @@
 diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
-index 70a2bc2..4f4654d 100644
+index 167fc68..2a484a2 100644
 --- a/packages/timer-core/src/aggregate.ts
 +++ b/packages/timer-core/src/aggregate.ts
-@@ -422,7 +422,7 @@ function nextRandomIndex(
+@@ -424,7 +424,7 @@ function nextRandomIndex(
    const open = [...ordered].filter((i) => i !== fromIndex && !ineligible?.has(i));
    const drove = new Set(random.drove);
    // `!`: open の添字は ordered（輪の席の添字）から来る

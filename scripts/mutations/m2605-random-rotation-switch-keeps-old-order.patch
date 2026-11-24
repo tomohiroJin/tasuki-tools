@@ -1,8 +1,8 @@
 diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
-index 70a2bc2..44b166b 100644
+index 167fc68..23f6d96 100644
 --- a/packages/timer-core/src/aggregate.ts
 +++ b/packages/timer-core/src/aggregate.ts
-@@ -465,7 +465,7 @@ export function randomRotationAfterSwitch(
+@@ -467,7 +467,7 @@ export function randomRotationAfterSwitch(
    if (random === null || next === undefined) return random;
    const id = rotationEntryId(next);
    return {

@@ -9,10 +9,10 @@
 #
 # #376（PR #392 の 2 巡目）。外した席より後ろの人を選ぶと、1 つ後ろの人に運転が回る（外した後の輪で数え直していない）。
 diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
-index 70a2bc2..9edbb9a 100644
+index 167fc68..706e6c3 100644
 --- a/packages/timer-core/src/aggregate.ts
 +++ b/packages/timer-core/src/aggregate.ts
-@@ -534,7 +534,7 @@ export function nextDriverAfterRemoval(
+@@ -536,7 +536,7 @@ export function nextDriverAfterRemoval(
    // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
    const found = nextDriverIndex(session, removedIndex, ineligible);
    const chosen = found === removedIndex ? (removedIndex + 1) % len : found;

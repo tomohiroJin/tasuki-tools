@@ -8,10 +8,10 @@
 #
 # #376。空の輪で `(removedIndex + 1) % 0` が NaN を作る（修正前の evolve の `% 0` と同じ欠陥の型）。
 diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
-index 70a2bc2..827ea68 100644
+index 167fc68..f142c09 100644
 --- a/packages/timer-core/src/aggregate.ts
 +++ b/packages/timer-core/src/aggregate.ts
-@@ -529,7 +529,6 @@ export function nextDriverAfterRemoval(
+@@ -531,7 +531,6 @@ export function nextDriverAfterRemoval(
    ineligible: ReadonlySet<number> | undefined,
  ): number {
    const len = session.rotation.length;
