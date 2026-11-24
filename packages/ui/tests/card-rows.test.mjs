@@ -92,20 +92,66 @@ test('Given poker の手札 / When 規則を読む / Then 操作の面が手札�
   assert.equal(ruleDecls(narrow, '.card-hand').get('justify-content'), 'center');
 });
 
-test('Given landing の道具の札 / When 40rem 未満の規則を読む / Then 札は縦長の比を外した横長（絵が左・文字が右）で、下の欄と同じ幅（#21）', () => {
-  const list = rules(mediaBlock(LANDING, '@media (width < 40rem)'));
-  const d = ruleDecls(list, '.hub-tools .tool-card');
+test('Given landing の道具の札 / When 幅の段の外の規則を読む / Then 札は縦長の比を外した横長（絵が左・文字が右）で、置かれたマスと同じ幅（#21・#684）', () => {
+  // 横長が既定で、縦長の実物大は扇（下の @container hub-tools）だけが上書きする。40rem 未満だけでなく、扇に満たない幅のすべてで横長にする（#684）
+  const list = rules(outsideMedia(LANDING));
+  const d = ruleDecls(list, '.tool-card');
   assert.equal(d.get('aspect-ratio'), 'auto');
   assert.equal(d.get('grid-template-columns'), 'auto minmax(0, 1fr)');
   assert.equal(d.get('width'), '100%');
-  assert.equal(ruleDecls(list, '.hub-tools .hand li').get('container-type'), 'inline-size');
+  assert.equal(ruleDecls(list, '.hand li').get('container-type'), 'inline-size');
 });
 
 test('Given landing の道具の札 / When 札の幅が 16rem に満たない（文字を大きくした 320px など）/ Then 絵を上に回して文字の列に全幅を渡す（#21）', () => {
   const list = rules(mediaBlocks(LANDING, '@container (width < 16rem)'));
-  assert.equal(ruleDecls(list, '.hub-tools .tool-card').get('grid-template-columns'), 'minmax(0, 1fr)');
-  assert.equal(ruleDecls(list, '.hub-tools .tool-mark').get('grid-row'), 'auto');
-  assert.equal(ruleDecls(list, '.hub-tools .tool-name, .hub-tools .tool-summary').get('grid-column'), '1');
+  assert.equal(ruleDecls(list, '.tool-card').get('grid-template-columns'), 'minmax(0, 1fr)');
+  assert.equal(ruleDecls(list, '.tool-mark').get('grid-row'), 'auto');
+  assert.equal(ruleDecls(list, '.tool-name, .tool-summary').get('grid-column'), '1');
+});
+
+test('Given landing の道具の札の並び / When 幅の段の規則を読む / Then 格子は 1・2・3 列で、札は段の割り方から渡された列に 2 本ぶんで置く（#684）', () => {
+  // 段の割り方（短い段を中央へ寄せる始まりの列）は `apps/landing/src/hand-rows.ts` が決め、CSS は `--hand-start-N` を受け取るだけ
+  assert.equal(ruleDecls(rules(outsideMedia(LANDING)), '.hand').get('grid-template-columns'), 'minmax(0, 1fr)');
+  const two = rules(mediaBlock(LANDING, '@media (width >= 40rem)'));
+  assert.equal(ruleDecls(two, '.hand').get('grid-template-columns'), 'repeat(4, minmax(0, 1fr))');
+  assert.equal(ruleDecls(two, '.hand li').get('grid-column'), 'var(--hand-start-2, auto) / span 2');
+  const three = rules(mediaBlock(LANDING, '@media (width >= 64rem)'));
+  assert.equal(ruleDecls(three, '.hand').get('grid-template-columns'), 'repeat(6, minmax(0, 1fr))');
+  assert.equal(ruleDecls(three, '.hand li').get('grid-column'), 'var(--hand-start-3, auto) / span 2');
+});
+
+test('Given landing の道具の札の扇 / When 札の列の箱が 64.5rem 以上の規則を読む / Then 実物大（15rem・5 / 7）の札を 4 列に置き、段の両端だけを逆向きに傾ける（#684）', () => {
+  const fan = rules(mediaBlock(LANDING, '@container hub-tools (width >= 64.5rem)'));
+  // 扇に切り替える箱の幅（64.5rem）は「15rem × 4 + 間 × 3」。間のトークンを変えると、並びが箱より広くなってはみ出す
+  const gapRem = Number(/--space-5:\s*([0-9.]+)rem/.exec(read('packages/ui/src/tokens/shape.css'))?.[1]);
+  assert.equal(15 * 4 + gapRem * 3, 64.5, '扇の境目が、札 4 枚と間 3 つの幅と合っている');
+  // 札 1 枚 = 列 2 本 + 間 1 つ = 15rem。15rem を割ると名前と一行説明が折り返す
+  assert.equal(ruleDecls(fan, '.hand').get('grid-template-columns'), 'repeat(8, calc((15rem - var(--space-5)) / 2))');
+  assert.equal(ruleDecls(fan, '.hand').get('gap'), 'var(--space-5)');
+  const li = ruleDecls(fan, '.hand li');
+  assert.equal(li.get('grid-column'), 'var(--hand-start-4, auto) / span 2');
+  // 縦長の札は自分の幅で並びを変えない（上の 16rem の規則に当てない）
+  assert.equal(li.get('container-type'), 'normal');
+  assert.equal(ruleDecls(fan, '.tool-card').get('aspect-ratio'), '5 / 7');
+  assert.equal(ruleDecls(fan, ".hand li[data-row-edge='start'] .tool-card").get('transform'), 'rotate(-4deg)');
+  assert.equal(ruleDecls(fan, ".hand li[data-row-edge='end'] .tool-card").get('transform'), 'rotate(4deg)');
+  // 並びの最初と最後（段をまたいで離れた 2 枚）を傾ける決め打ちを置かない
+  assert.doesNotMatch(LANDING, /\.hand li:(first|last|nth)-child/);
+  // 扇の規則は、同じ詳細度の 3 列の規則（64rem 以上の幅の段）より後ろに置く。前に置くと負けて、広い幅でも 3 列のままになる
+  // 2 列（40rem 以上）の規則も同じ詳細度なので、どの幅の段よりも後ろにあることを見る
+  assert.ok(LANDING.indexOf('@container hub-tools (width >= 64.5rem)') > LANDING.lastIndexOf('@media (width >='), '扇の規則が、どの幅の段より後ろにある');
+  // 扇を測る箱は 64rem 以上でだけ名乗る（それより狭い幅では扇の規則が効かない）
+  assert.equal(ruleDecls(rules(mediaBlock(LANDING, '@media (width >= 64rem)')), '.hub-tools').get('container'), 'hub-tools / inline-size');
+});
+
+test('Given landing の札の下 / When 規則を読む / Then 参加者と招待は 40rem 以上で 2 列に並んで高さが揃い、合言葉はその下の全幅に置く（#673）', () => {
+  const base = ruleDecls(rules(outsideMedia(LANDING)), '.hub-room');
+  assert.equal(base.get('grid-template-columns'), 'minmax(0, 1fr)');
+  // 高さを揃える（既定の stretch）。`align-items: start` を戻すと、下に続く全幅の行の上で 2 枚の下端がずれる
+  assert.equal(base.has('align-items'), false);
+  const wide = rules(mediaBlock(LANDING, '@media (width >= 40rem)'));
+  assert.equal(ruleDecls(wide, '.hub-room').get('grid-template-columns'), 'repeat(2, minmax(0, 1fr))');
+  assert.equal(ruleDecls(wide, '.hub-passphrase').get('grid-column'), '1 / -1');
 });
 
 test('Given checkin の席の並び / When 規則を読む / Then poker と同じ列（6.5rem の下限で数える）を、人数までに絞った幅で中央に置く（#9・#28）', () => {

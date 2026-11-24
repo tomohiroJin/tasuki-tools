@@ -43,7 +43,7 @@ const TABS: readonly { readonly id: ReaderTab; readonly label: string }[] = [
  * いまのお題の全文を出す（poker の `CurrentTopic` と同じ作り。部品は共有、React は各アプリ）。
  *
  * **生成中は全員の画面で `aria-busy` を立てる**（spec §5.4・E10）。
- * 生成の知らせ（「作っています…」「定型にしました」・`role="status"`）は**ここに置かない**（`TopicRoom` が操作の面の先頭に置く）。
+ * 生成の知らせ（「作っています…」「定型にしました」・`role="status"`）は**ここに置かない**（`TopicRoom` が操作の面の末尾、作るの欄の下に置く・#665）。
  * ARIA 1.2 では `aria-busy` の要素の内容変化は支援技術が busy の間は無視してよい（MAY）ため、
  * section の外に置く（レビュー指摘）。加えて、読む面の札の最大の高さ（`reader.css`）は脇の区画に札しか載らない前提で
  * 画面の高さから引いてあり、札の上に知らせを載せると区画がその背丈ぶん画面を超える（#316 最終レビュー I3）。

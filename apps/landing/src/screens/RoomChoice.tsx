@@ -1,6 +1,7 @@
 import { participantLabel, type RosterRoom } from '@tasuki/room-core';
-import { useId, useState } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 import { useCopyText, useInviteQr } from '@tasuki/invite-ui';
+import { handPlacements, type HandPlacement } from '../hand-rows.js';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
 import { HistoryLink } from './HistoryLink.js';
@@ -10,9 +11,12 @@ import { RoomPassphrase } from './RoomPassphrase.js';
  * 選択画面（#95 S5a・R1）。ルーム名を見出しに置き、道具・参加者・仲間を招く・合言葉の 4 つを
  * 見出しつきの領域に分けて並べる（#270・合言葉は #638）。
  *
- * **札の意匠は変えない**（設計正本 §5.7）。既存の {@link TOOLS} をそのまま使い、
+ * **札の中身（絵・名前・一行説明・左上の一語）は変えない**（設計正本 §5.7 と、並び方を見直した §11）。既存の {@link TOOLS} をそのまま使い、
  * `href` に `?room=CODE` を付けるだけである。新しいツールを足すときに触るのは、
  * 今と同じく `src/tools.ts` の 1 ファイルになる。
+ *
+ * 札の並び（段の割り方）は枚数から決める（`hand-rows.ts`・#684）。札ごとの置き場所を CSS 変数と
+ * 段の端の印で渡し、どの並びを使うかは幅で CSS が選ぶ。枚数ごとの決め打ちは置かない。
  */
 export interface RoomChoiceProps {
   readonly code: string;
@@ -39,6 +43,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
   const [showQr, setShowQr] = useState(false);
   const qr = useInviteQr(inviteUrl, showQr);
   const qrId = useId();
+  const placements = handPlacements(TOOLS.length);
 
   return (
     <main className="ui-page landing landing-choice">
@@ -59,8 +64,8 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
         <section className="hub-tools" aria-labelledby="hub-tools-heading">
           <h2 className="hub-section-title" id="hub-tools-heading">道具を選ぶ</h2>
           <ul className="hand" aria-label="ツール">
-            {TOOLS.map((tool) => (
-              <li key={tool.href}>
+            {TOOLS.map((tool, index) => (
+              <li key={tool.href} style={placementStyle(placements[index], index)} data-row-edge={placements[index]?.edge4 ?? undefined}>
                 <a
                   className="card tool-card"
                   href={`${tool.href}?room=${encodeURIComponent(code)}`}
@@ -121,13 +126,27 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
           </section>
           <RoomPassphrase protectedNow={passphraseProtected} error={passphraseError} connection={connection} onSet={onSetPassphrase} />
         </div>
+        {/* ルームに入ったままでも端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。
+            戻り先を持たせて、見終わったら同じルームの選択画面へ戻れるようにする。
+            作業領域の末尾に置き、パネルの右端に揃える（画面の下に 1 つだけ浮かせない・#673）。 */}
+        <p className="hub-foot">
+          <HistoryLink roomCode={code} />
+        </p>
       </div>
-
-      {/* ルームに入ったままでも端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。
-          戻り先を持たせて、見終わったら同じルームの選択画面へ戻れるようにする。 */}
-      <HistoryLink roomCode={code} />
     </main>
   );
+}
+
+/**
+ * 札 1 枚の置き場所を CSS 変数にする。段の頭でない札は変数を持たない（CSS 側の既定の `auto` で前の札の隣に置かれる）。
+ * `--hand-index` は配る順（演出の遅れ）に使う。
+ */
+function placementStyle(placement: HandPlacement | undefined, index: number): CSSProperties {
+  const style: Record<string, string> = { '--hand-index': String(index) };
+  if (placement?.start2 != null) style['--hand-start-2'] = String(placement.start2);
+  if (placement?.start3 != null) style['--hand-start-3'] = String(placement.start3);
+  if (placement?.start4 != null) style['--hand-start-4'] = String(placement.start4);
+  return style as CSSProperties;
 }
 
 /**

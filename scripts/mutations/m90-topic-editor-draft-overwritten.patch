@@ -17,7 +17,6 @@
 # 黙って消える —— コンポーネント冒頭のコメントが禁じている性質そのもの
 # （「届いたお題で上書きしない」）。
 diff --git a/apps/topic-web/src/components/TopicEditor.tsx b/apps/topic-web/src/components/TopicEditor.tsx
-index 567fc3d..7ec0297 100644
 --- a/apps/topic-web/src/components/TopicEditor.tsx
 +++ b/apps/topic-web/src/components/TopicEditor.tsx
 @@ -1,5 +1,5 @@
@@ -27,7 +26,7 @@ index 567fc3d..7ec0297 100644
  import {
    BODY_HINT,
    BODY_LABEL,
-@@ -24,6 +24,7 @@ export interface FillRequest {
+@@ -24,6 +24,7 @@
  }
  
  interface Props {
@@ -35,7 +34,7 @@ index 567fc3d..7ec0297 100644
    /** 欄へ写す要求。null か、前と同じ object のあいだは何もしない */
    readonly fillRequest?: FillRequest | null;
    readonly enabled: boolean;
-@@ -53,7 +54,7 @@ interface Props {
+@@ -53,7 +54,7 @@
   * 切り替えのボタンを隠す。React の木は幅によらず同じで、ここが持つのは狭いときにどちらを出すか（`mode`）だけ。
   * 切り替えのボタンは `.ui-button--secondary --sm` で、選んだ側は `aria-pressed="true"` で示す（見た目は画面の CSS が太い枠と地で区別する）。
   */
@@ -44,7 +43,7 @@ index 567fc3d..7ec0297 100644
    const [title, setTitle] = useState('');
    const [body, setBody] = useState('');
    const [mode, setMode] = useState<'write' | 'preview'>('write');
-@@ -64,6 +65,12 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
+@@ -64,6 +65,12 @@
    const bodyId = useId();
    const previewId = useId();
    const canSubmit = canSubmitTopic(title, enabled);
@@ -58,15 +57,14 @@ index 567fc3d..7ec0297 100644
    const previewBody = useDeferredValue(body);
    const previewBlank = isDraftBlank(previewTitle, previewBody);
 diff --git a/apps/topic-web/src/screens/TopicRoom.tsx b/apps/topic-web/src/screens/TopicRoom.tsx
-index 242f0bb..50978e4 100644
 --- a/apps/topic-web/src/screens/TopicRoom.tsx
 +++ b/apps/topic-web/src/screens/TopicRoom.tsx
-@@ -103,7 +103,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
-             {generation && <p className="topic-notice ui-note" role="status">{generation}</p>}
+@@ -71,7 +71,7 @@
+           <div className="ui-workspace-main topic-tools">
              {/* 書くが主役。作るはその下のたためる欄（最初はたたむ）。#313 構成案 1 は作るが先だったが、
                  利用者が実物を見て #316 PR 1 で逆にした（設計正本 §10.1） */}
 -            <TopicEditor fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
 +            <TopicEditor current={sync.topicState?.topic ?? null} fillRequest={fillRequest} enabled={enabled} onDraftChange={onDraftChange} onSubmit={sync.setTopic} />
-             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} onGenerate={sync.generate} onUnlock={sync.unlock} />
-           </div>
-         </div>
+             <TopicMaker aiUnlocked={sync.topicState?.aiUnlocked ?? false} enabled={enabled} generating={sync.topicState?.generating ?? false} onGenerate={sync.generate} onUnlock={sync.unlock} />
+             {/* 生成の知らせは操作の面の末尾（作るの欄のすぐ下）に置く。先頭に置くと、現れた瞬間に書く欄と作るの欄を押し下げ、
+                 押したボタンが指の下から逃げる（幅 1280 で約 51px・#665）。読む面の札の上には置かない —— 札の最大の高さは脇に札しか

@@ -8,15 +8,14 @@
 #
 # #638。繋がっていない間の送信は黙って積まれるだけで、設定したつもりで付いていないルームのままになる。
 diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
-index 843e2edd..2dc63262 100644
 --- a/apps/landing/src/screens/RoomPassphrase.tsx
 +++ b/apps/landing/src/screens/RoomPassphrase.tsx
-@@ -30,7 +30,7 @@ export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomP
+@@ -33,7 +33,7 @@
    const online = connection === 'online' && protectedNow !== null;
    // 空白だけの値は解除と同じ意味になる（サーバーが前後の空白を落とす）。設定の口からは送らせない —— 解除は専用の
    // ボタンから。取り違えて外してしまわないため。
 -  const canSubmit = online && value.trim() !== '';
 +  const canSubmit = protectedNow !== null && value.trim() !== '';
  
-   const submit = (event: FormEvent): void => {
-     event.preventDefault();
+   // 閉じるときは、入れかけた値を捨てる。見えない欄に合言葉の平文を残さない（#638 の「画面にも状態にも残さない」）
+   const toggle = (): void => {

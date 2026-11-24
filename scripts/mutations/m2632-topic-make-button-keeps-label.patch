@@ -1,0 +1,23 @@
+# 変異 2632: topic-make-button-keeps-label
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 生成中でも「AI で作る」の文言が変わらず、押した場所で作っていると分からない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2632-*.patch
+# 復元: git apply -R scripts/mutations/m2632-*.patch
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+index 542e3968..56de480a 100644
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -132,7 +132,7 @@ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlo
+                 {/* 幅は 2 つの文言の長いほうで最初から取る（文言が変わっても押した場所が動かない）。出していないほうは隠して読み上げから外す */}
+                 <span className="topic-make-label">
+                   <span aria-hidden={generating} className={generating ? 'topic-make-label-off' : undefined}>{AI_BUTTON}</span>
+-                  <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{GENERATING_TEXT}</span>
++                  <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{AI_BUTTON}</span>
+                 </span>
+               </button>
+             )}
