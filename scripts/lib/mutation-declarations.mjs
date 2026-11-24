@@ -12887,4 +12887,12 @@ export const MUTATIONS = [
     tests: ["test/random-rotation.test.ts"],
     note: RESERVED_2600_2639 + " " + "#660 の 2 巡目のレビュー。開始の運転者が輪の途中の席になり、画面が最初の開始をリセットで送る（知らせが 1 つ余計に出る）。",
   },
+  {
+    id: 2636,
+    label: "運転中の人を外すとき袋を見るかを、始まっているかでなく時計が走っているかで分ける",
+    patch: "m2636-random-rotation-stopped-clock-removal-walks-ring.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/random-rotation.test.ts"],
+    note: RESERVED_2600_2639 + " " + "#660 の 3 巡目のレビュー。一時停止中・休憩中に運転者が抜けると、予告と違う人（輪の隣）が運転者になる。",
+  },
 ];
