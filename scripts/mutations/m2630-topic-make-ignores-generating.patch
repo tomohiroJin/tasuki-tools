@@ -1,0 +1,23 @@
+# 変異 2630: topic-make-ignores-generating
+#
+# 検出を期待するテスト:
+#   - apps/topic-web/tests/topic-room.test.tsx
+#
+# #665 生成中でも作るの欄のボタンを押せる（E11 の見直し）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2630-*.patch
+# 復元: git apply -R scripts/mutations/m2630-*.patch
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+index 603eccbf..4f39f12f 100644
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -39,7 +39,7 @@ interface Props {
+  */
+ export function TopicMaker({ aiUnlocked, enabled, generating, onGenerate, onUnlock }: Props) {
+   // 生成中に押すと進行中の生成が中断される（E11）。待ちきれず押して捨てさせないよう、作るの欄のボタンだけ止める（#665）
+-  const canGenerate = enabled && !generating;
++  const canGenerate = enabled;
+   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
+   const [language, setLanguage] = useState<Language>(LANGUAGES[0]);
+   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTIES[0]);
