@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 5b59e49..8f019ba 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -27,7 +27,7 @@
+  * `git log` に渡す引数（範囲は入口が後ろに足す）。
+  * 改名を追わない（消えた側のパスも出す）・main の一本道だけ・古い順。コミットの頭は `\x01<ハッシュ>\x00<題>`。
+  */
+-export const LOG_ARGS = Object.freeze(["log", "--no-renames", "--first-parent", "--reverse", "--format=%x01%H%x00%s", "--name-only"]);
++export const LOG_ARGS = Object.freeze(["log", "--find-renames", "--first-parent", "--reverse", "--format=%x01%H%x00%s", "--name-only"]);
+ 
+ /**
+  * `git log`（{@link LOG_ARGS}）の出力を読む。形が違えば、0 件にせず投げる。

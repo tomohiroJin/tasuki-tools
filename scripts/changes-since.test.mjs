@@ -100,6 +100,21 @@ describe("changes-since の起動", () => {
   });
 });
 
+describe("changes-since の起動（枝分かれしたタグ）", () => {
+  test("根は同じでも、main から分かれた枝のタグは祖先でないので exit 2 で終わる（共通の祖先があるだけでは足りない）", () => {
+    const r = runFixture(["v-hotfix"], (root) => {
+      git(root, "switch", "-q", "-c", "hotfix");
+      commitFiles(root, "fix: 枝だけの直し (#40)", { "packages/poker-core/src/a.ts": "x\n" });
+      git(root, "tag", "v-hotfix");
+      git(root, "switch", "-q", "main");
+      threeCommits(root);
+    });
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stderr, /祖先/);
+    assert.doesNotMatch(r.stdout, /#20/);
+  });
+});
+
 describe("changes-since の一覧", () => {
   test("前のタグより後のコミットを古い順に並べ、印とまとめを出して exit 0", () => {
     const r = runFixture(["v1.0.0"], threeCommits);

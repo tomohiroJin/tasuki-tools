@@ -1,0 +1,13 @@
+diff --git a/scripts/changes-since.mjs b/scripts/changes-since.mjs
+index 76bd7fb..4119782 100644
+--- a/scripts/changes-since.mjs
++++ b/scripts/changes-since.mjs
+@@ -47,7 +47,7 @@ function main() {
+   const baseSha = base.stdout.trim();
+ 
+   // 祖先でなければ、範囲 <rev>..HEAD は「前のタグより後」を意味しない（別の枝・履歴の途切れた浅い複製）
+-  if (!git(["merge-base", "--is-ancestor", baseSha, "HEAD"]).ok) {
++  if (!git(["merge-base", baseSha, "HEAD"]).ok) {
+     console.error(`${TAG} ${rev}（${baseSha.slice(0, 7)}）は HEAD の祖先ではありません。一覧を出しません`);
+     console.error("  浅い複製なら履歴を取り足してください（git fetch --unshallow）。別の枝にいるなら main で流してください");
+     process.exitCode = 2;

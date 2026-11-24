@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 5b59e49..466a239 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -48,7 +48,7 @@ export function parseLog(raw) {
+     });
+ }
+ 
+-const WIRE_PATH = /^packages\/([a-z0-9-]+-core)\/src\//;
++const WIRE_PATH = /^packages\/([a-z0-9-]+-core)\//;
+ const SYNC_PATH = /^apps\/tasuki-sync\/src\//;
+ 
+ /**

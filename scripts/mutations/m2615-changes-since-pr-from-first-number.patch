@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 5b59e49..196bd39 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -57,7 +57,7 @@ const SYNC_PATH = /^apps\/tasuki-sync\/src\//;
+  */
+ export function classifyCommit({ sha, subject, files }) {
+   // squash の題は「<題> (#<PR 番号>)」。題の中の #番号（ISSUE）は PR ではないので、末尾だけを見る
+-  const pr = /\(#(\d+)\)\s*$/.exec(subject);
++  const pr = /#(\d+)/.exec(subject);
+   const wire = [...new Set(files.map((f) => WIRE_PATH.exec(f)?.[1]).filter((name) => name !== undefined))].sort();
+   const inDeploy = files.filter((f) => f.startsWith("deploy/"));
+   return {

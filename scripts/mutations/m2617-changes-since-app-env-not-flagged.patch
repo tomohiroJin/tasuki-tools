@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 5b59e49..7a136a9 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -66,7 +66,7 @@ export function classifyCommit({ sha, subject, files }) {
+     pr: pr ? Number(pr[1]) : null,
+     wire,
+     sync: files.some((f) => SYNC_PATH.test(f)),
+-    deploy: { docs: inDeploy.filter((f) => f.endsWith(".md")), other: inDeploy.filter((f) => !f.endsWith(".md")) },
++    deploy: { docs: inDeploy.filter((f) => f.endsWith(".md")), other: inDeploy.filter((f) => !f.endsWith(".md") && !f.endsWith(".env")) },
+   };
+ }
+ 
