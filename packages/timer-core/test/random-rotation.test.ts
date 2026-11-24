@@ -514,6 +514,18 @@ describe("開始・リセット", () => {
       expect(next.session.randomRotation?.drove).toEqual(["a", "d"]);
     });
 
+    it("最初の交代のあと（走行中で、稼働の累計もある）に運転者を外しても、袋の予告した人が運転者になる", () => {
+      // 本番でいちばん多い状態（印が 2 つ立つ）。d へ替わり、次の予告は c（輪の隣は a）
+      const switched = run(base().running().build(), { command: "session.act", action: "SWITCH" });
+      expect(flagsOf(switched)).toEqual({ ...NONE, running: true, hasElapsed: true });
+      expect(driverId(switched)).toBe("d");
+      expect(forecastId(switched)).toBe("c");
+
+      const next = run(switched, { command: "member.remove", index: 3 });
+
+      expect(driverId(next)).toBe("c");
+    });
+
     it("どの印も立っていない（開始前のロビー）なら、袋から引かない", () => {
       const lobby = base().build();
       expect(flagsOf(lobby)).toEqual(NONE);

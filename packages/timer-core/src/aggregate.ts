@@ -62,9 +62,11 @@ export function isOnBreak(session: Pick<SessionState, "break">): boolean {
 }
 
 /**
- * セッションが始まっているか（走行中・一時停止中・休憩中〔`break.since`〕のいずれか）。
+ * セッションが始まっているか（走行中・一時停止中・休憩中〔`break.since`〕・稼働の累計がある、のいずれか）。
  * 開始前（ロビー）の集約は時計が一度も走っていない（`accumulatedElapsedMs` が 0 で止まっている）。
- * evolve（運転中の席を外したときの直前のドライバー）と decide（開始前の break.start の拒否）が共有する。
+ * 完成・中断のあとロビーへ戻った集約は、時計は止まっているが稼働の累計が残るので、始まっている側になる。
+ * evolve（運転中の席を外したときの直前のドライバー）と、decide（開始前の break.start の拒否・
+ * 運転中の人を外すときランダム交代の袋から引くかどうか〔#660〕）が共有する。
  */
 export function sessionHasStarted(agg: Aggregate): boolean {
   return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null || agg.clock.accumulatedElapsedMs > 0;
