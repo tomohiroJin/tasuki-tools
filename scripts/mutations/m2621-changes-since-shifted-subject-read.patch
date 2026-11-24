@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 35d64e5..fafb1f8 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -46,7 +46,7 @@ export function parseLog(raw) {
+       const parts = chunk.split("\x02");
+       const [sha, subject, names] = parts;
+       // 区切りがちょうど 2 つでなければ、題に区切りの字が紛れている。ずれたまま読まない
+-      if (parts.length !== 3 || !/^[0-9a-f]{40,64}$/.test(sha)) {
++      if (!/^[0-9a-f]{40,64}$/.test(sha)) {
+         throw new Error(`git log の出力が想定の形ではありません（コミットの頭を読めない: ${JSON.stringify(chunk.slice(0, 60))}）`);
+       }
+       // 題の後ろは NUL、パスの並びの前は改行 1 つ。パスの中の改行は残す

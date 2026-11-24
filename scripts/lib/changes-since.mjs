@@ -25,9 +25,12 @@
 
 /**
  * `git log` に渡す引数（範囲は入口が後ろに足す）。
- * 改名を追わない（消えた側のパスも出す）・main の一本道だけ・古い順。コミットの頭は `\x01<ハッシュ>\x00<題>`。
+ * 改名を追わない（消えた側のパスも出す）・main の一本道だけ・古い順。
+ * `-z` で、パスを NUL 区切りの生の字で受け取る（付けないと、日本語・引用符・タブを含むパスは `"…\343\202…"` と
+ * 引用符つきで出て、先頭が `packages/` でなくなり、印が 1 つも付かない。#675 のレビュー）。
+ * コミットの頭は `\x01<ハッシュ>\x02<題>\x02`、その後ろに NUL で終わるパスが並ぶ。
  */
-export const LOG_ARGS = Object.freeze(["log", "--no-renames", "--first-parent", "--reverse", "--format=%x01%H%x00%s", "--name-only"]);
+export const LOG_ARGS = Object.freeze(["log", "-z", "--no-renames", "--first-parent", "--reverse", "--format=%x01%H%x02%s%x02", "--name-only"]);
 
 /**
  * `git log`（{@link LOG_ARGS}）の出力を読む。形が違えば、0 件にせず投げる。
@@ -40,11 +43,15 @@ export function parseLog(raw) {
     .split("\x01")
     .slice(1)
     .map((chunk) => {
-      const [head, ...rest] = chunk.split("\n");
-      const at = head.indexOf("\x00");
-      const sha = at === -1 ? "" : head.slice(0, at);
-      if (!/^[0-9a-f]{40,64}$/.test(sha)) throw new Error(`git log の出力が想定の形ではありません（ハッシュを読めない: ${head.slice(0, 60)}）`);
-      return { sha, subject: head.slice(at + 1), files: rest.filter((line) => line !== "") };
+      const parts = chunk.split("\x02");
+      const [sha, subject, names] = parts;
+      // 区切りがちょうど 2 つでなければ、題に区切りの字が紛れている。ずれたまま読まない
+      if (parts.length !== 3 || !/^[0-9a-f]{40,64}$/.test(sha)) {
+        throw new Error(`git log の出力が想定の形ではありません（コミットの頭を読めない: ${JSON.stringify(chunk.slice(0, 60))}）`);
+      }
+      // 題の後ろは NUL、パスの並びの前は改行 1 つ。パスの中の改行は残す
+      const files = names.split("\0").map((name) => name.replace(/^\n/, "")).filter((name) => name !== "");
+      return { sha, subject, files };
     });
 }
 
@@ -98,7 +105,7 @@ function marks(c) {
 /** 一覧とまとめを、行ごとの文章にする。 */
 export function formatChanges(commits) {
   const s = summarize(commits);
-  if (s.total === 0) return "コミットは 0 件です（前のタグと HEAD が同じか、HEAD の方が古い）";
+  if (s.total === 0) return "コミットは 0 件です（前のタグと HEAD が同じコミット）";
   const width = Math.max(...commits.map((c) => label(c).length));
   const lines = commits.map((c) => `  ${label(c).padEnd(width)}  ${short(c.sha)}  ${c.subject}${marks(c) === "" ? "" : `  ${marks(c)}`}`);
   lines.push(

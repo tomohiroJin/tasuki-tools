@@ -5,13 +5,13 @@ import { LOG_ARGS, parseLog, classifyCommit, summarize, formatChanges } from "./
 /** `scripts/lib/changes-since.mjs` の自己テスト（#675）。git は叩かず、`git log` の出力の形の文字列を渡す。 */
 
 const sha = (c) => c.repeat(40);
-/** `git log --format=%x01%H%x00%s --name-only` の 1 コミットぶん。 */
-const entry = (hash, subject, files) => `\x01${hash}\x00${subject}\n\n${files.join("\n")}\n`;
+/** `git log -z --format=%x01%H%x02%s%x02 --name-only` の 1 コミットぶん（実物の出力の形。名前は NUL で終わる）。 */
+const entry = (hash, subject, files) => `\x01${hash}\x02${subject}\x02\0${files.length === 0 ? "" : `\n${files.map((f) => `${f}\0`).join("")}`}`;
 const commit = (subject, files, hash = sha("a")) => classifyCommit({ sha: hash, subject, files });
 
 describe("LOG_ARGS", () => {
   test("改名を追わず、main の一本道だけを古い順にたどる", () => {
-    for (const flag of ["--no-renames", "--first-parent", "--reverse", "--name-only"]) assert.ok(LOG_ARGS.includes(flag), flag);
+    for (const flag of ["-z", "--no-renames", "--first-parent", "--reverse", "--name-only"]) assert.ok(LOG_ARGS.includes(flag), flag);
     assert.ok(LOG_ARGS.some((a) => a.startsWith("--format=")));
   });
 });
@@ -26,7 +26,12 @@ describe("parseLog", () => {
   });
 
   test("ファイルの無いコミット（空のコミット・マージ）も 1 件として残す", () => {
-    assert.deepEqual(parseLog(`\x01${sha("a")}\x00空のコミット\n`), [{ sha: sha("a"), subject: "空のコミット", files: [] }]);
+    assert.deepEqual(parseLog(entry(sha("a"), "空のコミット", [])), [{ sha: sha("a"), subject: "空のコミット", files: [] }]);
+  });
+
+  test("日本語・空白・引用符・改行を含むパスも、そのままの字で読む（引用符つきの形に化けない）", () => {
+    const files = ["packages/checkin-core/src/やり方.ts", "deploy/timer/a b.conf", 'apps/tasuki-sync/src/"x".ts', "deploy/timer/改\n行.env"];
+    assert.deepEqual(parseLog(entry(sha("a"), "feat: 字 (#70)", files))[0].files, files);
   });
 
   test("出力が空なら 0 件", () => {
@@ -36,7 +41,9 @@ describe("parseLog", () => {
 
   test("形の違う出力（区切りが無い・ハッシュでない）は、黙って 0 件にせず投げる", () => {
     assert.throws(() => parseLog("abc def\nfile.ts\n"), /git log/);
-    assert.throws(() => parseLog("\x01nothash\x00subject\n"), /git log/);
+    assert.throws(() => parseLog("\x01nothash\x02subject\x02\0"), /git log/);
+    // 題に区切りの字が紛れた（区切りが 2 つでない）ときも、ずれたまま読まない
+    assert.throws(() => parseLog(`\x01${sha("a")}\x02題\x02の中\x02\0`), /git log/);
   });
 });
 
@@ -81,6 +88,13 @@ describe("summarize", () => {
     commit("d", ["README.md"], sha("d")),
     commit("e (#5)", ["apps/timer-web/src/App.tsx"], sha("e")),
   ];
+
+  test("deploy/ の文書と文書以外の両方に触れたコミットは、「文書だけ」に数えない", () => {
+    const both = commit("x (#8)", ["deploy/README.md", "deploy/deploy.sh"], sha("f"));
+    const s = summarize([both]);
+    assert.deepEqual(s.deployOther.map((c) => c.pr), [8]);
+    assert.deepEqual(s.deployDocs, []);
+  });
 
   test("種類ごとに、触れたコミットを数える", () => {
     const s = summarize(commits);
@@ -130,7 +144,8 @@ describe("formatChanges", () => {
     assert.match(text, /deploy\/ の文書以外.*: なし$/m);
   });
 
-  test("0 件なら、0 件と出す", () => {
+  test("0 件なら、0 件と出す（起きるのは前のタグと HEAD が同じときだけ。古い HEAD は入口が先に止める）", () => {
     assert.match(formatChanges([]), /0 件/);
+    assert.doesNotMatch(formatChanges([]), /古い/);
   });
 });

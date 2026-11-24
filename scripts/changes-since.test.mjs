@@ -76,7 +76,11 @@ describe("changes-since の起動", () => {
 
   test("引数が 2 つ以上・- で始まる引数は exit 2 で終わる", () => {
     assert.equal(runFixture(["v1.0.0", "v2.0.0"]).status, 2);
-    assert.equal(runFixture(["--all"]).status, 2);
+    // - で始まる語を git へ渡さない（rev として解く前に、使い方を出して止まる）
+    const dashed = runFixture(["--all"]);
+    assert.equal(dashed.status, 2);
+    assert.match(dashed.stderr, /前のタグを 1 つ/);
+    assert.doesNotMatch(dashed.stderr, /解けません/);
   });
 
   test("解けないタグは、空の一覧を出さずに exit 2 で終わる（浅い複製・打ち間違い）", () => {
@@ -149,6 +153,30 @@ describe("changes-since の一覧", () => {
     });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /#31.*\[wire: topic-core\]/);
+  });
+});
+
+describe("changes-since の一覧（パスと題の字）", () => {
+  test("日本語・空白の名前のファイルにも印が付く（git が引用符つきで出す形に化けない）", () => {
+    const r = runFixture(["v1.0.0"], (root) => {
+      commitFiles(root, "feat: 日本語の名前 (#70)", { "packages/checkin-core/src/やり方.ts": "x\n" });
+      commitFiles(root, "chore: 断片 (#71)", { "deploy/timer/メモ 1.conf": "x\n" });
+      commitFiles(root, "feat: 設定 (#75)", { "apps/tasuki-sync/src/設定.ts": "x\n" });
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /wire.*: #70$/m);
+    assert.match(r.stdout, /同期サーバー.*: #75$/m);
+    assert.match(r.stdout, /deploy\/ の文書以外.*: #71$/m);
+    assert.match(r.stdout, /\[deploy（文書以外）: deploy\/timer\/メモ 1\.conf\]/);
+  });
+
+  test("題に区切りの字が紛れていたら、ずれた一覧を出さずに exit 2 で終わる", () => {
+    const r = runFixture(["v1.0.0"], (root) => {
+      commitFiles(root, "feat: 区切り\x02の字 (#80)", { "packages/checkin-core/src/a.ts": "x\n" });
+    });
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stderr, /想定の形ではありません/);
+    assert.doesNotMatch(r.stdout, /まとめ/);
   });
 });
 

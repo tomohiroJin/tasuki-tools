@@ -60,7 +60,15 @@ function main() {
     process.exitCode = 2;
     return;
   }
-  const commits = parseLog(log.stdout).map(classifyCommit);
+  let commits;
+  try {
+    commits = parseLog(log.stdout).map(classifyCommit);
+  } catch (e) {
+    // 読めない形を 0 件にしない（題に区切りの字がある・git の出力の形が変わった）
+    console.error(`${TAG} ${e.message}。一覧を出しません`);
+    process.exitCode = 2;
+    return;
+  }
 
   const head = git(["rev-parse", "HEAD"]).stdout.trim();
   const branch = git(["branch", "--show-current"]).stdout.trim() || "枝なし";

@@ -139,7 +139,10 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
   - 読むだけで、順は出さない。印は読む PR を漏らさないためのもので、wire が変わったかどうかの判定ではない
     （`*-core/src` の内部の整理にも印が付く。逆に、印の無い PR が受け方を変えていることもある）
   - 手元にタグが無い・タグが HEAD の祖先でない（浅い複製・別の枝）ときは、空の一覧を出さずに止まる。
-    `git fetch origin tag <前のタグ>` で取り、main で流す
+    `git fetch origin tag <前のタグ>` で取り、main で流す。浅い複製（`git clone --depth`）では、タグを取っても履歴がつながらず
+    「祖先ではありません」で止まるので、`git fetch --unshallow` で履歴を取り足す
+  - 印の範囲は上の 3 つだけ。同期サーバーの束に入るほかのパッケージ（`packages/protocol`・`packages/rate-limit`）や
+    `apps/tasuki-sync/package.json` だけの変更には印が付かない（一覧には出る）
 - [ ] **順は人が決める。** 標準は、同期サーバー（`deploy.sh timer`）が先・画面が後（[`../docs/guides/architecture.md`](../docs/guides/architecture.md)・`docs/adr/0026`）
 - [ ] wire が変わった PR は、本文の「配布の注意」と各 `NOTES.md` の注記を突き合わせ、すべての決まりを満たす順にする。
       決まりどうしが食い違ったら、どれに従い、どれに従わなかったかと理由を、配った回の注記に書く（v4.7.0 の記録）

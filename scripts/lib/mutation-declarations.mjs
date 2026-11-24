@@ -268,6 +268,9 @@ const RESERVED_2470_2599 =
 const RESERVED_2600_2619 =
   "**対応表より後に足した変異。** 2600〜2619 は #675（本番に配った後の確かめを 1 コマンドにする）に割り当てた範囲。";
 
+const RESERVED_2620_2629 =
+  "**対応表より後に足した変異。** 2620〜2629 は #675 の続き（前のタグからの一覧のレビューの指摘）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -12758,5 +12761,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["changes-since.test.mjs"],
     note: RESERVED_2600_2619 + " " + "#675。別の枝のタグを渡すと、前のタグより後でないコミットまで混ざった一覧が、止まらずに出る。",
+  },
+  {
+    id: 2620,
+    label: "前のタグからの一覧が、deploy/ の文書と文書以外の両方に触れたコミットを「文書だけ」にも数える",
+    patch: "m2620-changes-since-docs-only-includes-mixed.patch",
+    pkg: "scripts",
+    tests: ["lib/changes-since.test.mjs"],
+    note: RESERVED_2620_2629 + " " + "#675 のレビュー。root の作業がありうる PR が「文書だけ」の行にも並び、文書だけと読み違える。",
+  },
+  {
+    id: 2621,
+    label: "前のタグからの一覧が、題に区切りの字が紛れたコミットを、ずれたまま読む",
+    patch: "m2621-changes-since-shifted-subject-read.patch",
+    pkg: "scripts",
+    tests: ["lib/changes-since.test.mjs", "changes-since.test.mjs"],
+    note: RESERVED_2620_2629 + " " + "#675 のレビュー。題の後ろ半分がパスとして読まれ、そのコミットの印が黙って消える。",
+  },
+  {
+    id: 2622,
+    label: "前のタグからの一覧が、ASCII でない字を含むパスを読み飛ばす",
+    patch: "m2622-changes-since-non-ascii-path-dropped.patch",
+    pkg: "scripts",
+    tests: ["lib/changes-since.test.mjs", "changes-since.test.mjs"],
+    note: RESERVED_2620_2629 + " " + "#675 のレビュー。日本語の名前のファイルだけを変えた PR から印が消え、「なし」と出る（-z を付ける前は、git の引用符つきの形でこうなっていた）。",
   },
 ];
