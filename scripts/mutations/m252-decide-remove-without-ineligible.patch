@@ -8,12 +8,12 @@
 #
 # #376（PR #392 の 2 巡目）。運転中の人が外れると、一時離脱・不在の人に運転が回る（本番の経路）。
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index e6f1905..79dfe66 100644
+index 7d15d30..4a6e265 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
-@@ -367,7 +367,7 @@ function decideMemberRemove(
-   // （外れた席の次の適格な席・#376）で選ぶ。始まっていれば、一時停止中・休憩中でも袋から引く
-   // （袋から引くと、開始の運転者が輪の途中の席になり、画面が最初の開始をリセットで送る。#660 の 2 巡目のレビュー）。
+@@ -368,7 +368,7 @@ function decideMemberRemove(
+   // リセットで送る。#660 の 2 巡目のレビュー）。
+   // 始まっていれば（走行中・一時停止中・休憩中・完成のあとのロビー）、袋から引く。
    const session = sessionHasStarted(agg) ? agg.session : { ...agg.session, randomRotation: null };
 -  const nextDriver = nextDriverAfterRemoval(session, index, ineligible);
 +  const nextDriver = nextDriverAfterRemoval(session, index, undefined);

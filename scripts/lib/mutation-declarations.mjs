@@ -265,8 +265,8 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
-const RESERVED_2600_2639 =
-  "**対応表より後に足した変異。** 2600〜2639 は #660（ランダム交代。交代のたびに次のドライバーをランダムに決めるモード）に割り当てた範囲。";
+const RESERVED_2600_2649 =
+  "**対応表より後に足した変異。** 2600〜2649 は #660（ランダム交代。交代のたびに次のドライバーをランダムに決めるモード）に割り当てた範囲。";
 
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
@@ -12605,7 +12605,7 @@ export const MUTATIONS = [
     patch: "m2600-random-rotation-picks-current-driver.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。同じ人が続けて運転者になる（交代しても運転者が変わらない）。",
+    note: RESERVED_2600_2649 + " " + "#660。同じ人が続けて運転者になる（交代しても運転者が変わらない）。",
   },
   {
     id: 2601,
@@ -12613,7 +12613,7 @@ export const MUTATIONS = [
     patch: "m2601-random-rotation-picks-ineligible.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。席を外した人に運転が回る。",
+    note: RESERVED_2600_2649 + " " + "#660。席を外した人に運転が回る。",
   },
   {
     id: 2602,
@@ -12621,7 +12621,7 @@ export const MUTATIONS = [
     patch: "m2602-random-rotation-ignores-drove.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。1 周のうちに全員へ回らず、同じ人が何度も当たる。",
+    note: RESERVED_2600_2649 + " " + "#660。1 周のうちに全員へ回らず、同じ人が何度も当たる。",
   },
   {
     id: 2603,
@@ -12629,7 +12629,7 @@ export const MUTATIONS = [
     patch: "m2603-random-rotation-never-starts-new-round.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。2 周目から「まだ運転していない人」が居なくなり、担当回数が偏る。",
+    note: RESERVED_2600_2649 + " " + "#660。2 周目から「まだ運転していない人」が居なくなり、担当回数が偏る。",
   },
   {
     id: 2604,
@@ -12637,7 +12637,7 @@ export const MUTATIONS = [
     patch: "m2604-random-rotation-drops-seats-outside-order.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。途中で入った人に、次の交代まで番が回らない。ほかに適格な人が居なければ交代が止まる。",
+    note: RESERVED_2600_2649 + " " + "#660。途中で入った人に、次の交代まで番が回らない。ほかに適格な人が居なければ交代が止まる。",
   },
   {
     id: 2605,
@@ -12645,7 +12645,7 @@ export const MUTATIONS = [
     patch: "m2605-random-rotation-switch-keeps-old-order.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。毎周が同じ並びになり、順番が固まる。",
+    note: RESERVED_2600_2649 + " " + "#660。毎周が同じ並びになり、順番が固まる。",
   },
   {
     id: 2606,
@@ -12653,7 +12653,7 @@ export const MUTATIONS = [
     patch: "m2606-random-rotation-switch-accepts-non-permutation.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。乱数の契約違反を黙って通す（引く順が作り直されないまま進む）。",
+    note: RESERVED_2600_2649 + " " + "#660。乱数の契約違反を黙って通す（引く順が作り直されないまま進む）。",
   },
   {
     id: 2607,
@@ -12661,7 +12661,7 @@ export const MUTATIONS = [
     patch: "m2607-random-rotation-assign-restarts-round.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。指名のたびに周が切れ、まだ運転していない人が後回しになる。",
+    note: RESERVED_2600_2649 + " " + "#660。指名のたびに周が切れ、まだ運転していない人が後回しになる。",
   },
   {
     id: 2608,
@@ -12669,7 +12669,7 @@ export const MUTATIONS = [
     patch: "m2608-random-rotation-config-redraws-when-already-random.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。周の途中の「運転した人」が消える。",
+    note: RESERVED_2600_2649 + " " + "#660。周の途中の「運転した人」が消える。",
   },
   {
     id: 2609,
@@ -12677,7 +12677,7 @@ export const MUTATIONS = [
     patch: "m2609-random-rotation-config-order-keeps-bag.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。画面は輪の順と出すのに、交代はランダムのまま続く。",
+    note: RESERVED_2600_2649 + " " + "#660。画面は輪の順と出すのに、交代はランダムのまま続く。",
   },
   {
     id: 2610,
@@ -12685,7 +12685,7 @@ export const MUTATIONS = [
     patch: "m2610-random-rotation-start-keeps-stale-bag.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。ロビーで入った人が引く順に居らず、最初の周が輪の順になる。",
+    note: RESERVED_2600_2649 + " " + "#660。ロビーで入った人が引く順に居らず、最初の周が輪の順になる。",
   },
   {
     id: 2611,
@@ -12693,7 +12693,7 @@ export const MUTATIONS = [
     patch: "m2611-random-rotation-removal-does-not-mark-driver.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。繰り上がった人が同じ周でもう一度当たる。",
+    note: RESERVED_2600_2649 + " " + "#660。繰り上がった人が同じ周でもう一度当たる。",
   },
   {
     id: 2612,
@@ -12701,7 +12701,7 @@ export const MUTATIONS = [
     patch: "m2612-random-rotation-event-turns-order-mode-random.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。モードを変えるのは設定（ConfigSet）だけ、が崩れる。",
+    note: RESERVED_2600_2649 + " " + "#660。モードを変えるのは設定（ConfigSet）だけ、が崩れる。",
   },
   {
     id: 2613,
@@ -12709,7 +12709,7 @@ export const MUTATIONS = [
     patch: "m2613-random-rotation-reset-drops-mode.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。2 回目のセッション（リセットで始まる）が、設定はランダムのまま輪の順で回る。",
+    note: RESERVED_2600_2649 + " " + "#660。2 回目のセッション（リセットで始まる）が、設定はランダムのまま輪の順で回る。",
   },
   {
     id: 2614,
@@ -12717,7 +12717,7 @@ export const MUTATIONS = [
     patch: "m2614-random-rotation-forecast-walks-ring.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。画面の「次: 〈名前〉」と、実際に替わる人が食い違う。",
+    note: RESERVED_2600_2649 + " " + "#660。画面の「次: 〈名前〉」と、実際に替わる人が食い違う。",
   },
   {
     id: 2615,
@@ -12725,7 +12725,7 @@ export const MUTATIONS = [
     patch: "m2615-random-rotation-auto-switch-keeps-order.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。誰も「交代」を押さないセッションで、毎周が同じ並びになる。",
+    note: RESERVED_2600_2649 + " " + "#660。誰も「交代」を押さないセッションで、毎周が同じ並びになる。",
   },
   {
     id: 2616,
@@ -12733,7 +12733,7 @@ export const MUTATIONS = [
     patch: "m2616-random-rotation-draws-in-order-mode.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。使わない乱数を交代のたびに引く。",
+    note: RESERVED_2600_2649 + " " + "#660。使わない乱数を交代のたびに引く。",
   },
   {
     id: 2617,
@@ -12741,7 +12741,7 @@ export const MUTATIONS = [
     patch: "m2617-random-rotation-start-without-order.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。作成のときにランダムを選んだルームで、最初の交代が輪の順になる。",
+    note: RESERVED_2600_2649 + " " + "#660。作成のときにランダムを選んだルームで、最初の交代が輪の順になる。",
   },
   {
     id: 2618,
@@ -12749,7 +12749,7 @@ export const MUTATIONS = [
     patch: "m2618-random-rotation-reset-without-order.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。ロビーで入った人が、2 回目のセッションの最初の周だけ輪の順で並ぶ。",
+    note: RESERVED_2600_2649 + " " + "#660。ロビーで入った人が、2 回目のセッションの最初の周だけ輪の順で並ぶ。",
   },
   {
     id: 2619,
@@ -12757,7 +12757,7 @@ export const MUTATIONS = [
     patch: "m2619-random-rotation-enable-without-order.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。ランダムを選んだ直後の予告が、輪の隣の人になる。",
+    note: RESERVED_2600_2649 + " " + "#660。ランダムを選んだ直後の予告が、輪の隣の人になる。",
   },
   {
     id: 2620,
@@ -12765,7 +12765,7 @@ export const MUTATIONS = [
     patch: "m2620-random-rotation-skip-advance-keeps-order.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660。繰り上げのあとの並びが、前の周と同じになる。",
+    note: RESERVED_2600_2649 + " " + "#660。繰り上げのあとの並びが、前の周と同じになる。",
   },
   {
     id: 2621,
@@ -12773,7 +12773,7 @@ export const MUTATIONS = [
     patch: "m2621-random-rotation-lineup-walks-ring.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/RotationLineup.test.tsx", "test/ui/Session.random-rotation.test.tsx"],
-    note: RESERVED_2600_2639 + " " + "#660。実際の交代と合わない順番（あと N 人・約 M 分後）を画面に出す。",
+    note: RESERVED_2600_2649 + " " + "#660。実際の交代と合わない順番（あと N 人・約 M 分後）を画面に出す。",
   },
   {
     id: 2622,
@@ -12781,7 +12781,7 @@ export const MUTATIONS = [
     patch: "m2622-random-rotation-session-hides-mode.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/Session.random-rotation.test.tsx"],
-    note: RESERVED_2600_2639 + " " + "#660。モードの名前が出ず、輪の並びと違う人が次に出る理由が分からない。",
+    note: RESERVED_2600_2649 + " " + "#660。モードの名前が出ず、輪の並びと違う人が次に出る理由が分からない。",
   },
   {
     id: 2623,
@@ -12789,7 +12789,7 @@ export const MUTATIONS = [
     patch: "m2623-random-rotation-toggle-never-returns-to-order.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/SessionConfigPanel.test.tsx"],
-    note: RESERVED_2600_2639 + " " + "#660。一度ランダムにしたルームを輪の順へ戻せない。",
+    note: RESERVED_2600_2649 + " " + "#660。一度ランダムにしたルームを輪の順へ戻せない。",
   },
   {
     id: 2624,
@@ -12797,7 +12797,7 @@ export const MUTATIONS = [
     patch: "m2624-random-rotation-lineup-summary-says-null.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/RotationLineup.test.tsx"],
-    note: RESERVED_2600_2639 + " " + "#660。「あなた: あとnull人」が出る。",
+    note: RESERVED_2600_2649 + " " + "#660。「あなた: あとnull人」が出る。",
   },
   {
     id: 2625,
@@ -12805,7 +12805,7 @@ export const MUTATIONS = [
     patch: "m2625-random-rotation-positional-removal-does-not-mark-driver.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 のレビュー。ほかの全員が不適格のときに繰り上がった人が、全員が戻ったあと同じ周でもう一度当たる。",
+    note: RESERVED_2600_2649 + " " + "#660 のレビュー。ほかの全員が不適格のときに繰り上がった人が、全員が戻ったあと同じ周でもう一度当たる。",
   },
   {
     id: 2626,
@@ -12813,7 +12813,7 @@ export const MUTATIONS = [
     patch: "m2626-random-rotation-schema-drops-mode.patch",
     pkg: "packages/timer-core",
     tests: ["test/schemas.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 のレビュー。サーバーが項目を捨て、画面からランダム交代を入れられなくなる。",
+    note: RESERVED_2600_2649 + " " + "#660 のレビュー。サーバーが項目を捨て、画面からランダム交代を入れられなくなる。",
   },
   {
     id: 2627,
@@ -12821,7 +12821,7 @@ export const MUTATIONS = [
     patch: "m2627-random-rotation-bag-leaks-to-wire.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/timer-snapshot-dto.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 のレビュー。次の次の人以降の順が画面へ配られる。",
+    note: RESERVED_2600_2649 + " " + "#660 のレビュー。次の次の人以降の順が画面へ配られる。",
   },
   {
     id: 2628,
@@ -12829,7 +12829,7 @@ export const MUTATIONS = [
     patch: "m2628-random-rotation-manual-switch-keeps-order.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 のレビュー。「交代」を押して回すセッションで、毎周が同じ並びになる。",
+    note: RESERVED_2600_2649 + " " + "#660 のレビュー。「交代」を押して回すセッションで、毎周が同じ並びになる。",
   },
   {
     id: 2629,
@@ -12837,7 +12837,7 @@ export const MUTATIONS = [
     patch: "m2629-random-rotation-noop-switch-advances-bag.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 のレビュー。交代していないのに「運転した人」が進む（decide はこの形を出さない。evolve 単体の守り）。",
+    note: RESERVED_2600_2649 + " " + "#660 のレビュー。交代していないのに「運転した人」が進む（decide はこの形を出さない。evolve 単体の守り）。",
   },
   {
     id: 2630,
@@ -12845,7 +12845,7 @@ export const MUTATIONS = [
     patch: "m2630-random-rotation-ignored-removal-advances-bag.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 のレビュー。無視するイベントが袋だけを変える（evolve 単体の守り）。",
+    note: RESERVED_2600_2649 + " " + "#660 のレビュー。無視するイベントが袋だけを変える（evolve 単体の守り）。",
   },
   {
     id: 2631,
@@ -12853,7 +12853,7 @@ export const MUTATIONS = [
     patch: "m2631-random-rotation-assign-does-not-mark-driver.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 の 2 巡目のレビュー。指名で運転した人が、同じ周でもう一度当たる。",
+    note: RESERVED_2600_2649 + " " + "#660 の 2 巡目のレビュー。指名で運転した人が、同じ周でもう一度当たる。",
   },
   {
     id: 2632,
@@ -12861,7 +12861,7 @@ export const MUTATIONS = [
     patch: "m2632-random-rotation-positional-removal-restarts-round.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 の 2 巡目のレビュー。袋から引いていないのに周が切れ、まだ運転していない人が後回しになる。",
+    note: RESERVED_2600_2649 + " " + "#660 の 2 巡目のレビュー。袋から引いていないのに周が切れ、まだ運転していない人が後回しになる。",
   },
   {
     id: 2633,
@@ -12869,7 +12869,7 @@ export const MUTATIONS = [
     patch: "m2633-random-rotation-reset-marks-old-driver.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 の 2 巡目のレビュー。リセット後の運転者（先頭）が同じ周でもう一度当たり、前の運転者に回らない。",
+    note: RESERVED_2600_2649 + " " + "#660 の 2 巡目のレビュー。リセット後の運転者（先頭）が同じ周でもう一度当たり、前の運転者に回らない。",
   },
   {
     id: 2634,
@@ -12877,7 +12877,7 @@ export const MUTATIONS = [
     patch: "m2634-random-rotation-removal-walks-ring.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 の 2 巡目のレビュー。運転者が抜けると、予告と違う人（輪の隣）が運転者になる。",
+    note: RESERVED_2600_2649 + " " + "#660 の 2 巡目のレビュー。運転者が抜けると、予告と違う人（輪の隣）が運転者になる。",
   },
   {
     id: 2635,
@@ -12885,7 +12885,7 @@ export const MUTATIONS = [
     patch: "m2635-random-rotation-lobby-removal-draws-from-bag.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 の 2 巡目のレビュー。開始の運転者が輪の途中の席になり、画面が最初の開始をリセットで送る（知らせが 1 つ余計に出る）。",
+    note: RESERVED_2600_2649 + " " + "#660 の 2 巡目のレビュー。開始の運転者が輪の途中の席になり、画面が最初の開始をリセットで送る（知らせが 1 つ余計に出る）。",
   },
   {
     id: 2636,
@@ -12893,6 +12893,38 @@ export const MUTATIONS = [
     patch: "m2636-random-rotation-stopped-clock-removal-walks-ring.patch",
     pkg: "packages/timer-core",
     tests: ["test/random-rotation.test.ts"],
-    note: RESERVED_2600_2639 + " " + "#660 の 3 巡目のレビュー。一時停止中・休憩中に運転者が抜けると、予告と違う人（輪の隣）が運転者になる。",
+    note: RESERVED_2600_2649 + " " + "#660 の 3 巡目のレビュー。一時停止中・休憩中に運転者が抜けると、予告と違う人（輪の隣）が運転者になる。",
+  },
+  {
+    id: 2637,
+    label: "「セッションが始まっているか」が、走行中を見ない",
+    patch: "m2637-session-started-ignores-running.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/random-rotation.test.ts"],
+    note: RESERVED_2600_2649 + " " + "#660 の 4 巡目のレビュー。開始の直後に運転者が抜けると、ランダム交代でも輪の隣が運転者になる（予告と食い違う）。",
+  },
+  {
+    id: 2638,
+    label: "「セッションが始まっているか」が、一時停止中を見ない",
+    patch: "m2638-session-started-ignores-paused.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/random-rotation.test.ts"],
+    note: RESERVED_2600_2649 + " " + "#660 の 4 巡目のレビュー。開始してすぐ一時停止した間に運転者が抜けると、予告と違う人が運転者になる。",
+  },
+  {
+    id: 2639,
+    label: "「セッションが始まっているか」が、休憩中を見ない",
+    patch: "m2639-session-started-ignores-break.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/random-rotation.test.ts"],
+    note: RESERVED_2600_2649 + " " + "#660 の 4 巡目のレビュー。稼働の累計が 0 のまま休憩に入った間に運転者が抜けると、予告と違う人が運転者になる。",
+  },
+  {
+    id: 2640,
+    label: "「セッションが始まっているか」が、稼働の累計を見ない",
+    patch: "m2640-session-started-ignores-elapsed.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/random-rotation.test.ts"],
+    note: RESERVED_2600_2649 + " " + "#660 の 4 巡目のレビュー。完成のあとロビーへ戻った間に運転中の席を外すと、袋の予告と違う席が先頭になる。",
   },
 ];

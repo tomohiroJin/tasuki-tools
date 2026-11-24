@@ -1,8 +1,8 @@
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index e6f1905..7c1aefa 100644
+index 7d15d30..0db9899 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
-@@ -377,7 +377,7 @@ function decideMemberRemove(
+@@ -378,7 +378,7 @@ function decideMemberRemove(
    const randomRotation = !removesDriver
      ? null
      : drawn === index

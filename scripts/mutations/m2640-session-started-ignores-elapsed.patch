@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 70a2bc2..78aaf2e 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -67,7 +67,7 @@ export function isOnBreak(session: Pick<SessionState, "break">): boolean {
+  * evolve（運転中の席を外したときの直前のドライバー）と decide（開始前の break.start の拒否）が共有する。
+  */
+ export function sessionHasStarted(agg: Aggregate): boolean {
+-  return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null || agg.clock.accumulatedElapsedMs > 0;
++  return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null;
+ }
+ 
+ /**

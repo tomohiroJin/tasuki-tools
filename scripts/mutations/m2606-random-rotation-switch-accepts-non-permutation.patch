@@ -1,5 +1,5 @@
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index e6f1905..27e479a 100644
+index 7d15d30..a0f8a67 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
 @@ -244,8 +244,6 @@ function decideSessionAct(
