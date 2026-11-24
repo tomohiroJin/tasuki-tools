@@ -1,12 +1,12 @@
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index 8d9af95..e2ff6d2 100644
+index e35e826..99d6f53 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
-@@ -374,7 +374,7 @@ function decideMemberRemove(
+@@ -377,7 +377,7 @@ function decideMemberRemove(
      ? null
      : drawn === index
-       ? randomRotationAfterAssign(agg.session, (index + 1) % agg.session.rotation.length)
--      : randomRotationAfterSwitch(agg.session, drawn, undefined);
+       ? randomRotationAfterAssign(session, (index + 1) % session.rotation.length)
+-      : randomRotationAfterSwitch(session, drawn, undefined);
 +      : null;
    return ok([
      { type: "MemberRemoved", index, nextDriverIndex: nextDriver, ...(randomRotation !== null && { randomRotation }), now },
