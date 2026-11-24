@@ -363,18 +363,21 @@ function decideMemberRemove(
 
   // 運転中の人を外すなら、次の担当を交代と同じ資格の規則で選ぶ（#376）。
   // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
-  const nextDriver = nextDriverAfterRemoval(agg.session, index, ineligible);
+  // 開始前（ロビー）の「運転中の席」は運転していない。ランダム交代でも袋から引かず、輪の順で詰める
+  // （袋から引くと、開始の運転者が輪の途中の席になり、画面が最初の開始をリセットで送る。#660 の 2 巡目のレビュー）。
+  const session = sessionHasStarted(agg) ? agg.session : { ...agg.session, randomRotation: null };
+  const nextDriver = nextDriverAfterRemoval(session, index, ineligible);
   // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
   // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、袋から引いていないので、指名と同じく
   // その人をこの周で運転した人に足すだけにする（周は始め直さない）。足さないと、全員が戻ったあとに
   // 同じ人がこの周でもう一度当たる（#660 のレビュー）。
-  const removesDriver = index === agg.session.currentIndex;
-  const drawn = removesDriver ? nextDriverIndex(agg.session, index, ineligible) : index;
+  const removesDriver = index === session.currentIndex;
+  const drawn = removesDriver ? nextDriverIndex(session, index, ineligible) : index;
   const randomRotation = !removesDriver
     ? null
     : drawn === index
-      ? randomRotationAfterAssign(agg.session, (index + 1) % agg.session.rotation.length)
-      : randomRotationAfterSwitch(agg.session, drawn, undefined);
+      ? randomRotationAfterAssign(session, (index + 1) % session.rotation.length)
+      : randomRotationAfterSwitch(session, drawn, undefined);
   return ok([
     { type: "MemberRemoved", index, nextDriverIndex: nextDriver, ...(randomRotation !== null && { randomRotation }), now },
   ]);

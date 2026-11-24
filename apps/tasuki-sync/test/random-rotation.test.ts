@@ -280,10 +280,15 @@ describe("ランダム交代: 予告と実際の交代先", () => {
     expect(driver(f.view())).toBe(second!);
   });
 
-  it("Given 運転者が一時離脱した（繰り上げ） / Then 予告した人が運転者になる", async () => {
-    const f = await lobbyOf(NAMES, { random: true });
+  // 種 2 では、開始の直後の予告が輪の隣（いお）でない。輪の順で選ぶ実装と結果が分かれる局面で見る
+  // （既定の種 1 は予告が「いお」で、輪の順でも同じ人になり、見分けられなかった。#660 の 2 巡目のレビュー）
+  const SEED_NOT_RING_NEXT = 2;
+
+  it("Given 運転者が一時離脱した（繰り上げ） / Then 輪の隣でなく、予告した人が運転者になる", async () => {
+    const f = await lobbyOf(NAMES, { random: true, seed: SEED_NOT_RING_NEXT });
     await start(f);
     const expected = forecast(f.view())!;
+    expect(expected).not.toBe("いお");
     const calls = f.random.calls;
 
     await send(f, "conn-0", { command: "driver.skip", participantId: participantIdOfConn(f.store, "conn-0") });
@@ -293,10 +298,27 @@ describe("ランダム交代: 予告と実際の交代先", () => {
     expect(f.random.calls).toBeGreaterThan(calls);
   });
 
-  it("Given 運転者が退出した / Then 予告した人が運転者になる", async () => {
-    const f = await lobbyOf(NAMES, { random: true });
+  it("Given 休憩中に運転者が一時離脱した / When 休憩が明ける / Then 輪の隣でなく、予告した人が運転者になる", async () => {
+    const f = await lobbyOf(NAMES, { random: true, seed: SEED_NOT_RING_NEXT });
+    await send(f, "conn-0", { command: "config.set", config: { break: { trigger: "elapsed", every: 25, mode: "auto" } } });
+    await start(f);
+    await send(f, "conn-0", { command: "break.start" });
+    await send(f, "conn-0", { command: "driver.skip", participantId: participantIdOfConn(f.store, "conn-0") });
+    // 休憩中は繰り上げない（時計が止まっている）
+    expect(driver(f.view())).toBe("あや");
+    const expected = forecast(f.view())!;
+    expect(expected).not.toBe("いお");
+
+    await send(f, "conn-1", { command: "break.end" });
+
+    expect(driver(f.view())).toBe(expected);
+  });
+
+  it("Given 運転者が退出した / Then 輪の隣でなく、予告した人が運転者になる", async () => {
+    const f = await lobbyOf(NAMES, { random: true, seed: SEED_NOT_RING_NEXT });
     await start(f);
     const expected = forecast(f.view())!;
+    expect(expected).not.toBe("いお");
 
     await send(f, "conn-0", { command: "participant.remove", participantId: participantIdOfConn(f.store, "conn-0") });
 

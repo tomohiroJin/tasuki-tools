@@ -453,6 +453,25 @@ describe("開始・リセット", () => {
     expect(next.session.randomRotation).toEqual({ order: ["c", "a", "b"], drove: ["a"] });
   });
 
+  it("開始のとき、順列を渡されなければ、今の引く順のまま、いまの運転者だけが運転した状態にする", () => {
+    const lobby = anAggregate().withRotation("a", "b", "c").withRandomRotation(["c", "b", "a"], ["a", "c"]).build();
+
+    const next = run(lobby, { command: "session.act", action: "START" });
+
+    expect(next.session.randomRotation).toEqual({ order: ["c", "b", "a"], drove: ["a"] });
+  });
+
+  it("開始前（ロビー）に先頭の席を外しても、袋から引かず、位置で次の席を先頭にする", () => {
+    // ロビーの「運転中の席」は運転していない。袋から引くと、開始の運転者が輪の途中の席になる
+    const lobby = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]).build();
+
+    const next = run(lobby, { command: "member.remove", index: 0 });
+
+    expect(next.session.currentIndex).toBe(0);
+    expect(driverId(next)).toBe("b");
+    expect(next.session.randomRotation).toEqual({ order: ["d", "c", "b", "a"], drove: ["a"] });
+  });
+
   it("開始のとき、順列でない randomOrder は InvalidIndex で断る", () => {
     const lobby = anAggregate().withRotation("a", "b").withRandomRotation([]).build();
 

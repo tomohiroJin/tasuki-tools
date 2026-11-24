@@ -402,11 +402,16 @@ describe("previousDriverIndex（直前に実際に運転した人の席・#374�
 
 describe("ランダム交代の袋は wire に載せない（#660）", () => {
   it("Given ランダム交代のルーム / When snapshot を組む / Then 設定にモードは載るが、session に袋は無い", () => {
-    // Given: 引く順と、この周で運転した人を持つ集約
+    // Given: 3 席の輪で、引く順の先頭が輪の隣でない集約（輪の順なら次は添字 1、袋からなら添字 2）
     const t: TimerState = {
       ...timer,
       config: { ...timer.config, rotationMode: "random" },
-      session: { ...timer.session, randomRotation: { order: ["p_proxy1", "p_alice"], drove: ["p_alice"] } },
+      session: {
+        ...timer.session,
+        rotation: [...timer.session.rotation, { kind: "proxy", id: "p_proxy2", label: "同席のダナ", eligible: true }],
+        driverCounts: [0, 0, 0],
+        randomRotation: { order: ["p_proxy2", "p_proxy1", "p_alice"], drove: ["p_alice"] },
+      },
     };
 
     // When
@@ -414,7 +419,7 @@ describe("ランダム交代の袋は wire に載せない（#660）", () => {
 
     // Then: 次の人は nextIndex で届く。その先（引く順）は画面へ配らない
     expect(room.config.rotationMode).toBe("random");
-    expect(room.session.nextIndex).toBe(1);
+    expect(room.session.nextIndex).toBe(2);
     expect(Object.keys(room.session)).not.toContain("randomRotation");
     expect(JSON.stringify(room)).not.toContain("drove");
   });
