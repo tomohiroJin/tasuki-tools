@@ -461,7 +461,7 @@ describe("開始・リセット", () => {
     expect(next.session.randomRotation).toEqual({ order: ["c", "b", "a"], drove: ["a"] });
   });
 
-  it("開始前（ロビー）に先頭の席を外しても、袋から引かず、位置で次の席を先頭にする", () => {
+  it("開始前（ロビー）に先頭の席を外しても、袋から引かず、輪の順のモードと同じ規則で次の席を先頭にする", () => {
     // ロビーの「運転中の席」は運転していない。袋から引くと、開始の運転者が輪の途中の席になる
     const lobby = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]).build();
 
@@ -472,25 +472,54 @@ describe("開始・リセット", () => {
     expect(next.session.randomRotation).toEqual({ order: ["d", "c", "b", "a"], drove: ["a"] });
   });
 
-  it("一時停止中に運転中の人を外すと、輪の隣でなく、袋の予告した人が運転者になる（始まっていれば時計が止まっていても袋から引く）", () => {
-    const paused = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]).paused().build();
-    expect(forecastId(paused)).toBe("d");
+  describe("始まっていれば（sessionHasStarted）、運転中の人を外したとき袋から引く", () => {
+    // 「始まっている」は 4 つの印のどれかで決まる（走行中・一時停止中・休憩中・稼働の累計がある）。
+    // 印を 1 つずつ落としても気付けるよう、**その印だけが立つ**状態を 1 つずつ作って見る
+    // （まとめて立つ状態で見ると、1 つ落としても残りが支えて緑になる。#660 のレビューで 3 回続けて出た穴）。
+    const base = () => anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]);
+    const flagsOf = (agg: Aggregate) => ({
+      running: agg.clock.running,
+      isPaused: agg.session.isPaused,
+      onBreak: agg.session.break.since !== null,
+      hasElapsed: agg.clock.accumulatedElapsedMs > 0,
+    });
+    const NONE = { running: false, isPaused: false, onBreak: false, hasElapsed: false };
 
-    const next = run(paused, { command: "member.remove", index: 0 });
+    it.each([
+      ["走行中（開始の直後）", () => base().running().build(), { ...NONE, running: true }],
+      ["一時停止中（開始と同じ時刻に止めた）", () => base().paused().build(), { ...NONE, isPaused: true }],
+      [
+        "休憩中（開始と同じ時刻に入った）",
+        () => run(base().running().build(), { command: "break.start" }, NOW),
+        { ...NONE, onBreak: true },
+      ],
+      [
+        "完成のあとのロビー（時計は止まり、稼働の累計だけが残る）",
+        () => {
+          const completed = run(base().running().build(), { command: "session.complete", topicTitle: null });
+          return run(completed, { command: "phase.set", phase: "ready" });
+        },
+        { ...NONE, hasElapsed: true },
+      ],
+    ])("%s: 輪の隣でなく、袋の予告した人が運転者になる", (_label, build, flags) => {
+      const agg = build();
+      // 前提: 立っている印はこの 1 つだけ
+      expect(flagsOf(agg)).toEqual(flags);
+      expect(forecastId(agg)).toBe("d");
 
-    expect(driverId(next)).toBe("d");
-    expect(next.session.randomRotation?.drove).toEqual(["a", "d"]);
-  });
+      const next = run(agg, { command: "member.remove", index: 0 });
 
-  it("休憩中に運転中の人を外すと、輪の隣でなく、袋の予告した人が運転者になる", () => {
-    const running = anAggregate().withRotation("a", "b", "c", "d").withRandomRotation(["d", "c", "b", "a"]).running().build();
-    const onBreak = run(running, { command: "break.start" });
-    expect(onBreak.clock.running).toBe(false);
+      // 輪の順なら b。袋からなら d
+      expect(driverId(next)).toBe("d");
+      expect(next.session.randomRotation?.drove).toEqual(["a", "d"]);
+    });
 
-    const next = run(onBreak, { command: "member.remove", index: 0 });
+    it("どの印も立っていない（開始前のロビー）なら、袋から引かない", () => {
+      const lobby = base().build();
+      expect(flagsOf(lobby)).toEqual(NONE);
 
-    expect(driverId(next)).toBe("d");
-    expect(next.session.randomRotation?.drove).toEqual(["a", "d"]);
+      expect(driverId(run(lobby, { command: "member.remove", index: 0 }))).toBe("b");
+    });
   });
 
   it("開始のとき、順列でない randomOrder は InvalidIndex で断る", () => {
