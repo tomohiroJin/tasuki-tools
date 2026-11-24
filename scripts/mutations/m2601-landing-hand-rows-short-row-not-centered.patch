@@ -1,0 +1,11 @@
+--- a/apps/landing/src/hand-rows.ts
++++ b/apps/landing/src/hand-rows.ts
+@@ -38,7 +38,7 @@
+ function rowStarts(count: number, maxPerRow: number): (number | null)[] {
+   const starts: (number | null)[] = [];
+   for (const size of balancedRows(count, maxPerRow)) {
+-    for (let i = 0; i < size; i += 1) starts.push(i === 0 ? maxPerRow - size + 1 : null);
++    for (let i = 0; i < size; i += 1) starts.push(i === 0 ? 1 : null);
+   }
+   return starts;
+ }

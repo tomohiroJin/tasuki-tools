@@ -1,0 +1,10 @@
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -37,7 +37,6 @@
+ 
+   // 閉じるときは、入れかけた値を捨てる。見えない欄に合言葉の平文を残さない（#638 の「画面にも状態にも残さない」）
+   const toggle = (): void => {
+-    if (open) setValue('');
+     setOpen(!open);
+   };
+ 

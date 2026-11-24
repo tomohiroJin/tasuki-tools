@@ -1,0 +1,11 @@
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -62,7 +62,7 @@
+               : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
+         </p>
+         <button type="button" className="ui-button ui-button--quiet" aria-expanded={open} aria-controls={bodyId} onClick={toggle}>
+-          {open ? '閉じる' : protectedNow === true ? '変更・解除' : '設定する'}
++          {open ? '閉じる' : '設定する'}
+         </button>
+       </div>
+       {/* 失敗はたたんだままでも見せる（口を閉じたあとに届くことがある） */}

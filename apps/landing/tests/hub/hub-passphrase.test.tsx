@@ -30,6 +30,8 @@ function joinedRoom(): void {
   render(<App />);
   act(() => socket().open());
   act(() => socket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't2' }));
+  // 合言葉の口はふだんたたんである（#673）。利用者と同じく、開いてから操作する
+  fireEvent.click(screen.getByRole('button', { name: '設定する' }));
 }
 
 beforeEach(() => {

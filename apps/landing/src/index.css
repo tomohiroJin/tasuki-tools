@@ -50,61 +50,63 @@
 
 /* ---------- 手札 ---------- */
 
+/*
+  札の並びは格子で、段の割り方は `hand-rows.ts` が枚数から決める（#684）。札 1 枚が格子の列 2 本ぶんを取り、
+  段の頭の札だけが始まりの列（`--hand-start-N`）を持つ。短い段は半枚ぶんずつ内へ寄って中央に来る。
+  **枚数ごとの決め打ち（`nth-child(5)` など）をここに書かない** —— 札を足すたびに並びが崩れる（7 枚目で 3 + 3 + 1 になった）。
+
+  並びは 4 つ:
+    - 40rem 未満: 1 列（横長の札）
+    - 40rem 以上: 2 列（横長の札）
+    - 64rem 以上: 3 列（横長の札）
+    - 札の列の箱（`.hub-tools`）が 64.5rem 以上: 4 列の扇（縦長の実物大の札。両端を傾ける）
+  縦長の札は 15rem を割ると名前と一行説明が折り返すので、4 枚が実物大で入る幅でだけ使う。それより狭い幅は横長にして、
+  道具選びが 1 画面に収まるようにする（縦長を 1 列に積むと札だけで 2400px を超えた）。
+*/
 .hand {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
   perspective: 900px;
 }
 
+.hand li {
+  min-width: 0;
+  /* 札の幅（rem で測る）で、横長のままか、絵を上に回すかを決める（下の `@container`）。文字を大きくすると rem が伸び、
+     絵・余白・列の間が一緒に倍になって、名前の列が 36px まで細くなった（文字 200%・320px・#555 PR 575 の指摘） */
+  container-type: inline-size;
+  /* 配る演出（下の「配る演出」の節）。遅れは並び順で決まる */
+  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation-delay: calc(0.06s * (var(--hand-index, 0) + 1));
+}
+
 /*
-  実物大の札。@tasuki/ui の .card から地・内枠・コーナーピップ・浮き上がりを継承し、
-  ここでは寸法と中身の並びだけを足す。5:7 はトランプの比率。
+  札。@tasuki/ui の .card から地・内枠・コーナーピップ・浮き上がりを継承し、ここでは寸法と中身の並びだけを足す。
+  既定は横長（絵が左・名前と一行説明が右）。縦長の実物大は下の扇の節が上書きする。
 */
 .tool-card {
-  width: min(15rem, 40vw);
+  width: 100%;
   height: auto;
-  aspect-ratio: 5 / 7;
-  /*
-    札の面の組み方はトランプに倣う: 図案が中央、名前は下端。
-    1fr の行が図案を上半分の中心に置き、名前と一行説明が足元に落ち着く。
-    （flex の中央揃えだと全部が真ん中に固まり、下半分が空いて間が抜ける）
-  */
+  aspect-ratio: auto;
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: center;
-  justify-items: center;
-  row-gap: var(--space-2);
-  padding: var(--space-5) var(--space-4) var(--space-6);
+  justify-items: start;
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
   text-decoration: none;
-  text-align: center;
+  text-align: start;
 }
 
-/*
-  両端の札を逆向きに傾け、真ん中は扇の中心として正位置に置く。狙いは「並べた」ではなく「配った」に見せること。
-  等間隔で真っ直ぐ置くとグリッドの体裁になり、卓の上の手札には見えない。
-  名前の由来（襷＝斜めに掛けるもの）とも響く。
-*/
-.hand li:first-child .tool-card {
-  transform: rotate(-4deg);
-}
-
-.hand li:last-child .tool-card {
-  transform: rotate(4deg);
-}
-
-/*
-  手をかざすと札が起き上がって前に出る。@tasuki/ui の .card:hover は
-  translateY(-8px) rotate(-1.5deg) だが、傾けて配った札では「起き上がる」方が
-  自然なので、傾きを 0 に戻す形で上書きする。
-*/
+/* 手をかざすと札が前に出る。@tasuki/ui の .card:hover は傾きも付くが、並べた札では持ち上げるだけにする */
 .hand li .tool-card:hover,
 .hand li .tool-card:focus-visible {
-  transform: translateY(-14px) rotate(0deg);
+  transform: translateY(-8px);
 }
 
 .tool-card:focus-visible {
@@ -117,10 +119,16 @@
 /* ---------- 札の中身 ---------- */
 
 .tool-mark {
+  grid-row: 1 / span 2;
   width: clamp(2.8rem, 10vw, 3.6rem);
   height: clamp(2.8rem, 10vw, 3.6rem);
   stroke: var(--gold-deep);
   fill: var(--gold-deep);
+}
+
+.tool-name,
+.tool-summary {
+  grid-column: 2;
 }
 
 .tool-name {
@@ -140,41 +148,31 @@
   text-wrap: pretty;
 }
 
+/* 札の幅が 16rem に満たないとき（文字を大きくした 320px など）は、絵を上に回して文字の列に札の全幅を渡す。
+   16rem は、絵（3.6rem）・左右の余白・列の間を引いても、名前の列が 8rem 以上残る幅。容器は上の `.hand li` */
+@container (width < 16rem) {
+  .tool-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    padding: var(--space-4);
+  }
+  .tool-mark {
+    grid-row: auto;
+  }
+  .tool-name,
+  .tool-summary {
+    grid-column: 1;
+  }
+}
+
 /* ---------- 配る演出 ---------- */
 
 /*
-  卓の中央上から 6 枚が順に配られる。1 度きりの短い所作に留める
+  卓の中央上から札が順に配られる。1 度きりの短い所作に留める
   （動きを抑えたい環境では @tasuki/ui の base.css が止める）。
+  配る順は並び順（`--hand-index`）。枚数が増えても 1 枚ごとの間は同じ。
+  動きの宣言は、上の `.hand li`（同じセレクタの規則を 2 つに分けない）に置いてある。
 */
-.hand li {
-  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-
-.hand li:first-child {
-  animation-delay: 0.06s;
-}
-
-.hand li:last-child {
-  animation-delay: 0.36s;
-}
-
-/* 3 枚目（#91）・4 枚目（#94）・5 枚目（#429）・6 枚目（#406）。真ん中の札は傾けず、配る順は左から右にする。 */
-.hand li:nth-child(2) {
-  animation-delay: 0.12s;
-}
-
-.hand li:nth-child(3) {
-  animation-delay: 0.18s;
-}
-
-.hand li:nth-child(4) {
-  animation-delay: 0.24s;
-}
-
-.hand li:nth-child(5) {
-  animation-delay: 0.3s;
-}
-
 @keyframes deal {
   from {
     opacity: 0;
@@ -186,36 +184,12 @@
   }
 }
 
-/* ---------- モバイル ---------- */
+/* ---------- 札の並び（幅ごと） ---------- */
 
-/*
-  縦積みにして、傾きは外す。狭い幅で傾けると角が見切れ、
-  タップ領域も重なるため。
-  #316 で境目を段へ寄せたとき、640px で 3 枚を横に並べると名前が 2 行になったので、
-  64rem 未満は縦に積む。
-  札の並びと寸法は 64rem 未満、器の内側の余白（フォーム・札の列の外側）は 40rem 未満が受け持つ。
-  寸法の規則は基底より後ろに要るので、下の `.hub-tools` の節に別の 64rem の @media で置いてある。
-*/
-@media (width < 64rem) {
-  .hand {
-    flex-direction: column;
-    align-items: center;
-  }
+/* 2 列（40rem 以上）と 3 列（64rem 以上）は、下の「選択画面の幅ごとの並び」の同じ幅の段にまとめて置く（幅の段ごとに @media を 1 つにする）。 */
 
-  .hand li:first-child .tool-card,
-  .hand li:last-child .tool-card {
-    transform: none;
-  }
+/* 扇（4 列・縦長の札）は、ファイルの末尾に置く。同じ詳細度の 2 列・3 列の規則（下の幅の段）より後ろに無いと負ける。 */
 
-  .hand li .tool-card:hover,
-  .hand li .tool-card:focus-visible {
-    transform: translateY(-8px);
-  }
-
-  .tool-card {
-    width: min(15rem, 68vw);
-  }
-}
 /* ---------- 玄関の共通部品（`.hub-*` は玄関配下のどの画面でも共有する。
               画面名で節を切ると使用箇所とずれるので、役割で切っている） ---------- */
 /* 面は部品（`.ui-panel`）が持つ。フォームは卓の上に浮かせる札なので、内側の余白を広く取り影を落とす。 */
@@ -333,9 +307,7 @@
   min-width: 0;
 }
 
-/* 札が 3 枚になった（#91）。札の列を全幅に取り、参加者と招待のパネルはその下に並べる。
-   3fr : 2fr の 2 列のままだと、1280px で札 1 枚の文字の入る幅が約 147px になり、
-   一行説明が折り返す（#270 と同じ型）。札は実物大（15rem）より大きくしない。 */
+/* 札の列を全幅に取り、参加者と招待のパネルはその下に並べる（#91）。 */
 .hub-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -350,18 +322,7 @@
 }
 .hub-tools .hub-section-title {
   text-align: center;
-  margin-bottom: var(--space-6);
-}
-.hub-tools .hand {
-  padding: var(--space-4);
-}
-.hub-tools .tool-card {
-  width: 100%;
-}
-.hub-tools .hand li {
-  min-width: 0;
-  flex: 1;
-  max-width: 15rem;
+  margin-bottom: var(--space-5);
 }
 /* いまのお題（#91・spec §5.5）。札の下に 1 行だけ。長いタイトルは折り返さず省略する
    （本文は出さない。全文はお題ツールで読む）。 */
@@ -380,12 +341,11 @@
   white-space: nowrap;
 }
 .hub-room {
-  /* 上の札の列の下に、参加者と招待を並べる。高さは揃えない（参加者が 1 人のときに
-     中身の無いパネルを作るほうが悪い）。既定の stretch のままだと、QR を開いて
-     招待パネルが伸びるたびに参加者パネルまで引き伸ばされてしまう。 */
+  /* 札の列の下に、参加者と招待を 2 枚並べ、合言葉はその下に全幅で 1 行にたたんで置く（#673）。
+     3 枚を 1 つの auto-fit の格子に流すと、幅によって 2 + 1 に折れて右下が空き、高さも 3 枚でばらついた。
+     参加者と招待は高さを揃える（既定の stretch）。段の下端が揃い、下の合言葉の行と面が続く。 */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   min-width: 0;
 }
@@ -465,10 +425,28 @@
   height: auto;
 }
 /* ルームの合言葉（`RoomPassphrase.tsx`・#638）。面は部品（`.ui-panel`）、入力・ボタンは部品が持つ。
-   ここは状態の一言・フォーム・注記の間隔だけ。 */
+   ふだんは見出し・状態の一言・開くボタンの 1 行（#673）。開いた口は読む幅に留める（全幅の欄は間延びする）。 */
+.hub-passphrase-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+}
+.hub-passphrase-head .hub-heading {
+  margin: 0;
+}
 .hub-passphrase-status {
-  margin: 0 0 var(--space-3);
+  flex: 1 1 16rem;
+  min-width: 0;
+  margin: 0;
   font-size: var(--font-size-sm);
+}
+.hub-passphrase .hub-error {
+  margin: var(--space-3) 0 0;
+}
+.hub-passphrase-body {
+  max-width: 32rem;
+  margin-top: var(--space-4);
 }
 .hub-passphrase-form {
   display: flex;
@@ -479,39 +457,45 @@
   margin: var(--space-3) 0 0;
   font-size: var(--font-size-sm);
 }
-/* 横に並べる幅（64rem 以上）。札が 5 枚になると 1 列では 1 枚が 15rem を割り、「TDD Mob Pro Timer」が 2 行に折れた
-   （1024・1280 で実測）。**縮めず折り返す**: 札は 15rem を基準の幅にして行をまたぎ（3 + 2）、中央に寄せる。
-   字の大きさは動かさない。64rem 未満の縦積みは下の @media が受け持つ（ここは列方向に効かせない）。 */
-@media (width >= 64rem) {
-  .hub-tools .hand {
-    flex-wrap: wrap;
-    justify-content: center;
+/* 「記録を見る」。作業領域の末尾で、パネルの右端に揃える */
+.hub-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0;
+}
+
+/* ---------- 選択画面の幅ごとの並び ---------- */
+@media (width >= 40rem) {
+  /* 札は 2 列（格子は 4 本・札 1 枚が 2 本ぶん） */
+  .hand {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .hub-tools .hand li {
-    flex: 0 1 15rem;
+  .hand li {
+    grid-column: var(--hand-start-2, auto) / span 2;
+  }
+  .hub-room {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hub-passphrase {
+    grid-column: 1 / -1;
   }
 }
-/* 札の寸法は基底の `.hub-tools .tool-card`（同じ詳細度）より後ろに置かないと負ける。上の縦積みと同じ 64rem 未満。 */
-@media (width < 64rem) {
-  /* 札は基底の `.hand` と同じく縦に積む。**横に並べると文字が入らない** ——
-     320px では札が 131px しか取れず、一行説明に 133px 必要で最後の 1 文字だけが
-     次行へ落ちた。横並びのまま収めるには 10.5px まで縮める必要があり、
-     「12px の本文で AA」という配色トークンの前提を割る。積めば 218px 取れて、
-     道具名も説明も 1 行に収まり、札はすべて画面内に残る（実測）。
 
-     `.hub-tools .tool-card` の `width: 100%` は詳細度 (0,2,0) で基底の
-     `.tool-card`(0,1,0) に勝つので、ここで明示的に上書きする。 */
-  .hub-tools .hand {
-    padding: 0;
+@media (width >= 64rem) {
+  /* 札は 3 列（格子は 6 本） */
+  .hand {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: var(--space-4);
   }
-  .hub-tools .tool-card {
-    width: min(15rem, 68vw);
-    height: auto;
-    padding: var(--space-5) var(--space-4);
+  .hand li {
+    grid-column: var(--hand-start-3, auto) / span 2;
+  }
+  /* 扇に切り替える幅を測る箱（ファイルの末尾の `@container hub-tools`）。幅だけを測る */
+  .hub-tools {
+    container: hub-tools / inline-size;
   }
   .hub-tools .hub-section-title {
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--space-6);
   }
 }
 
@@ -519,62 +503,64 @@
   .hub-form {
     padding: var(--space-5);
   }
-  .hub-workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .hub-tools {
     padding: 0;
   }
-  /* 道具の札は 1 列の横長（絵が左・名前と一行説明が右）にして、下の欄と左右の端を揃える（#555 一覧 #21）。
-     縦長の札を 1 列に積むと 1 枚約 330px で 6 枚約 2000px になり、参加者・「仲間を招く」が 4 画面ぶん下へ遠のいた。
-     2 列にすると 320px で札が約 130px しか取れず、一行説明が入らない（上の 64rem 未満の注）ので、横長にして高さだけ縮める。
-     札の傾けは 64rem 以上の意匠で、ここでは元から無い。 */
-  .hub-tools .hand {
-    align-items: stretch;
-    gap: var(--space-3);
-  }
-  .hub-tools .hand li {
-    flex: none;
-    max-width: none;
-    width: 100%;
-    /* 札の幅（rem で測る）で、横長のままか、絵を上に回すかを決める（下の `@container`）。文字を大きくすると rem が伸び、
-       絵・余白・列の間が一緒に倍になって、名前の列が 36px まで細くなった（文字 200%・320px・#555 PR 575 の指摘） */
-    container-type: inline-size;
-  }
-  .hub-tools .tool-card {
-    width: 100%;
-    aspect-ratio: auto;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    align-items: center;
-    justify-items: start;
-    column-gap: var(--space-4);
-    row-gap: var(--space-1);
-    padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
-    text-align: start;
-  }
-  .hub-tools .tool-mark {
-    grid-row: 1 / span 2;
-  }
-  .hub-tools .tool-name,
-  .hub-tools .tool-summary {
-    grid-column: 2;
-  }
 }
 
-/* 札（上の `@media (width < 40rem)` の `.hub-tools .hand li` が容器）の幅が 16rem に満たないとき（文字を大きくした 320px など）は、絵を上に回して文字の列に札の全幅を渡す。
-   16rem は、絵（3.6rem）・左右の余白・列の間を引いても、名前の列が 8rem 以上残る幅 */
-@container (width < 16rem) {
-  .hub-tools .tool-card {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    padding: var(--space-4);
+/* ---------- 札の扇（4 列）。**上の幅の段の規則より後ろに置く**（同じ詳細度なので、前に置くと 3 列の規則に負けて扇にならない） ---------- */
+
+/*
+  扇。札の列の箱に、実物大（15rem）の札が 4 枚と間 3 つ入る幅（64.5rem）があるときだけ。
+  幅の段（40・64・90rem）でなく箱の幅で決める —— 器の幅は 72rem で頭打ちなので、画面の幅では「4 枚入るか」を言えない
+  （コンテナクエリは幅の段の対象外・`docs/adr/0025` 決定 1）。容器は、上の 64rem 以上の幅の段で名乗る `.hub-tools`。
+  64.5rem は「15rem × 4 + 間（`--space-5` = 1.5rem）× 3」。`--space-5` を変えるなら、この境目も合わせる（`packages/ui/tests/card-rows.test.mjs` が固定する）。
+
+  段の両端の札を逆向きに傾け、あいだは正位置に置く。狙いは「並べた」ではなく「配った」に見せること。
+  名前の由来（襷＝斜めに掛けるもの）とも響く。傾ける札は段ごとに決める（`data-row-edge`）——
+  並び全体の最初と最後を傾けると、段をまたいで離れた 2 枚だけが傾く。
+*/
+@container hub-tools (width >= 64.5rem) {
+  .hand {
+    /* 札 1 枚 = 列 2 本 + 間 1 つ = 15rem */
+    grid-template-columns: repeat(8, calc((15rem - var(--space-5)) / 2));
+    gap: var(--space-5);
+    justify-content: center;
   }
-  .hub-tools .tool-mark {
+  .hand li {
+    grid-column: var(--hand-start-4, auto) / span 2;
+    /* 縦長の札は箱の幅で並びを変えない（上の 16rem の規則に当てない） */
+    container-type: normal;
+  }
+  /*
+    実物大の札。5:7 はトランプの比率。札の面の組み方もトランプに倣う: 図案が中央、名前は下端。
+    1fr の行が図案を上半分の中心に置き、名前と一行説明が足元に落ち着く。
+  */
+  .tool-card {
+    aspect-ratio: 5 / 7;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr auto auto;
+    justify-items: center;
+    row-gap: var(--space-2);
+    padding: var(--space-5) var(--space-4) var(--space-6);
+    text-align: center;
+  }
+  .tool-mark {
     grid-row: auto;
   }
-  .hub-tools .tool-name,
-  .hub-tools .tool-summary {
+  .tool-name,
+  .tool-summary {
     grid-column: 1;
+  }
+  .hand li[data-row-edge='start'] .tool-card {
+    transform: rotate(-4deg);
+  }
+  .hand li[data-row-edge='end'] .tool-card {
+    transform: rotate(4deg);
+  }
+  /* 傾けて配った札は、手をかざすと起き上がって前に出る（傾きを 0 に戻す） */
+  .hand li .tool-card:hover,
+  .hand li .tool-card:focus-visible {
+    transform: translateY(-14px) rotate(0deg);
   }
 }

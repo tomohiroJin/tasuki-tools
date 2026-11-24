@@ -1,0 +1,12 @@
+--- a/apps/landing/src/hand-rows.ts
++++ b/apps/landing/src/hand-rows.ts
+@@ -47,8 +47,7 @@
+   const edges: RowEdge[] = [];
+   for (const size of balancedRows(count, maxPerRow)) {
+     for (let i = 0; i < size; i += 1) {
+-      if (size === 1) edges.push(null);
+-      else if (i === 0) edges.push('start');
++      if (i === 0) edges.push('start');
+       else if (i === size - 1) edges.push('end');
+       else edges.push(null);
+     }
