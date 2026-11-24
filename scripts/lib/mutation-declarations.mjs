@@ -265,6 +265,9 @@ const RESERVED_2440_2469 =
 const RESERVED_2470_2599 =
   "**対応表より後に足した変異。** 2470〜2599 は #476（うちわけ。作業の内訳をルームで記録する道具）に割り当てた範囲。";
 
+const RESERVED_2670_2684 =
+  "**対応表より後に足した変異。** 2670〜2684 は #676（agenda の終了の一覧を Markdown でコピーする）に割り当てた範囲。";
+
 const RESERVED_2650_2669 =
   "**対応表より後に足した変異。** 2650〜2669 は #667（agenda の下書きを空に戻す）に割り当てた範囲。";
 
@@ -295,6 +298,9 @@ const RESERVED_1850_1869 =
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
+const RESERVED_2685_2699 =
+  "**対応表より後に足した変異。** 2685〜2699 は #676（roulette の結果を Markdown でコピーする）に割り当てた範囲。";
+
 const RESERVED_1410_1419 =
   "**対応表より後に足した変異。** 1410〜1419 は #557 に追加で割り当てた範囲（1120〜1129 を使い切ったため。除く規則ごとの変異と、検査が見つけた CSS の直しの変異）。";
 
@@ -306,6 +312,12 @@ const RESERVED_2080_2109 =
 
 const RESERVED_2110_2129 =
   "**対応表より後に足した変異。** 2110〜2129 は #640（ルーレットの変わった動き）の追加（2080〜2109 を使い切ったため）に割り当てた範囲。";
+
+const RESERVED_2800_2819 =
+  "**対応表より後に足した変異。** 2800〜2819 は #676（Check-in Cards の結果の Markdown のコピー）の敵対的レビューの指摘に割り当てた範囲（2700〜2709 を使い切ったため）。";
+
+const RESERVED_2700_2709 =
+  "**対応表より後に足した変異。** 2700〜2709 は #676（Check-in Cards の結果を Markdown でコピーして持ち出す）に割り当てた範囲。";
 
 export const MUTATIONS = [
   {
@@ -12604,6 +12616,350 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-view.test.ts"],
     note: RESERVED_2470_2599 + " " + "#476 の /code-review。送る位置が整数でなくなる。",
+  },
+  {
+    id: 2670,
+    label: "終了の一覧の Markdown が、名前の `|`・記号を逃がさない",
+    patch: "m2670-agenda-summary-markdown-no-escape.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。表の区切りや見出しを名前が壊す。",
+  },
+  {
+    id: 2671,
+    label: "終了の一覧の Markdown の、ステップごとの差の符号が逆になる",
+    patch: "m2671-agenda-summary-markdown-diff-sign-reversed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。押した行が「−」、巻いた行が「+」と書かれる。",
+  },
+  {
+    id: 2672,
+    label: "コピーに失敗したのに「コピーしました」と知らせる",
+    patch: "m2672-agenda-summary-copy-failure-reported-as-done.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676。失敗を成功と伝える。",
+  },
+  {
+    id: 2673,
+    label: "コピーに失敗しても手で選べる欄を出さない",
+    patch: "m2673-agenda-summary-copy-no-manual-field-on-failure.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676。持ち出す道が失敗で消える。",
+  },
+  {
+    id: 2674,
+    label: "Markdown の合計の行の押し巻きを、最後のステップの差にする",
+    patch: "m2674-agenda-summary-markdown-total-drift-from-last-row.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。合計は summaryOf の押し巻きと同じでなければならない。",
+  },
+  {
+    id: 2675,
+    label: "くりかえしのある会でも、Markdown に回の列を付けない",
+    patch: "m2675-agenda-summary-markdown-no-round-column.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。どの回の行か分からなくなる。",
+  },
+  {
+    id: 2676,
+    label: "Markdown の日時が、渡された時間帯を無視する",
+    patch: "m2676-agenda-summary-markdown-ignores-timezone.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。日時が UTC のままになる。",
+  },
+  {
+    id: 2677,
+    label: "スキップしたステップの「かかった時間」に、スキップでなく 0:00 を書く",
+    patch: "m2677-agenda-summary-markdown-skipped-row-shows-time.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676。画面の一覧はスキップと書く。",
+  },
+  {
+    id: 2678,
+    label: "Markdown の見出しの日時を、描くたびに取り直す",
+    patch: "m2678-agenda-summary-moment-retaken-every-render.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy-moment.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676 の敵対的レビュー。映す表示の出入りで日時が変わる。",
+  },
+  {
+    id: 2679,
+    label: "最初からやり直しても、見出しの日時を前の終了の時刻のまま残す",
+    patch: "m2679-agenda-summary-moment-kept-after-restart.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy-moment.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676 の敵対的レビュー。もう一度終わったら取り直す。",
+  },
+  {
+    id: 2680,
+    label: "終了の前でも「Markdown でコピー」を出す",
+    patch: "m2680-agenda-summary-copy-shown-before-finish.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676 の敵対的レビュー。操作は会が終わった後だけ。",
+  },
+  {
+    id: 2681,
+    label: "コピーが成功しても、手で選べる欄を閉じない",
+    patch: "m2681-agenda-summary-copy-manual-field-kept-after-success.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676 の敵対的レビュー。失敗の後に成功したら欄が消える。",
+  },
+  {
+    id: 2682,
+    label: "空白だけの会の名前でも、空の ### 見出しを出す",
+    patch: "m2682-agenda-summary-markdown-blank-title-heading.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-markdown.test.ts"],
+    note: RESERVED_2670_2684 + " " + "#676 の敵対的レビュー。画面は何も出さない。",
+  },
+  {
+    id: 2683,
+    label: "Markdown の見出しの日時を、終わった瞬間の時計でなく盤の古い時刻から取る",
+    patch: "m2683-agenda-summary-moment-from-stale-board-clock.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/summary-copy-moment.test.tsx"],
+    note: RESERVED_2670_2684 + " " + "#676 の /code-review。盤の時刻は 10 秒ごとにしか進まず、見出しが最大でその分古くなる。",
+  },
+  {
+    id: 2685,
+    label: "結果の Markdown の名前を逃がさない（| * # 改行 ` ほかが書き出しに混ざる）",
+    patch: "m2685-roulette-md-no-escape.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。名前の記号が Markdown の構文に読まれ、表・見出し・強調・リンクになって結果が崩れる。",
+  },
+  {
+    id: 2686,
+    label: "2 人以上が決まっても、結果の Markdown に 1 人目しか書かない",
+    patch: "m2686-roulette-md-first-only.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。選ぶ人数が 2 人以上のとき、画面の札には全員いるのに持ち出した結果には 1 人しかいない。",
+  },
+  {
+    id: 2687,
+    label: "順番に回した結果の Markdown を、逆の順で書く",
+    patch: "m2687-roulette-md-order-reversed.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。1 番の人が最後に書かれ、順番が持ち出し先で逆になる。",
+  },
+  {
+    id: 2688,
+    label: "名前の行頭の - と + を逃がさない",
+    patch: "m2688-roulette-md-leading-dash.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。名前が箇条書きの始まりに読まれ、結果の行が入れ子の項目になる。",
+  },
+  {
+    id: 2689,
+    label: "名前の改行を 1 つの空白にせず、そのまま書き出す",
+    patch: "m2689-roulette-md-newline-kept.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。名前に入れた改行で行が割れ、後ろが見出し・項目として読まれる。",
+  },
+  {
+    id: 2690,
+    label: "結果のコピーを、回っている間（止まる前）にも出す",
+    patch: "m2690-roulette-result-while-spinning.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-of.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。演出が終わる前に、コピーで結果が先に分かってしまう。",
+  },
+  {
+    id: 2691,
+    label: "順番に回すとき、札が伏せてある間もコピーを出す",
+    patch: "m2691-roulette-result-order-card-hidden.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-of.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。2 番を回している間に、1 番までの結果が札の出る前にコピーできる（回し終えた順の食い違い）。",
+  },
+  {
+    id: 2692,
+    label: "結果のコピーに、決まった人のうち 1 人目しか入れない",
+    patch: "m2692-roulette-result-first-pick-only.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-of.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676。画面が 2 人以上を見せているのに、コピーする人が 1 人に減る。",
+  },
+  {
+    id: 2693,
+    label: "コピーに失敗しても、成功の知らせを出す",
+    patch: "m2693-roulette-copy-failure-as-done.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676。コピーできていないのに「コピーしました」と出て、貼ると空か前の物が出る。",
+  },
+  {
+    id: 2694,
+    label: "コピーに失敗した表示を 2 秒で消す（keepFailure を外す）",
+    patch: "m2694-roulette-copy-failure-not-kept.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676。手で選ぶ前に失敗の知らせが消え、なぜ欄が出ているか分からない。",
+  },
+  {
+    id: 2695,
+    label: "結果が替わっても、結果のコピーの部品を作り直さない（key を外す）",
+    patch: "m2695-roulette-copy-no-key.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy-room.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676。回っている間を挟まず別の結果が届くと、前の結果の失敗の欄が残る。",
+  },
+  {
+    id: 2696,
+    label: "結果の部品の key を回転の番号だけにする（決まった人数を混ぜない）",
+    patch: "m2696-roulette-copy-key-without-count.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy-room.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676 のレビュー。順番に回す回の最後の 1 人は回転が変わらず、前の失敗の欄が残る。",
+  },
+  {
+    id: 2697,
+    label: "結果の見出しの日時で、時間帯のずれを足さない",
+    patch: "m2697-roulette-md-stamp-ignores-tz.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-markdown.test.ts"],
+    note: RESERVED_2685_2699 + " " + "#676 のレビュー。日本の利用者の見出しが UTC の日時になり、日付も時刻もずれる。",
+  },
+  {
+    id: 2698,
+    label: "結果の見出しの時刻を、描き直すたびに取り直す",
+    patch: "m2698-roulette-copy-stamp-every-render.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-copy.test.tsx"],
+    note: RESERVED_2685_2699 + " " + "#676 のレビュー。同じ結果のあいだに見出しの時刻が変わり、コピーの内容も変わる。",
+  },
+  {
+    id: 2700,
+    label: "匿名の回でも、山が名前を持っていれば Markdown に名前を書く",
+    patch: "m2700-checkin-md-anonymous-shows-names.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。匿名の回の結果をコピーすると、誰がどれを出したかが持ち出される（設計 §6 の匿名が破れる）。",
+  },
+  {
+    id: 2701,
+    label: "札が開く前にも［Markdown でコピー］が出る",
+    patch: "m2701-checkin-md-copy-before-reveal.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。開く前の操作が出て、結果の持ち出しが開く前に押せる。",
+  },
+  {
+    id: 2702,
+    label: "名前の記号を逃がさず Markdown に書く",
+    patch: "m2702-checkin-md-no-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。名前の `|`・`*`・`#` が表・強調・見出しとして読まれ、貼った先で崩れる。",
+  },
+  {
+    id: 2703,
+    label: "コピーに失敗したのに「コピーしました」と知らせる",
+    patch: "m2703-checkin-md-failure-reported-as-done.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。失敗に気づかず、貼った先が空のまま会が終わる。",
+  },
+  {
+    id: 2704,
+    label: "別の回が開いても前の回の失敗の欄を持ち越す（回ごとの key を外す）",
+    patch: "m2704-checkin-md-failure-box-survives-next-round.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。前の回の結果の Markdown が、次の回の画面に残る。",
+  },
+  {
+    id: 2705,
+    label: "山を札の定義の順に並べ直さず、受けた順のまま書く",
+    patch: "m2705-checkin-md-server-pile-order.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。画面と Markdown で山の並びが食い違う。",
+  },
+  {
+    id: 2706,
+    label: "数のやり方の札に、画面の山の下にある意味を添えない",
+    patch: "m2706-checkin-md-numeric-no-meaning.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。貼った先で「4」だけが残り、何の数か分からない。",
+  },
+  {
+    id: 2707,
+    label: "日時が時間帯を無視して UTC のまま出る",
+    patch: "m2707-checkin-md-ignores-timezone.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。日本時間の利用者の記録の時刻が 9 時間ずれる。",
+  },
+  {
+    id: 2708,
+    label: "コピーに失敗しても手で選べる欄を出さない",
+    patch: "m2708-checkin-md-no-manual-field.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2700_2709 + " " + "#676。失敗すると持ち出す道が無くなる（poker #653・track と同じ作法を外す）。",
+  },
+  {
+    id: 2709,
+    label: "名前の中の改行を通す",
+    patch: "m2709-checkin-md-keeps-newlines.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2700_2709 + " " + "#676。改行を含む名前で、偽の行・見出しを差し込める。",
+  },
+  {
+    id: 2800,
+    label: "書き出す時刻を描くたびに取り直す",
+    patch: "m2800-checkin-md-time-per-render.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。別のやり方から戻ると、見出しの日時が変わる（回ごとに 1 度の決めが破れる）。",
+  },
+  {
+    id: 2801,
+    label: "卓の出し入れで、手で選べる欄が消える",
+    patch: "m2801-checkin-md-manual-lost-on-remount.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。失敗した後に別のやり方を開いて戻ると、選びかけの欄が消える。",
+  },
+  {
+    id: 2802,
+    label: "次の回でも、前の回の時刻と失敗の欄を持ち越す",
+    patch: "m2802-checkin-md-time-kept-across-rounds.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-copy.test.tsx"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。次の回の Markdown の日時が前の回のままで、前の失敗の欄が残る。",
+  },
+  {
+    id: 2803,
+    label: "名前の先頭の「数字 + )」を逃がさない",
+    patch: "m2803-checkin-md-no-leading-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。名前の先頭の 1) が入れ子の番号付きの列に読まれ、貼った先で名前の 1) が消える。",
+  },
+  {
+    id: 2804,
+    label: "名前の先頭の - と + を逃がさない",
+    patch: "m2804-checkin-md-no-bullet-escape.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-markdown.test.ts"],
+    note: RESERVED_2800_2819 + " " + "#676 のレビュー。名前の先頭の - が入れ子の箇条書きに読まれる。",
   },
   {
     id: 2650,

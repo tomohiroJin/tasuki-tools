@@ -1,0 +1,14 @@
+diff --git a/apps/roulette-web/src/result-markdown.ts b/apps/roulette-web/src/result-markdown.ts
+index ef2f3192..478a0ea5 100644
+--- a/apps/roulette-web/src/result-markdown.ts
++++ b/apps/roulette-web/src/result-markdown.ts
+@@ -37,8 +37,7 @@ export function escapeName(name: string): string {
+   return name
+     .replace(/\s+/gu, ' ')
+     .trim()
+-    .replace(/[\\`*_[\]<>#~&!.:@|()]/g, '\\$&')
+-    .replace(/^[-+]/, '\\$&');
++    .replace(/[\\`*_[\]<>#~&!.:@|()]/g, '\\$&');
+ }
+ 
+ const MS_PER_MIN = 60_000;

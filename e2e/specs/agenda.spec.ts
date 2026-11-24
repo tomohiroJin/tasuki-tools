@@ -5,7 +5,8 @@
  *   配布の前の本番に当てると落ちる（`/agenda/` がまだ無い。`deploy/agenda/NOTES.md`）。
  *   タグは describe のタイトルの先頭に置く（`e2e/tests/spec-tags.test.ts`）。
  *
- * **ルームを作るのはこの 1 本だけ**（本番のルーム枠は 100 のまま。ルームの増分は +1）。
+ * **本番に当てる `@core` がルームを作るのは 1 本だけ**（本番のルーム枠は 100 のまま。ルームの増分は +1）。
+ * 末尾の Markdown コピー（#676）は `@core` ではなく、本番には当てない。
  * 時間切れ（サンプルの最短は 1 分）は待たない。実時間の待ちは `apps/tasuki-sync` の偽の時計の検査が持つ。
  */
 import { expect, test } from '../fixtures/test';
@@ -175,5 +176,65 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
     // Then 最後: どちらのコンソールにもエラーが出ていない
     expect(consoleWatcher.errors).toEqual([]);
     expect(peer.console.errors).toEqual([]);
+  });
+});
+
+/**
+ * 終了の一覧を Markdown でコピーする（#676）。`@core` ではない（本番の確かめには入れない・ルームを 1 つ足す）。
+ */
+test.describe('進行タイマーは終了の一覧を Markdown でコピーできる', () => {
+  test('Given 会が終わった / When Markdown でコピーを押す / Then 一覧と同じ表がコピーされ、コピーできないときは手で選べる欄に同じ文が出る（#676）', async ({
+    page,
+    context,
+    consoleWatcher,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await openAgendaTool(page, NAME_A);
+    await loadSampleAndStart(page);
+
+    // 終わる前は操作が出ない
+    await expect(page.getByRole('button', { name: 'Markdown でコピー', exact: true })).toHaveCount(0);
+    // 「次へ」を 5 回（K・P・投票・Try の議論・予備。新しいルームなので予備はスキップしていない）で終了する
+    for (const name of ['P を出す', '投票', 'Try の議論', '予備'] as const) {
+      await page.getByRole('button', { name: '次へ', exact: true }).click();
+      await expect(dialName(page)).toHaveText(name);
+    }
+    await page.getByRole('button', { name: '次へ', exact: true }).click();
+    await expect(page.getByRole('button', { name: '次へ', exact: true })).toHaveCount(0);
+
+    // 成功: 前のコピーを別の値にしておき、押したあとで読む
+    const copy = page.getByRole('button', { name: 'Markdown でコピー', exact: true });
+    await expect(copy).toBeVisible();
+    await page.evaluate(() => navigator.clipboard.writeText('コピー前'));
+    await copy.click();
+    await expect(page.getByRole('status').filter({ hasText: 'コピーしました' })).toBeVisible();
+    const markdown = await page.evaluate(() => navigator.clipboard.readText());
+    const lines = markdown.split('\n');
+    expect(lines[0]).toMatch(/^## 進行タイマー（\d{4}-\d{2}-\d{2} \d{2}:\d{2}）$/);
+    expect(lines).toContain('| ステップ | 予定 | 追加 | かかった時間 | 予定より |');
+    for (const name of ['K を出す', 'P を出す', '投票', 'Try の議論', '予備']) {
+      expect(lines.some((line) => line.startsWith(`| ${name} |`)), `${name} の行`).toBe(true);
+    }
+    expect(lines.at(-1)).toMatch(/^\| 合計 \|/);
+    // 画面の一覧と同じ行数（ステップの行 + 合計の行）
+    expect(lines.filter((line) => line.startsWith('| ') && !line.startsWith('| ステップ ')).length).toBe(
+      await page.locator('.summary-table tbody tr, .summary-table tfoot tr').count(),
+    );
+
+    // 失敗: クリップボードも従来のコピーも使えない。同じ文を手で選べる欄に出す
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
+      document.execCommand = () => false;
+    });
+    await copy.click();
+    await expect(page.getByRole('status').filter({ hasText: 'コピーできませんでした' })).toBeVisible();
+    const manual = page.getByRole('textbox', { name: '手動コピー用の Markdown' });
+    await expect(manual).toHaveValue(markdown);
+    await manual.focus();
+    expect(
+      await manual.evaluate((field: HTMLTextAreaElement) => field.value.slice(field.selectionStart, field.selectionEnd)),
+    ).toBe(markdown);
+
+    expect(consoleWatcher.errors).toEqual([]);
   });
 });

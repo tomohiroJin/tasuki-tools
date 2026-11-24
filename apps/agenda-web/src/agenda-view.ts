@@ -208,6 +208,15 @@ export function driftShort(v: AgendaView): string {
   return m > 0 ? driftShortText('+', m) : driftShortText('−', -m);
 }
 
+/** 終了の一覧の合計の行（表の行の足し上げ。画面の表と Markdown が同じ値を使う） */
+export function summaryTotals(rows: readonly { plannedMs: number; extensionMs: number; spentMs: number }[]): { plannedMs: number; extensionMs: number; spentMs: number } {
+  return {
+    plannedMs: rows.reduce((sum, r) => sum + r.plannedMs, 0),
+    extensionMs: rows.reduce((sum, r) => sum + r.extensionMs, 0),
+    spentMs: rows.reduce((sum, r) => sum + r.spentMs, 0),
+  };
+}
+
 /** 終了の一覧の長さ「m:ss」「h:mm:ss」（秒は切り捨て。盤のかかった時間と同じ。書き方は必ず渡す） */
 export const durationClock = (ms: number, style: ClockStyle): string => elapsedClock(Math.max(ms, 0), style);
 

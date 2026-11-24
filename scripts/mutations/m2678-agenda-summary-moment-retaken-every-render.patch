@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/components/RunScreen.tsx b/apps/agenda-web/src/components/RunScreen.tsx
+index b59c3529..37575503 100644
+--- a/apps/agenda-web/src/components/RunScreen.tsx
++++ b/apps/agenda-web/src/components/RunScreen.tsx
+@@ -139,7 +139,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate,
+               {FINISHED_LABEL}
+             </h2>
+             <SummaryTable view={view} />
+-            {summaryAt !== null && <SummaryCopy view={view} at={summaryAt} />}
++            {summaryAt !== null && <SummaryCopy view={view} at={{ wallMs: wallNow.getTime(), tzOffsetMin: summaryAt.tzOffsetMin }} />}
+           </section>
+         ) : (
+           <StepList view={view} canOperate={canOperate} onSetSkipped={actions.setSkipped} />

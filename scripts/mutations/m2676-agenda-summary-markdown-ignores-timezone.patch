@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/summary-markdown.ts b/apps/agenda-web/src/summary-markdown.ts
+index 6837152f..1bf3c30c 100644
+--- a/apps/agenda-web/src/summary-markdown.ts
++++ b/apps/agenda-web/src/summary-markdown.ts
+@@ -50,7 +50,7 @@ function civilOf(day: number): { year: number; month: number; date: number } {
+ 
+ /** 「2026-11-23 14:05」（分未満は切り捨て） */
+ function dateTimeText({ wallMs, tzOffsetMin }: SummaryMoment): string {
+-  const local = wallMs + tzOffsetMin * MIN;
++  const local = wallMs;
+   const day = Math.floor(local / DAY);
+   const minuteOfDay = Math.floor((local - day * DAY) / MIN);
+   const { year, month, date } = civilOf(day);

@@ -147,3 +147,13 @@ export const REGULARS_ERROR_BAD_NAME = '使えない名前があります';
 export const REGULARS_ERROR_FULL = `メンツは ${MAX_GROUPS} 組まで保存できます`;
 export const REGULARS_ERROR_UNREADABLE = '保存したメンツを読めないため、保存を止めました';
 export const REGULARS_ERROR_WRITE_FAILED = 'この端末に書き込めませんでした';
+
+// 結果のコピー（#676）。Markdown の見出し・項目名も、手で選ぶ欄の文言もここに置く（書体の base 層の検査が見る）
+export const RESULT_COPY_BUTTON = '結果をコピー';
+export const RESULT_COPY_DONE = 'コピーしました';
+export const RESULT_COPY_FAILED = 'コピーできませんでした。下の欄から選んでコピーしてください。';
+export const RESULT_COPY_MANUAL_FIELD = '手動コピー用の Markdown';
+export const RESULT_MD_HEADING = '進行役ルーレットの結果';
+export const RESULT_MD_MODE = '決め方';
+export const RESULT_MD_PICKED = '選ばれた人';
+export const RESULT_MD_ORDER = '順番';

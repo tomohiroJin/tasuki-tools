@@ -1,0 +1,22 @@
+# 変異 2804: checkin-md-no-bullet-escape
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-markdown.test.ts
+#
+# #676 名前の先頭の - や + が入れ子の箇条書きに読まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2804-*.patch
+# 復元: git apply -R scripts/mutations/m2804-*.patch
+diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
+index 44f11126..8ae3cd7a 100644
+--- a/apps/checkin-web/src/reveal-markdown.ts
++++ b/apps/checkin-web/src/reveal-markdown.ts
+@@ -47,7 +47,6 @@ export function escapeName(name: string): string {
+     .replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
+     .trim()
+     .replace(/[\\`*_[\]<>#~&!.:@|]/g, '\\$&')
+-    .replace(/^[-+]/, '\\$&')
+     .replace(/^(\d+)\)/, '$1\\)');
+ }
+ 

@@ -4,17 +4,19 @@
  * - 手元（375px）: 盤 → 添え書き → 進行表 → 「最初から」。主の操作の帯は画面の下に固定する
  * - 広い幅（64rem〜）: 左に盤と操作の帯、右に進行表
  * - 映す表示に入ると、盤と右の列だけの大きな表示に切り替える（`ProjectionView`）
- * - 終了: 盤（かかった時間と予定より）と一覧（`SummaryTable`）・「最初から」
+ * - 終了: 盤（かかった時間と予定より）と一覧（`SummaryTable`）・Markdown でコピー（`SummaryCopy`）・「最初から」
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { AgendaView, ExtendMinutes } from '@tasuki/agenda-core';
 import { extensionLine } from '../agenda-view';
+import type { SummaryMoment } from '../summary-markdown';
 import { FINISHED_LABEL, PROJECT_BUTTON, SPEAK_SUMMARY_BUTTON } from '../copy';
 import { Dial } from './Dial';
 import { ProjectionView } from './ProjectionView';
 import { ResetControl } from './ResetControl';
 import { RunControls } from './RunControls';
 import { StepList } from './StepList';
+import { SummaryCopy } from './SummaryCopy';
 import { SummaryTable } from './SummaryTable';
 
 export interface RunActions {
@@ -47,9 +49,11 @@ interface Props {
   consumeStartArrival: () => boolean;
   /** 接続の告知の帯。映す表示のときだけ受け取り、映す表示の中に置く（手元の画面では呼ぶ側が外に置く） */
   banner?: ReactNode;
+  /** 会の終了を最初に受け取った瞬間の時計（epoch ms）。試験で差し替える。省くと `Date.now` */
+  now?: () => number;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival, banner }: Props) {
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival, banner, now = Date.now }: Props) {
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLParagraphElement>(null);
@@ -66,6 +70,15 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const summaryHeadingId = useId();
+  // Markdown の見出しの日時は「この端末が会の終了を最初に受け取った時刻」（映す表示の間に終わった会は、一覧を出す前の、終わりを受け取った時刻になる）。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
+  // ここ（映す表示の出入りで捨てられない所）で持つ。終了でなくなったら（最初からやり直し）捨て、もう一度終わったら取り直す
+  const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
+  const finished = view.phase === 'finished';
+  // 盤の時刻（`wallNow`）は 10 秒ごと（裏のタブでは 1 分ほど）にしか進まないので使わず、その瞬間の時計を読む（roulette・checkin と同じ作法）
+  if (finished && summaryAt === null) {
+    const ms = now();
+    setSummaryAt({ wallMs: ms, tzOffsetMin: -new Date(ms).getTimezoneOffset() });
+  } else if (!finished && summaryAt !== null) setSummaryAt(null);
 
   useEffect(() => {
     if (projecting || !returnFocus) return;
@@ -94,7 +107,6 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
     );
   }
 
-  const finished = view.phase === 'finished';
   const note = extensionLine(view);
   return (
     <div className={finished ? 'run run--finished' : 'run'}>
@@ -132,6 +144,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
               {FINISHED_LABEL}
             </h2>
             <SummaryTable view={view} />
+            {summaryAt !== null && <SummaryCopy view={view} at={summaryAt} />}
           </section>
         ) : (
           <StepList view={view} canOperate={canOperate} onSetSkipped={actions.setSkipped} />
