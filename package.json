@@ -12,6 +12,7 @@
     "e2e": "node scripts/check-toolchain.mjs e2e && turbo run e2e",
     "e2e:prod": "turbo run e2e:prod",
     "verify:prod": "node scripts/verify-prod.mjs",
+    "changes:since": "node scripts/changes-since.mjs",
     "check:fast": "node scripts/local-check.mjs fast",
     "check:full": "node scripts/local-check.mjs full"
   },
