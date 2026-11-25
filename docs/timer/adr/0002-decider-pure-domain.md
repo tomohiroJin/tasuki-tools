@@ -98,9 +98,9 @@ Decider パターン（`decide`/`evolve` による決定と適用の分離）と
 契約に沿う形へ是正したものであり、ADR-0002 の「決定」節・「影響」節の内容を覆すもの
 ではない。
 
-## 追記（2026-11-23・#660）— ランダム交代の袋を集約に持ち、乱数は順列で受ける（Proposed）
+## 追記（2026-11-23・#660）— ランダム交代の袋を集約に持ち、乱数は順列で受ける（Accepted）
 
-- **この追記のステータス**: **Proposed**（2026-11-23 起案。採択は人が決める。ADR 本体の Accepted は変わらない）
+- **この追記のステータス**: **Accepted**（2026-11-23 起案・2026-11-25 採択。ADR 本体の Accepted は変わらない）
 - **関連**: [#660](https://github.com/tomohiroJin/tasuki-tools/issues/660) /
   [`docs/adr/0016`](../../adr/0016-core-domain-representation.md)（集約の表し方） /
   `docs/constitution.md` 原則 VI（依存は内向き）
