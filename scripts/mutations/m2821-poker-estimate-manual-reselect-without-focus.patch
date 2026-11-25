@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -131,7 +131,7 @@
+                 // WebKit はクリックやタップの既定動作でフォーカス時の選択を解除する。
+                 // 次の描画で、欄にフォーカスが残っていて選択が消えた場合だけ選び直す。
+                 requestAnimationFrame(() => {
+-                  if (field.ownerDocument.activeElement === field && field.selectionStart === field.selectionEnd) {
++                  if (field.selectionStart === field.selectionEnd) {
+                     selectManualCopy(field);
+                   }
+                 });

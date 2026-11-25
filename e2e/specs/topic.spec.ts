@@ -101,13 +101,20 @@ test.describe('@core お題をツールへ配る', () => {
     // When その1: お題にする
     await setTopic(page, TITLE, BODY);
 
-    // Then その1: timer の札にタイトルと本文が出る
-    await expect(timerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
-    await expect(timerTopic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
-    //   poker は見出しとタイトルが出て、本文は読む面（名前はタイトルの region）にそのまま出る
-    await expect(pokerTopic.getByRole('heading', { level: 2, name: 'お題', exact: true })).toBeVisible();
-    await expect(pokerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
-    await expect(pokerTopic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
+    // Then その1: 両方でタイトルと本文を読める。狭い画面では「続きを読む」で本文を開く。
+    for (const card of [timerTopic, pokerTopic]) {
+      await expect(card.getByRole('heading', { level: 2, name: 'お題', exact: true })).toBeVisible();
+      await expect(card.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
+      if (await card.page().evaluate(() => matchMedia('(width >= 64rem)').matches)) {
+        await expect(card.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
+      } else {
+        await card.getByRole('button', { name: '続きを読む', exact: true }).click();
+        const drawer = card.page().getByRole('dialog', { name: TITLE, exact: true });
+        await expect(drawer.getByText(BODY, { exact: true })).toBeVisible();
+        await drawer.getByRole('button', { name: '閉じる', exact: true }).click();
+        await expect(drawer).toBeHidden();
+      }
+    }
 
     // When その2: 場から下げる
     await page.getByRole('button', { name: '場から下げる' }).click();

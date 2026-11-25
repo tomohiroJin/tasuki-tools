@@ -352,6 +352,41 @@ describe('EstimateLog', () => {
       });
     });
 
+    // WebKit はクリックやタップの既定動作でフォーカス時の選択を解くので、クリックの後に選び直す（#674）。
+    // そのため、どのブラウザでも、フォーカスのある欄をもう一度クリックすると全文に戻る（カーソルだけを置くことはできない）。
+    // 写すための読み取り専用の欄なので、それでよい。ドラッグやダブルクリックで選んだ範囲は、空でないので保つ。
+    it('Given 手で選べる欄にフォーカスがある / When クリックで選択が消えた・範囲を選んでクリックした / Then 消えた選択は全文に戻し、選んだ範囲は保つ（#674）', async () => {
+      await withoutClipboard(async () => {
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        const field = await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
+        field.focus();
+        field.setSelectionRange(2, 2);
+        fireEvent.click(field);
+        await waitFor(() => expect([field.selectionStart, field.selectionEnd]).toEqual([0, field.value.length]));
+        field.setSelectionRange(1, 3);
+        fireEvent.click(field);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        expect([field.selectionStart, field.selectionEnd]).toEqual([1, 3]);
+      });
+    });
+
+    it('Given 手で選べる欄をクリックした / When 次の描画までにフォーカスがほかへ移った / Then 欄を選び直さない（移った先の操作を邪魔しない・#674）', async () => {
+      await withoutClipboard(async () => {
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        const copy = screen.getByRole('button', { name: ESTIMATE_LOG_COPY });
+        fireEvent.click(copy);
+        const field = await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
+        field.focus();
+        field.setSelectionRange(2, 2);
+        fireEvent.click(field);
+        copy.focus();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        expect(document.activeElement).toBe(copy);
+        expect([field.selectionStart, field.selectionEnd]).toEqual([2, 2]);
+      });
+    });
+
     it('Given 失敗して欄が出ている / When 2 秒以上たつ / Then 選ぶ前に消えない', async () => {
       vi.useFakeTimers();
       try {

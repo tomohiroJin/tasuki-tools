@@ -47,10 +47,13 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     request,
     openPeer,
     consoleWatcher,
+    browserName,
   }) => {
     // ルームはこの 1 本だけで作るので、回す場面がすべてここに積まれる（#94 の 9 回・#401 の 2 人と 4 人の回転）。
-    // #401 の 2 回（約 5.6 秒と 8.8 秒）を足して既定の上限（60 秒）を超えたので、この本だけ 30 秒延ばす
-    test.setTimeout(test.info().timeout + 50_000);
+    // #401 の 2 回（約 5.6 秒と 8.8 秒）を含め、この本だけ実行全体の上限を延ばす。
+    // WebKit の実測では約 120 秒かかる（#674）。個々の回転や同期に対する制限は下の検査で見る。
+    const timeout = test.info().timeout;
+    if (timeout > 0) test.setTimeout(browserName === 'webkit' ? Math.max(timeout, 180_000) : timeout + 50_000);
     // 取りにいった書体を記録する（常用の層の外を引いていないことを、止まった後に見る）
     const fonts: string[] = [];
     page.on('request', (request) => {
@@ -184,7 +187,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       await expect(page.locator('.wheel-label')).toHaveCount(6);
       await expectWheelGlyphsUpright(page);
       await expectWheelLabelsInsideSeats(page, 1);
-      await expectWheelLabelsUseWebFonts(page);
+      await expectWheelLabelsUseWebFonts(page, browserName);
       await expectRouletteNamesNotCut(page, 1);
     }
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -192,7 +195,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await spinAndSettle('漢字 6 席・1280');
     await expectWheelGlyphsUpright(page);
     await expectWheelLabelsInsideSeats(page, 1);
-    await expectWheelLabelsUseWebFonts(page);
+    await expectWheelLabelsUseWebFonts(page, browserName);
     await expectRouletteNamesNotCut(page, 1);
 
     // Then 2 人以上を選ぶ（#401 spec §6）。同じルームのまま、A が人数を変えると B の画面にも届き、

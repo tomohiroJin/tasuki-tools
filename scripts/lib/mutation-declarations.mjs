@@ -277,6 +277,9 @@ const RESERVED_2600_2629 =
 const RESERVED_2630_2649 =
   "**対応表より後に足した変異。** 2630〜2649 は #665（topic の生成中は作るの欄のボタンを押せなくする）に割り当てた範囲。";
 
+const RESERVED_2820_2829 =
+  "**対応表より後に足した変異。** 2820〜2829 は #674（E2E を WebKit でも流す。試しに流して見つかった失敗の直し）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13320,5 +13323,21 @@ export const MUTATIONS = [
     pkg: "apps/topic-web",
     tests: ["tests/topic-room.test.tsx"],
     note: RESERVED_2630_2649 + " " + "#665 のレビュー。欄の上端が画面の外にあると、フォーカスの移動でページが動き、押したボタンが指の下から逃げる。",
+  },
+  {
+    id: 2820,
+    label: "手動コピー欄でクリック後に消えた全文選択を戻さない",
+    patch: "m2820-poker-estimate-manual-pointer-no-select.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2820_2829 + " " + "#674。WebKit でクリックやタップをすると、手動コピー用の Markdown の全文選択が解除される。",
+  },
+  {
+    id: 2821,
+    label: "手動コピー欄をクリックした後、フォーカスがほかへ移っていても欄を選び直す",
+    patch: "m2821-poker-estimate-manual-reselect-without-focus.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: RESERVED_2820_2829 + " " + "#674 のレビュー。クリックの直後に別の欄へ移った人の画面で、見えない所の選択が書き換わる。",
   },
 ];

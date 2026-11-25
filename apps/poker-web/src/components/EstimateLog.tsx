@@ -42,6 +42,11 @@ export interface EstimateLogProps {
   scrollable?: boolean;
 }
 
+function selectManualCopy(field: HTMLTextAreaElement): void {
+  field.select();
+  field.setSelectionRange(0, field.value.length);
+}
+
 export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
   const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
@@ -121,10 +126,15 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
               readOnly
               rows={5}
               value={markdown}
-              onFocus={(event) => {
-                // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
-                event.currentTarget.select();
-                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
+              onFocus={(event) => selectManualCopy(event.currentTarget)}
+              onClick={({ currentTarget: field }) => {
+                // WebKit はクリックやタップの既定動作でフォーカス時の選択を解除する。
+                // 次の描画で、欄にフォーカスが残っていて選択が消えた場合だけ選び直す。
+                requestAnimationFrame(() => {
+                  if (field.ownerDocument.activeElement === field && field.selectionStart === field.selectionEnd) {
+                    selectManualCopy(field);
+                  }
+                });
               }}
             />
           </div>

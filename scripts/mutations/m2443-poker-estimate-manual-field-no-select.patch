@@ -1,15 +1,11 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -121,11 +121,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -126,7 +126,6 @@
                readOnly
                rows={5}
                value={markdown}
--              onFocus={(event) => {
--                // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
--                event.currentTarget.select();
--                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
--              }}
-             />
-           </div>
-         )}
+-              onFocus={(event) => selectManualCopy(event.currentTarget)}
+               onClick={({ currentTarget: field }) => {
+                 // WebKit はクリックやタップの既定動作でフォーカス時の選択を解除する。
+                 // 次の描画で、欄にフォーカスが残っていて選択が消えた場合だけ選び直す。
