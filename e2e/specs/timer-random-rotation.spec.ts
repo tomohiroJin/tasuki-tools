@@ -61,10 +61,15 @@ test.describe('timer のランダム交代は、予告した人へ替わる', ()
      *
      * 交代の直後の古い画面は、予告に新しい運転者の名前を出している（予告した人へ替わるので）。
      * 「予告が運転者と違う名前になった」ことで、新しい snapshot を映したと分かる。
+     *
+     * **時計が走っていること（「一時停止」のボタンが出ている）も待つ。** 開始は `phase.set` → `START` の順に届き、
+     * サーバーは START で引く順を作り直す。間の snapshot（セッション画面・時計は止まったまま）の予告は、
+     * 開始のあとの予告と違う人になりうる。そこで読むと、画面ごとに違う予告を掴む。
      */
     async function forecastWhileDriving(driver: string): Promise<string> {
       const seen: string[] = [];
       for (const [label, target] of all) {
+        await expect(target.getByRole('button', { name: '一時停止', exact: true }), `${label}の画面の時計が走っていない`).toBeVisible();
         await expect(currentDriverRow(target), `${label}の画面の運転者`).toHaveCount(1);
         await expect(currentDriverRow(target), `${label}の画面の運転者`).toContainText(driver);
         await expect(nextName(target), `${label}の画面の予告が運転者のまま`).not.toHaveText(driver);
@@ -119,6 +124,8 @@ test.describe('timer のランダム交代は、予告した人へ替わる', ()
 
     const pages = { [NAMES[0]]: page, [NAMES[1]]: second.page, [NAMES[2]]: third.page } as const;
     await expect(currentDriverRow(page)).toContainText(NAMES[0]);
+    // 時計が走り出すまで待つ（開始の前の snapshot の予告は、開始で引く順を作り直すと変わりうる）
+    await expect(page.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
     // 予告は B か C。出るまで待ってから読む
     await expect(nextName(page)).toHaveText(new RegExp(`^(${NAMES[1]}|${NAMES[2]})$`));
     const first = (await nextName(page).innerText()).trim() as (typeof NAMES)[1] | (typeof NAMES)[2];

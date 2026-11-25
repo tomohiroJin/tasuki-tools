@@ -9,6 +9,7 @@ import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tasuki/timer-core
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SectionHeader } from "../primitives.js";
 import { BreakSettings } from "./BreakSettings.js";
+import { RANDOM_ROTATION_TEXT } from "../random-rotation-text.js";
 
 interface SessionConfigPanelProps {
   config: SessionConfig;
@@ -65,8 +66,8 @@ export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionC
           <Toggle
             checked={randomRotation}
             onChange={(v) => onChange({ rotationMode: v ? "random" : "order" })}
-            label="交代先をランダムに決める"
-            hint="交代のたびに、まだ運転していない人から次のドライバーを選びます。1 周で全員に 1 回ずつ回ります。"
+            label={RANDOM_ROTATION_TEXT.toggleLabel}
+            hint={RANDOM_ROTATION_TEXT.toggleHint}
           />
           <Toggle
             checked={navigatorEnabled}

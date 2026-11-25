@@ -8,6 +8,7 @@ import React from "react";
 import { computeRotationStatus, type MemberTurn } from "../rotation-status.js";
 import type { RotationMember } from "../rotation-names.js";
 import { SKIP_TEXT } from "../skip-reason-text.js";
+import { RANDOM_ROTATION_TEXT } from "../random-rotation-text.js";
 
 interface RotationLineupProps {
   /** rotation の各枠（識別子＋表示名・D6b）。 */
@@ -43,7 +44,7 @@ function buildSelfSummary(self: MemberTurn): string {
   // 飛ばされる席は順番を持たない（#276 D11）。「あとnull人」を出さない。
   if (self.skipReason !== null) return `あなた: 番が回りません（${SKIP_TEXT[self.skipReason].label}）`;
   // 番は回るが、順番がまだ決まっていない（ランダム交代・#660）
-  if (!self.isNext && self.turnsAway === null) return "あなた: 順番はランダムです";
+  if (!self.isNext && self.turnsAway === null) return RANDOM_ROTATION_TEXT.selfSummary;
   const turns = self.isNext ? "次です" : `あと${self.turnsAway}人`;
   const mins = self.minutesAway !== null && !self.isNext ? `・約${self.minutesAway}分後` : "";
   return `あなた: ${turns}${mins}`;

@@ -13671,4 +13671,12 @@ export const MUTATIONS = [
     tests: ["test/random-rotation.test.ts"],
     note: RESERVED_2830_2879 + " " + "#660 の 4 巡目のレビュー。完成のあとロビーへ戻った間に運転中の席を外すと、袋の予告と違う席が先頭になる。",
   },
+  {
+    id: 2871,
+    label: "ランダム交代の文言に、書体の常用の層に無い字（運・転）が混ざる",
+    patch: "m2871-random-rotation-copy-outside-font-base.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/random-rotation-copy-fits-font-base.test.ts"],
+    note: RESERVED_2830_2879 + " " + "#660 のマージ前のレビュー。詳細設定を開くと、その字のためだけに ext 層（約 210 KB）を読みに行く。",
+  },
 ];

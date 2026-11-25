@@ -44,6 +44,7 @@ import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { NotifyHint } from "./components/NotifyHint.js";
 import { roomChoiceHref } from "./room-heading.js";
+import { RANDOM_ROTATION_TEXT } from "./random-rotation-text.js";
 import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
 
 interface SessionProps {
@@ -296,7 +297,7 @@ export function Session({
             <ArrowRight className="session-next-arrow" aria-hidden="true" />
             次: <span className="session-next-name">{nextDriverName}</span>
             {/* ランダム交代（#660）。輪の並びが次の人を表さないので、決め方の名前を添える */}
-            {randomRotation && <span className="session-next-mode">ランダム</span>}
+            {randomRotation && <span className="session-next-mode">{RANDOM_ROTATION_TEXT.modeName}</span>}
             {nextIndex === null && (
               <span className="session-next-note">（交代できる人がいません）</span>
             )}
