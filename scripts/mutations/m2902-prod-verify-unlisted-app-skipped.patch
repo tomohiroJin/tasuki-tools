@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..f8830e5 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -105,7 +105,7 @@ export function planTargets({ appEnvs, readme }) {
+     }
+     const state = states.get(dir);
+     if (state === undefined) {
+-      problems.push(`${dir}: deploy/README.md の「アプリ一覧」の表に行がありません（公開中か未公開かを決められない）`);
++      skipped.push(dir);
+       continue;
+     }
+     if (state === "unknown") {

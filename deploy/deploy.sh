@@ -102,8 +102,8 @@ fi
 echo "==> [$APP] 完了"
 echo ""
 echo "確認:"
-echo "  配信中のハッシュとローカルビルドの一致を見る（新版が出た決定的証拠）"
-echo "    grep -o 'assets/index-[A-Za-z0-9_-]*\\.js' $WEB_DIST/index.html | head -1"
+echo "  配信中のハッシュと手元のビルドの一致・公開パス・/ws を読む（新版が出た決定的証拠。読むだけ・公開中の全アプリを見る。配り忘れは見つけない: 配っていないアプリは手元も本番も前のままなら「一致」と出る）"
+echo "    TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm verify:prod"
 if [ -z "$STATIC" ]; then
 	# 起動の確認（間を空けて 2 回・NRestarts）は再起動の段で済ませている（#146）。
 	# ここに残すのは、時間をおいてから見直したいときの手順。
@@ -113,4 +113,4 @@ fi
 # 配るアプリは `deploy/*/app.env` から導く（一覧は引数なしで実行すると出る・`available_apps`）。
 # #91 のように複数を続けて配るときは、最後の 1 本を出してから流す（途中で流すと、まだ配っていない側の検査が落ちる）。
 echo "  配るアプリをすべて出し終えたら、外から通しで確認する（アプリ単位ではなくサイト全体）"
-echo "    TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod"
+echo "    TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm verify:prod --e2e   # 揃っていれば続けて pnpm e2e:prod を流す"

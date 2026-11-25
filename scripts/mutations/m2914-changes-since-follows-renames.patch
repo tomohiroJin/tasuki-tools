@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 35d64e5..8e537d9 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -30,7 +30,7 @@
+  * 引用符つきで出て、先頭が `packages/` でなくなり、印が 1 つも付かない。#675 のレビュー）。
+  * コミットの頭は `\x01<ハッシュ>\x02<題>\x02`、その後ろに NUL で終わるパスが並ぶ。
+  */
+-export const LOG_ARGS = Object.freeze(["log", "-z", "--no-renames", "--first-parent", "--reverse", "--format=%x01%H%x02%s%x02", "--name-only"]);
++export const LOG_ARGS = Object.freeze(["log", "-z", "--find-renames", "--first-parent", "--reverse", "--format=%x01%H%x02%s%x02", "--name-only"]);
+ 
+ /**
+  * `git log`（{@link LOG_ARGS}）の出力を読む。形が違えば、0 件にせず投げる。

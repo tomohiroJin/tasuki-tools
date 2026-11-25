@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 5b59e49..0f42c0e 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -35,7 +35,7 @@ export const LOG_ARGS = Object.freeze(["log", "--no-renames", "--first-parent",
+  */
+ export function parseLog(raw) {
+   if (raw.trim() === "") return [];
+-  if (!raw.startsWith("\x01")) throw new Error("git log の出力が想定の形ではありません（コミットの区切りで始まらない）");
++  if (!raw.startsWith("\x01")) return [];
+   return raw
+     .split("\x01")
+     .slice(1)

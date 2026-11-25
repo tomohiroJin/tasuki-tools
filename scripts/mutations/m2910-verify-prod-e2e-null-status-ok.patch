@@ -1,0 +1,13 @@
+diff --git a/scripts/verify-prod.mjs b/scripts/verify-prod.mjs
+index cbff528..9606f52 100644
+--- a/scripts/verify-prod.mjs
++++ b/scripts/verify-prod.mjs
+@@ -100,7 +100,7 @@ async function main() {
+     const r = spawnSync(command, commandArgs, { cwd: REPO_ROOT, stdio: "inherit", env: process.env });
+     if (r.error) console.error(`${TAG} ${command} を起動できません（${r.error.message}）`);
+     // 起動できない・シグナルで落ちたとき（status が null）は失敗にする
+-    e2eStatus = r.status ?? 1;
++    e2eStatus = r.status ?? 0;
+     if (r.signal) console.error(`${TAG} ${command} がシグナル ${r.signal} で終わりました`);
+     if (e2eStatus !== 0) console.error(`${TAG} NG: E2E が通っていません（終了コード ${e2eStatus}）`);
+   }

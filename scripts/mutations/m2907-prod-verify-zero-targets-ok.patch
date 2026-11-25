@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..089e141 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -218,7 +218,7 @@ async function checkWs(baseUrl, fetchText) {
+  */
+ export async function verifyProd({ baseUrl, targets, readLocalIndex, fetchText }) {
+   const checks = await Promise.all([...targets.map((t) => checkApp(baseUrl, t, readLocalIndex, fetchText)), checkWs(baseUrl, fetchText)]);
+-  return { ok: targets.length > 0 && checks.every((c) => c.ok), baseUrl, checks };
++  return { ok: checks.every((c) => c.ok), baseUrl, checks };
+ }
+ 
+ /** 結果を、行ごとの文章にする。 */

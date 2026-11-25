@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prod-verify.mjs b/scripts/lib/prod-verify.mjs
+index cdb01b6..231f4a3 100644
+--- a/scripts/lib/prod-verify.mjs
++++ b/scripts/lib/prod-verify.mjs
+@@ -136,7 +136,7 @@ export function planTargets({ appEnvs, readme }) {
+ 
+ /** `index.html` が指す `assets/` の js・css の名前（重複なし・並べ替え済み）。 */
+ export function extractAssets(html) {
+-  return [...new Set(String(html).match(/assets\/[A-Za-z0-9_.-]+\.(?:js|css)/g) ?? [])].sort();
++  return [...new Set(String(html).match(/assets\/[A-Za-z0-9_.-]+\.(?:js)/g) ?? [])].sort();
+ }
+ 
+ const isJs = (name) => name.endsWith(".js");

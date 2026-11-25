@@ -111,6 +111,66 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 > **稼働中のユニットを改名しない**と決めたため。改名は「旧停止 → 新起動」の切り替えを
 > 伴い、失敗すればサービス断になる。得られるのは命名の一貫性だけで機能上の利得が無い。
 
+## 配る時の確認の一覧
+
+配る回ごとに、上から順にたどる（#675）。**配布そのものは自動化しない**（下の「[自動化していない作業](#自動化していない作業)」）。
+機械が流すのは、配った後の読むだけの確かめ（`pnpm verify:prod`）だけで、ほかは人が見て決める。
+
+### 配る前
+
+- [ ] **main の CI が緑**。配る元は main の HEAD で、作業ツリーに未コミットの変更が無い（`deploy.sh` は手元の作業ツリーをそのまま配る）
+- [ ] **道具の版が宣言と合う**: `node scripts/check-toolchain.mjs test`（Node・pnpm・Bun。`deploy.sh` は版を確かめない。
+      v4.7.1 では人の端末が Node 22 で画面をビルドしていた）
+- [ ] **wire の差分**: `git diff <前のタグ>..HEAD --stat -- 'packages/*-core/src/*'` と、各 PR 本文の「配布の注意」。
+      `apps/tasuki-sync/src` に差分が無いことを「wire が変わっていない」と取り違えない（v4.6.0 の記録）。
+      末尾の `/*` を落とさない（引用符つきの `'packages/*-core/src'` は下のファイルに届かず、差分があっても何も出ない。#675 のレビューで実測）
+- [ ] **`deploy/` の差分**: `git diff <前のタグ>..HEAD --stat -- deploy`。文書だけなら root の作業は無い。
+      Caddy 断片・`app.env`・`service.tmpl`・`setup.sh` が変わっていれば、その道具の `NOTES.md` の手順を先に済ませる
+- [ ] **新しい道具を出す回**は、初回の用意（web root と Caddy 断片）を済ませる。冒頭の「[アプリ一覧](#アプリ一覧)」の状態は、
+      ここではまだ直さない（配る元は未コミットの変更が無い main の HEAD。直すのは下の「配った後」）
+- [ ] **接続数が 0 本**（流す直前ごとに）: `ssh <ホスト別名> "ss -Htn state established '( sport = :8787 )' | wc -l"`。
+      同期サーバーの再起動でルームは全消滅する（下の「[⚠ 再起動でルームは全消滅する](#-再起動でルームは全消滅する)」）
+
+### 配る順
+
+- [ ] **前のタグからの変更を並べる**: `pnpm changes:since <前のタグ>`（例: `pnpm changes:since v4.7.1`。#675）。
+      コミット（PR）ごとに、wire（`packages/<名前>-core/src`）・同期サーバー（`apps/tasuki-sync/src`）・`deploy/`（文書だけか、それ以外か）に
+      触れたかの印と、種類ごとの PR の番号が出る。**印の付いた PR は、本文の「配布の注意」を必ず読む**
+  - 読むだけで、順は出さない。印は読む PR を漏らさないためのもので、wire が変わったかどうかの判定ではない
+    （`*-core/src` の内部の整理にも印が付く。逆に、印の無い PR が受け方を変えていることもある）
+  - 手元にタグが無い・タグが HEAD の祖先でない（浅い複製・別の枝）ときは、空の一覧を出さずに止まる。
+    `git fetch origin tag <前のタグ>` で取り、main で流す。浅い複製（`git clone --depth`）では、タグを取っても履歴がつながらず
+    「祖先ではありません」で止まるので、`git fetch --unshallow` で履歴を取り足す
+  - 印の範囲は上の 3 つだけ。同期サーバーの束に入るほかのパッケージ（`packages/protocol`・`packages/rate-limit`）や
+    `apps/tasuki-sync/package.json` だけの変更には印が付かない（一覧には出る）
+- [ ] **順は人が決める。** 標準は、同期サーバー（`deploy.sh timer`）が先・画面が後（[`../docs/guides/architecture.md`](../docs/guides/architecture.md)・`docs/adr/0026`）
+- [ ] wire が変わった PR は、本文の「配布の注意」と各 `NOTES.md` の注記を突き合わせ、すべての決まりを満たす順にする。
+      決まりどうしが食い違ったら、どれに従い、どれに従わなかったかと理由を、配った回の注記に書く（v4.7.0 の記録）
+- [ ] 窓を短くするため、間を空けずに続けて流す
+
+### 配った後
+
+- [ ] **新しい道具を出した回**は、確かめの前に、手元の「[アプリ一覧](#アプリ一覧)」のその道具の状態を「公開中」に直す
+      （`pnpm verify:prod` は、この表で「未公開」の道具を飛ばし、飛ばしたと出す。直さないと、出した道具を確かめないまま exit 0 で終わる）。
+      この変更はコミットせずに置き、下の「記録」の文書 PR に入れる
+- [ ] **すべて配り終えてから**、配った端末（配ったビルドの `dist` が残っている作業ツリー）で流す:
+      `TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm verify:prod --e2e`
+      （公開中の道具すべての配信ハッシュ・公開パス・`/ws` の 426 を読み、揃っていれば続けて `pnpm e2e:prod` を流す。下の「[動作確認](#動作確認)」）
+- [ ] **時間をおいて**、同期サーバーの `ActiveState`・`NRestarts` を見直す（「動作確認」の ③。`ssh` が要るので `pnpm verify:prod` には含めていない）
+- [ ] 配る前に本番の env・Caddy・Bun に触った回は、その手順の確かめ（起動ログ・`/proc/<PID>/exe --version` ほか）も済ませる
+
+### タグ
+
+- [ ] **版の番号**を人が確かめる（前のタグ `git ls-remote --tags origin` と、上げる桁）
+- [ ] **本文**を、前のタグからの PR 本文と突き合わせて書く
+- [ ] **本文を、書いたのとは別のエージェントのレビューに回してから push する**（[敵対的レビュー](../docs/guides/procedures/adversarial-review.md)。
+      v4.6.0・v4.6.1 では本文の誤りが push の後に見つかった。push したタグは打ち直さない）
+
+### 記録
+
+- [ ] この README の冒頭の注記に、配った回（日付・タグ・配った順とその理由・確かめた結果）を足す文書 PR を出す
+- [ ] 道具ごとの `NOTES.md`・「アプリ一覧」の状態に、変わったことがあれば同じ PR で直す
+
 ## 通常運用（更新）
 
 > AI のエージェント（Claude Code）がこのディレクトリのスクリプトや `systemctl`・`caddy reload` を走らせようとすると、
@@ -200,25 +260,50 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh landing
 ```bash
 HOST=https://<公開ドメイン>
 
-# ① 新版が確実に出た決定的証拠: 配信中のハッシュとローカルビルドの一致
-LOCAL=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' apps/timer-web/dist/index.html | head -1)
-REMOTE=$(curl -s "$HOST/" | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -1)
-[ "$LOCAL" = "$REMOTE" ] && echo 一致 || echo 不一致
+# ① 新版が確実に出た決定的証拠: 公開中の道具すべての配信ハッシュと手元のビルドの一致・公開パスの応答・/ws の 426（#675）
+#    --e2e を付けると、揃っているときだけ続けて pnpm e2e:prod を流す
+TASUKI_E2E_BASE_URL="$HOST" pnpm verify:prod
 
 # ② ヘッダとステータス
 curl -sI "$HOST/" | grep -Ei 'HTTP/|x-robots-tag|strict-transport'
 
-# ③ WebSocket は 426 が正常（200 なら SPA フォールバックに吸われている）
-curl -s -o /dev/null -w '%{http_code}\n' "$HOST/ws"
-
-# ④ クラッシュループしていないこと（20 秒あけて 2 回・NRestarts と MainPID を見る）
+# ③ クラッシュループしていないこと（20 秒あけて 2 回・NRestarts と MainPID を見る）
 ssh "$TASUKI_SSH_HOST" 'systemctl --no-pager show tasuki-sync -p ActiveState -p NRestarts -p MainPID'
 sleep 20
 ssh "$TASUKI_SSH_HOST" 'systemctl --no-pager show tasuki-sync -p ActiveState -p NRestarts -p MainPID'
 
-# ⑤ 起動ログに異常が無いこと
+# ④ 起動ログに異常が無いこと
 ssh "$TASUKI_SSH_HOST" 'journalctl -u tasuki-sync -n 12 -o cat'
 ```
+
+### `pnpm verify:prod` が見るもの（#675）
+
+**読むだけ**で、本番へは何も書かない（`scripts/verify-prod.mjs`。判定は `scripts/lib/prod-verify.mjs`）。
+接続先は `pnpm e2e:prod` と同じ `TASUKI_E2E_BASE_URL` で、既定値は無い。https だけを受け取り、ローカル宛は拒む。
+
+| 見るもの | 揃っていないとき |
+|---|---|
+| 公開中の道具ごとに、公開パスが 200 を返す | 道具と状態コードを名指しする |
+| 配信の `index.html` が指す `assets/` の js・css の名前が、手元の `<WEB_DIST>/index.html` と同じ | 手元だけにある名前・配信だけにある名前を並べる |
+| その js・css の 1 本ずつが 200 で、名前どおりの種類として返る | 名前を名指しする（SPA のフォールバックに吸われると html が返る） |
+| `/ws` が 426 | 状態コードを出す（200 なら SPA のフォールバックに吸われている） |
+
+- **道具の一覧は `deploy/<app>/app.env` と冒頭の「アプリ一覧」の表から導く。** 表で「未公開」の道具は飛ばし、飛ばしたことを出す。
+  表に行の無い道具・状態が「公開中」「未公開」のどちらでも始まらない道具があれば、本番を読まずに止まる
+- **「一致」と言わない形**: 手元の `dist` が無い・手元か配信の `index.html` に `assets/` の js が無い（空の応答・別のページ）・
+  対象が 0 本。どれも比べずに NG にする（過去に、空どうしの比較で偽の「一致」が出た）
+- **手元の `dist` は作り直さない。** 配った端末で流す。別の場所で流すなら、配ったコミットを同じ版の道具（`toolchain.json`）で
+  `pnpm build` してから流す（版が違うとハッシュが変わりうる）
+- ずれがあれば exit 1、接続先・引数が決まらなければ exit 2。`--e2e` で E2E まで進んだときは、E2E の終了コードで終わる
+  （E2E が赤なら、その終了コードと「NG: E2E が通っていません」の行。起動できない・シグナルで落ちたときは 1）
+- **見ないもの**: 同期サーバーの `ActiveState`・`NRestarts`・起動ログ（上の ③・④。`ssh` が要る）、ヘッダ（上の ②）、
+  画面の動き（`--e2e` で続けて流す `pnpm e2e:prod`）、js・css の本文（名前・状態コード・種類だけを見る）、
+  `index.html` が指さない遅延読み込みのファイル
+- **配り忘れは見つけない。** `deploy.sh` は渡した道具だけをビルドするので、配り忘れた道具は手元の `dist` も本番も前のままで、揃って見える。
+  配った道具の一覧は、人が配る順の控えと突き合わせる
+- **一部だけ配る回**（例: `v4.7.1` は timer だけ）で、配っていない道具に未配布の変更があり、手元でその道具をビルドし直していれば、
+  その道具は「ずれ」と出る（本番が手元より古い、という事実どおり）。道具を絞る引数は無い。その回は、配った道具の行が OK なのを読み、
+  `pnpm e2e:prod` は別に流す（`--e2e` は 1 本でもずれていれば E2E を流さない）
 
 ## 切り戻し
 
@@ -559,14 +644,15 @@ CI から自動デプロイもしません。
 | 反映前の検証 | `caddy validate` を通してから reload する |
 | 全アプリの一括切替 | 一括の手段は無い。`deploy.sh` をアプリごとに叩く |
 | 切り戻し | スクリプト化していない。本 README の手順を手でたどる（**退避だけは `deploy.sh` が行う**・#146） |
-| デプロイ後の検証 | 配信ハッシュの一致・`/ws` の応答（唯一の WS 入口。#95 S5c）・各アプリの公開パスの応答を手で確認する（`deploy.sh` は確認コマンドを案内するだけで実行しない）。**起動の確認（`is-active` 2 回と `NRestarts`）だけは `deploy.sh` が実行する**（#146） |
+| デプロイ後の検証 | 配信ハッシュの一致・`/ws` の応答（唯一の WS 入口。#95 S5c）・各アプリの公開パスの応答は、人が `pnpm verify:prod` を流して確かめる（#675。上の「[動作確認](#動作確認)」。`deploy.sh` はこのコマンドを案内するだけで実行しない）。**起動の確認（`is-active` 2 回と `NRestarts`）だけは `deploy.sh` が実行する**（#146） |
+| 配る順・タグ・記録 | 人が決めて書く。たどる項目は上の「[配る時の確認の一覧](#配る時の確認の一覧)」。前のタグからの変更の一覧だけは `pnpm changes:since <前のタグ>` が出す（順は出さない） |
 
 （各アプリの公開の状態は冒頭の表、配った回の記録はその下の注記を見る。2026-10-30 の `v4.5.0` で 7 本すべてが公開中）
 
-最後に、サイト全体を外から通しで確認します。
+最後に、配るアプリをすべて出し終えてから、サイト全体を外から通しで確認します（`--e2e` は、ハッシュ・公開パス・`/ws` が揃っているときだけ、続けて `pnpm e2e:prod` を流します）。
 
 ```bash
-TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
+TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm verify:prod --e2e
 ```
 
 ## トラブルシュート
@@ -577,4 +663,5 @@ TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
 | `systemctl start` が即失敗する | ユニットの `ExecStart` の bun パスが実際と違う。`which bun` に合わせる（`BUN_PATH=` で指定可） |
 | リモートでパスワード入力待ちになる | passwordless sudo が未設定。`setup.sh` を実行する |
 | `/ws` が 426 でなく 200 を返す | Caddy の包括フォールバック（`90-*.conf`）が先に評価されている。断片の順序を確認（`deploy/caddy/README.md`） |
-| 配信中のハッシュがローカルと違う | rsync が失敗しているか、web root が想定と違う。`app.env` の `WEB_ROOT` を確認 |
+| 配信中のハッシュがローカルと違う（`pnpm verify:prod` が「ずれ」と出す） | rsync が失敗しているか、web root が想定と違う。`app.env` の `WEB_ROOT` を確認。配った後に手元で `pnpm build` し直していれば、手元の方が変わっている |
+| `pnpm verify:prod` が「手元の … がありません」と出す | 手元にビルドが無い。配った端末で流すか、配ったコミットを `pnpm build` してから流す |

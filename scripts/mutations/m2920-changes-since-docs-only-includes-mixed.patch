@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/changes-since.mjs b/scripts/lib/changes-since.mjs
+index 35d64e5..d8b0dc6 100644
+--- a/scripts/lib/changes-since.mjs
++++ b/scripts/lib/changes-since.mjs
+@@ -84,7 +84,7 @@ export function summarize(commits) {
+     wire: commits.filter((c) => c.wire.length > 0),
+     sync: commits.filter((c) => c.sync),
+     deployOther: commits.filter((c) => c.deploy.other.length > 0),
+-    deployDocs: commits.filter((c) => c.deploy.other.length === 0 && c.deploy.docs.length > 0),
++    deployDocs: commits.filter((c) => c.deploy.docs.length > 0),
+     unnumbered: commits.filter((c) => c.pr === null),
+   };
+ }
