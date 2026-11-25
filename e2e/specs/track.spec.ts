@@ -39,9 +39,11 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     page,
     openPeer,
     context,
+    browserName,
   }) => {
     // Given: A がルームを作ってうちわけを開き、B は別の文脈で招待 URL から入る
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    // WebKit では書き込み許可を付けられない。コピー操作のクリック自体で書き込む。
+    await context.grantPermissions(browserName === 'webkit' ? ['clipboard-read'] : ['clipboard-read', 'clipboard-write']);
     const inviteUrl = await openTrackTool(page, NAME_A);
     const peer = await openPeer('track-b');
     const receivedB = watchWebSocketFrames(peer.page);

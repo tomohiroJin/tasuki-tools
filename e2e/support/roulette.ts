@@ -301,11 +301,32 @@ export async function expectWheelLabelsInsideSeats(page: Page, minVerticalOutwar
 }
 
 /**
- * 円盤の席の名前が**この画面の書体（web フォント）だけで描かれている**。システムの書体に落ちると、縦書きの字の
- * 送りが 0 になり字が重なった（2026-10-13 の 320 の撮影の当たりの席の「健太」。700 の太さに漢字の書体が無い）。
- * 描くのに使われた書体を Chromium の DevTools Protocol（`CSS.getPlatformFontsForNode`）で名前ごとに読む。
+ * 円盤の席の名前に使う Web フォントを調べる。システムの書体に落ちると、縦書きの字の送りが 0 になり字が重なった
+ * （2026-10-13 の 320 の撮影の当たりの席の「健太」。700 の太さに漢字の書体が無い）。
+ * Chromium では CDP で実描画の書体を、ほかのブラウザーでは FontFaceSet で各文字のフォントの読み込みを調べる。
  */
-export async function expectWheelLabelsUseWebFonts(page: Page): Promise<void> {
+export async function expectWheelLabelsUseWebFonts(page: Page, browserName: string): Promise<void> {
+  if (browserName !== 'chromium') {
+    // CDP が無いブラウザーでは、各文字に対応する主書体の Web フォントが読めることを調べる。
+    // 文字が実際に収まっているかは同じシナリオの図形・送りの検査で見る。
+    const labels = page.locator('.wheel-label');
+    expect(await labels.count(), '円盤の席の名前が描かれていない').toBeGreaterThan(0);
+    const missing = await labels.evaluateAll(async (elements) => {
+      const byLabel = await Promise.all(elements.map(async (label) => {
+        const { fontFamily, fontSize, fontStyle, fontWeight } = getComputedStyle(label);
+        const font = `${fontStyle} ${fontWeight} ${fontSize} ${fontFamily.split(',')[0]}`;
+        const text = label.textContent ?? '';
+        const byCharacter = await Promise.all([...text].map(async (character) => {
+          const faces = await document.fonts.load(font, character);
+          return faces.length === 0 ? `「${text}」の「${character}」` : null;
+        }));
+        return byCharacter.filter((character) => character !== null);
+      }));
+      return byLabel.flat();
+    });
+    expect(missing, '席の名前の主書体に Web フォントが無い').toEqual([]);
+    return;
+  }
   const cdp = await page.context().newCDPSession(page);
   try {
     await cdp.send('DOM.enable');

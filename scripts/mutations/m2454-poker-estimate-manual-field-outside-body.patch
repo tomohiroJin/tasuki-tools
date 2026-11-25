@@ -1,7 +1,7 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -102,6 +102,24 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -107,6 +107,29 @@
            )}
          </div>
        )}
@@ -15,10 +15,15 @@ diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/
 +            readOnly
 +            rows={5}
 +            value={markdown}
-+            onFocus={(event) => {
-+              // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
-+              event.currentTarget.select();
-+              event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
++            onFocus={(event) => selectManualCopy(event.currentTarget)}
++            onClick={({ currentTarget: field }) => {
++              // WebKit はクリックやタップの既定動作でフォーカス時の選択を解除する。
++              // 次の描画で、欄にフォーカスが残っていて選択が消えた場合だけ選び直す。
++              requestAnimationFrame(() => {
++                if (field.ownerDocument.activeElement === field && field.selectionStart === field.selectionEnd) {
++                  selectManualCopy(field);
++                }
++              });
 +            }}
 +          />
 +        </div>
@@ -26,7 +31,7 @@ diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/
        {/* スクロールする置き場所では、フォーカスを受ける領域を札（`.ui-reader`）の子にする。
            輪の色を変える部品の規則は子孫にだけ効き、札そのものには効かない */}
        <div
-@@ -111,24 +129,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
+@@ -116,29 +139,6 @@
        >
          {/* コピーに失敗したときの欄は本体の頭に置く。脇では本体がスクロールする領域なので、高さは本体のスクロールが受け持ち、
              欄は rows の高さのまま札からはみ出さない（#653 のレビュー・2 回目） */}
@@ -40,10 +45,15 @@ diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/
 -              readOnly
 -              rows={5}
 -              value={markdown}
--              onFocus={(event) => {
--                // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
--                event.currentTarget.select();
--                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
+-              onFocus={(event) => selectManualCopy(event.currentTarget)}
+-              onClick={({ currentTarget: field }) => {
+-                // WebKit はクリックやタップの既定動作でフォーカス時の選択を解除する。
+-                // 次の描画で、欄にフォーカスが残っていて選択が消えた場合だけ選び直す。
+-                requestAnimationFrame(() => {
+-                  if (field.ownerDocument.activeElement === field && field.selectionStart === field.selectionEnd) {
+-                    selectManualCopy(field);
+-                  }
+-                });
 -              }}
 -            />
 -          </div>

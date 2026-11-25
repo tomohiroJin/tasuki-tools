@@ -352,6 +352,22 @@ describe('EstimateLog', () => {
       });
     });
 
+    it('クリックで選択が消えた場合は全文を選び直し、利用者が選んだ範囲は保つ', async () => {
+      await withoutClipboard(async () => {
+        render(<EstimateLog groups={groups()} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
+        fireEvent.click(screen.getByRole('button', { name: ESTIMATE_LOG_COPY }));
+        const field = await screen.findByRole('textbox', { name: ESTIMATE_LOG_MANUAL_COPY }) as HTMLTextAreaElement;
+        field.focus();
+        field.setSelectionRange(2, 2);
+        fireEvent.click(field);
+        await waitFor(() => expect([field.selectionStart, field.selectionEnd]).toEqual([0, field.value.length]));
+        field.setSelectionRange(1, 3);
+        fireEvent.click(field);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        expect([field.selectionStart, field.selectionEnd]).toEqual([1, 3]);
+      });
+    });
+
     it('Given 失敗して欄が出ている / When 2 秒以上たつ / Then 選ぶ前に消えない', async () => {
       vi.useFakeTimers();
       try {

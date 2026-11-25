@@ -13321,4 +13321,12 @@ export const MUTATIONS = [
     tests: ["tests/topic-room.test.tsx"],
     note: RESERVED_2630_2649 + " " + "#665 のレビュー。欄の上端が画面の外にあると、フォーカスの移動でページが動き、押したボタンが指の下から逃げる。",
   },
+  {
+    id: 2820,
+    label: "手動コピー欄でクリック後に消えた全文選択を戻さない",
+    patch: "m2820-poker-estimate-manual-pointer-no-select.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: "#674。WebKit でクリックやタップをすると、手動コピー用の Markdown の全文選択が解除される。",
+  },
 ];

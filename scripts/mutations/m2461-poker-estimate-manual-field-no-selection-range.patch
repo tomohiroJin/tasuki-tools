@@ -1,11 +1,7 @@
 diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
 --- a/apps/poker-web/src/components/EstimateLog.tsx
 +++ b/apps/poker-web/src/components/EstimateLog.tsx
-@@ -124,7 +124,6 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
-               onFocus={(event) => {
-                 // iOS Safari は readOnly の欄で select() だけでは全文が選ばれないことがあるので、範囲も指す
-                 event.currentTarget.select();
--                event.currentTarget.setSelectionRange(0, event.currentTarget.value.length);
-               }}
-             />
-           </div>
+@@ -46,3 +46,2 @@
+   field.select();
+-  field.setSelectionRange(0, field.value.length);
+ }

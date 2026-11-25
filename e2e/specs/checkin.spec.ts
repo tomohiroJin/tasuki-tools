@@ -281,6 +281,8 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     openPeer,
     consoleWatcher,
   }) => {
+    // 26 種類の札を 8 幅で確かめる。WebKit の CI 実測では 60 秒を超える（#674）。
+    test.setTimeout(Math.max(test.info().timeout, 120_000));
     // Given: A がルームを作って開く。B は別の文脈で招待 URL から入る
     const framesA = watchWebSocketFrames(page);
     const inviteUrl = await openCheckinTool(page, NAME_A);
