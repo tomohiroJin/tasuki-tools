@@ -18,10 +18,12 @@ import { Hand, SpectatorToggle } from '../components/Hand';
 import { MethodPicker } from '../components/MethodPicker';
 import { PromptPanel } from '../components/PromptPanel';
 import { RevealBoard } from '../components/RevealBoard';
+import { RevealCopy } from '../components/RevealCopy';
 import { RoundDock } from '../components/RoundDock';
 import { SeatRow } from '../components/SeatRow';
 import { CLOSE_BUTTON, PAGE_HEADING } from '../copy';
 import { useCheckinSync } from '../hooks/use-checkin-sync';
+import { useRevealExport } from '../hooks/use-reveal-export';
 import { orderedPiles, summaryLine } from '../reveal-view';
 import { hubPathFor, redirectTo } from '../router';
 
@@ -69,6 +71,8 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   useEffect(() => {
     setPicking(false);
   }, [roundSeq]);
+  // 結果の持ち出しの時刻と欄の状態は、卓の出し入れ（別のやり方→戻る）で捨てない層で、回ごとに持つ（#676）
+  const revealExport = useRevealExport(round?.status === 'revealed' ? round.seq : null);
   const focusKey = showPicker ? 'picker' : round === null ? NO_VIEW_KEY : `${round.seq}:${round.status}`;
   const { targetRef, markOwnAction } = useLandingFocus(focusKey);
 
@@ -182,6 +186,10 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
               {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない。
                   出した人数は出さない（席は名簿どおりに変わり、凍った山の合計と退出で食い違う） */}
               <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
+              {/* 結果の持ち出し（#676）。開いた後だけ。回ごとに作り直す（前の回の失敗の欄を持ち越さない） */}
+              {revealExport !== null && (
+                <RevealCopy key={round.seq} method={round.method} visibility={round.visibility} piles={round.piles} session={revealExport} />
+              )}
             </>
           )}
           <RoundDock

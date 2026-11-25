@@ -1,0 +1,23 @@
+# 変異 2700: checkin-md-anonymous-shows-names
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-markdown.test.ts
+#
+# #676 匿名の回でも、山が名前を持っていれば Markdown に名前を書く。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2700-*.patch
+# 復元: git apply -R scripts/mutations/m2700-*.patch
+diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
+index 63e1fd91..25927180 100644
+--- a/apps/checkin-web/src/reveal-markdown.ts
++++ b/apps/checkin-web/src/reveal-markdown.ts
+@@ -68,7 +68,7 @@ export function revealMarkdown({ method, visibility, piles, nowMs, tzOffsetMin }
+     const card = copy.cards[pile.card];
+     const label = card === undefined ? pile.card : numeric ? `${card.name}（${card.meaning}）` : card.name;
+     // 匿名の回は、山が名前を持っていても書かない（サーバーは送らないが、ここでも守る）
+-    const names = visibility === 'named' ? (pile.names ?? []) : [];
++    const names = pile.names ?? [];
+     return [`- ${label}: ${mdPeople(pile.count)}`, ...names.map((name) => `  - ${escapeName(name)}`)];
+   });
+   return [

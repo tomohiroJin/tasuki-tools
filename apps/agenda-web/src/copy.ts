@@ -66,6 +66,11 @@ export const SAMPLE_MENU_BUTTON = 'サンプルから選ぶ';
 export const SAMPLE_REPLACE_CONFIRM = 'いまの下書きを消して読み込みますか';
 export const SAMPLE_REPLACE_YES = '消して読み込む';
 export const SAMPLE_REPLACE_NO = 'やめる';
+/** 下書きをまとめて空に戻す（#667）。ルームのシナリオは変えない。中身があって取り戻せないときだけ確かめる */
+export const CLEAR_DRAFT_BUTTON = '下書きを空にする';
+export const CLEAR_DRAFT_CONFIRM = 'いまの下書きを空にしますか';
+export const CLEAR_DRAFT_YES = '空にする';
+export const CLEAR_DRAFT_NO = 'やめる';
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
@@ -174,6 +179,11 @@ export const SUMMARY_STEP_LABEL = 'ステップ';
 export const SUMMARY_EXTENSION_LABEL = '追加';
 export const extensionCell = (minutes: number): string => `+${minutes} 分`;
 export const SUMMARY_TOTAL_LABEL = '合計';
+/** 終了の一覧を Markdown でコピーする（#676）。失敗したら同じ文を手で選べる欄に出す */
+export const SUMMARY_COPY_BUTTON = 'Markdown でコピー';
+export const SUMMARY_COPY_DONE = 'コピーしました';
+export const SUMMARY_COPY_FAILED = 'コピーできませんでした。下の欄から選んでコピーしてください。';
+export const SUMMARY_COPY_MANUAL_FIELD = '手動コピー用の Markdown';
 
 // 音
 export const SOUND_ON = '音あり';

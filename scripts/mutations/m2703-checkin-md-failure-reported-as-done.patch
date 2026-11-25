@@ -1,0 +1,23 @@
+# 変異 2703: checkin-md-failure-reported-as-done
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 コピーに失敗したのに「コピーしました」と知らせる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2703-*.patch
+# 復元: git apply -R scripts/mutations/m2703-*.patch
+diff --git a/apps/checkin-web/src/components/RevealCopy.tsx b/apps/checkin-web/src/components/RevealCopy.tsx
+index 563e1d1a..23b37e73 100644
+--- a/apps/checkin-web/src/components/RevealCopy.tsx
++++ b/apps/checkin-web/src/components/RevealCopy.tsx
+@@ -39,7 +39,7 @@ export function RevealCopy({ method, visibility, piles }: Props) {
+           {MD_COPY_BUTTON}
+         </button>
+         <p role="status" className="reveal-copy-status">
+-          {state === 'done' ? MD_COPY_DONE : state === 'failed' ? MD_COPY_FAILED : ''}
++          {state === 'done' || state === 'failed' ? MD_COPY_DONE : ''}
+         </p>
+       </div>
+       {manualOpen && (

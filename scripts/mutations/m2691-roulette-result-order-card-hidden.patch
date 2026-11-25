@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index e2e43c6c..3ed00b4e 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -431,7 +431,7 @@ export function resultOf(input: { view: RouletteView; phase: Phase; revealed: nu
+   const mode = modeOf(view);
+   if (order !== null) {
+     // 札が出ているとき（回っている間は札が伏せてある）だけ。番の印と同じ「見せてよい番」までを書く
+-    if (!order.card.revealed || order.doneCount === 0) return null;
++    if (order.doneCount === 0) return null;
+     const done = view.order?.done ?? [];
+     return { mode, names: done.slice(0, order.doneCount).map((e) => e.name), seq: view.spin?.seq ?? done.length };
+   }

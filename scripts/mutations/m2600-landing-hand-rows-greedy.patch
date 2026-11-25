@@ -1,0 +1,11 @@
+--- a/apps/landing/src/hand-rows.ts
++++ b/apps/landing/src/hand-rows.ts
+@@ -15,7 +15,7 @@
+   const rowCount = Math.ceil(count / maxPerRow);
+   const base = Math.floor(count / rowCount);
+   const longer = count % rowCount;
+-  return Array.from({ length: rowCount }, (_, row) => (row < longer ? base + 1 : base));
++  return Array.from({ length: rowCount }, (_, row) => (row < rowCount - 1 ? maxPerRow : count - maxPerRow * (rowCount - 1)));
+ }
+ 
+ /** 段の端の印。傾ける札（段の両端）を CSS が選ぶのに使う。1 枚だけの段には付けない。 */

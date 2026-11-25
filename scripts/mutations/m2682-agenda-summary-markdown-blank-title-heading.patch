@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/summary-markdown.ts b/apps/agenda-web/src/summary-markdown.ts
+index 68dec1e3..f59a5bf2 100644
+--- a/apps/agenda-web/src/summary-markdown.ts
++++ b/apps/agenda-web/src/summary-markdown.ts
+@@ -96,7 +96,7 @@ export function summaryMarkdown(view: AgendaView, at: SummaryMoment): string {
+     signedDuration(summary.driftMs, style),
+   ]);
+ 
+-  const title = view.title.trim() === '' ? '' : escapeSummaryText(view.title);
++  const title = view.title === '' ? '' : escapeSummaryText(view.title);
+   return [
+     `## ${PAGE_HEADING}（${dateTimeText(at)}）`,
+     '',

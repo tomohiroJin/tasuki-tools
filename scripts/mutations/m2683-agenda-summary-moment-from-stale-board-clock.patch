@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/components/RunScreen.tsx b/apps/agenda-web/src/components/RunScreen.tsx
+index ca71bbcc..459ca523 100644
+--- a/apps/agenda-web/src/components/RunScreen.tsx
++++ b/apps/agenda-web/src/components/RunScreen.tsx
+@@ -76,7 +76,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate,
+   const finished = view.phase === 'finished';
+   // 盤の時刻（`wallNow`）は 10 秒ごと（裏のタブでは 1 分ほど）にしか進まないので使わず、その瞬間の時計を読む（roulette・checkin と同じ作法）
+   if (finished && summaryAt === null) {
+-    const ms = now();
++    const ms = wallNow.getTime();
+     setSummaryAt({ wallMs: ms, tzOffsetMin: -new Date(ms).getTimezoneOffset() });
+   } else if (!finished && summaryAt !== null) setSummaryAt(null);
+ 

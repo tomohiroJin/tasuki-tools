@@ -1,0 +1,10 @@
+--- a/apps/landing/src/screens/RoomChoice.tsx
++++ b/apps/landing/src/screens/RoomChoice.tsx
+@@ -144,7 +144,6 @@
+ function placementStyle(placement: HandPlacement | undefined, index: number): CSSProperties {
+   const style: Record<string, string> = { '--hand-index': String(index) };
+   if (placement?.start2 != null) style['--hand-start-2'] = String(placement.start2);
+-  if (placement?.start3 != null) style['--hand-start-3'] = String(placement.start3);
+   if (placement?.start4 != null) style['--hand-start-4'] = String(placement.start4);
+   return style as CSSProperties;
+ }

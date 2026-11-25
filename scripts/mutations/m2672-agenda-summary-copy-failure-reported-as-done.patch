@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/components/SummaryCopy.tsx b/apps/agenda-web/src/components/SummaryCopy.tsx
+index 0237b99a..58894b0e 100644
+--- a/apps/agenda-web/src/components/SummaryCopy.tsx
++++ b/apps/agenda-web/src/components/SummaryCopy.tsx
+@@ -36,7 +36,7 @@ export function SummaryCopy({ view, wallNow }: Props) {
+           {SUMMARY_COPY_BUTTON}
+         </button>
+         <p role="status" className="summary-copy-status">
+-          {state === 'done' ? SUMMARY_COPY_DONE : state === 'failed' ? SUMMARY_COPY_FAILED : ''}
++          {state === 'done' ? SUMMARY_COPY_DONE : state === 'failed' ? SUMMARY_COPY_DONE : ''}
+         </p>
+       </div>
+       {manualOpen && (

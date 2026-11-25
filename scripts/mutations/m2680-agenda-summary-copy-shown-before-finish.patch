@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/components/RunScreen.tsx b/apps/agenda-web/src/components/RunScreen.tsx
+--- a/apps/agenda-web/src/components/RunScreen.tsx
++++ b/apps/agenda-web/src/components/RunScreen.tsx
+@@ -73,7 +73,7 @@
+   // Markdown の見出しの日時は「この端末が会の終了を最初に受け取った時刻」（映す表示の間に終わった会は、一覧を出す前の、終わりを受け取った時刻になる）。映す表示の出入りで一覧の部品が作り直されても変わらないよう、
+   // ここ（映す表示の出入りで捨てられない所）で持つ。終了でなくなったら（最初からやり直し）捨て、もう一度終わったら取り直す
+   const [summaryAt, setSummaryAt] = useState<SummaryMoment | null>(null);
+-  const finished = view.phase === 'finished';
++  const finished = view.phase !== 'idle';
+   // 盤の時刻（`wallNow`）は 10 秒ごと（裏のタブでは 1 分ほど）にしか進まないので使わず、その瞬間の時計を読む（roulette・checkin と同じ作法）
+   if (finished && summaryAt === null) {
+     const ms = now();

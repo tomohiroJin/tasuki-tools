@@ -19,5 +19,5 @@ index 64bbf02f..152b19e7 100644
 -  const style = clockStyleOf(view);
 +  const style = 'm:ss';
    const summary = summaryOf(view);
-   const planned = summary.rows.reduce((sum, r) => sum + r.plannedMs, 0);
-   const extension = summary.rows.reduce((sum, r) => sum + r.extensionMs, 0);
+   const { plannedMs: planned, extensionMs: extension, spentMs: spent } = summaryTotals(summary.rows);
+   // 回ごとに <tbody> を分ける（1 つの <tbody> に見出しを並べると、前の回の見出しが後ろの回のセルにもかかる）。回数 1 は 1 つ

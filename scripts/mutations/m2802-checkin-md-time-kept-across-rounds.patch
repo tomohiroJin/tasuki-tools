@@ -1,0 +1,23 @@
+# 変異 2802: checkin-md-time-kept-across-rounds
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 次の回でも前の回の時刻・失敗の欄を持ち越す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2802-*.patch
+# 復元: git apply -R scripts/mutations/m2802-*.patch
+diff --git a/apps/checkin-web/src/hooks/use-reveal-export.ts b/apps/checkin-web/src/hooks/use-reveal-export.ts
+index 724a4661..39b9728a 100644
+--- a/apps/checkin-web/src/hooks/use-reveal-export.ts
++++ b/apps/checkin-web/src/hooks/use-reveal-export.ts
+@@ -28,7 +28,7 @@ export function useRevealExport(revealedSeq: number | null, now: () => number =
+     (kept: boolean) => setSession((s) => (s !== null && s.seq === revealedSeq ? { ...s, manualKept: kept } : s)),
+     [revealedSeq],
+   );
+-  if (revealedSeq !== null && session?.seq !== revealedSeq) {
++  if (revealedSeq !== null && session === null) {
+     // 描画の中で state を直す正規の形（同じ描画のうちに作り直される）。時刻は回が替わったときだけ読む
+     setSession({ seq: revealedSeq, at: now(), manualKept: false });
+     return null;

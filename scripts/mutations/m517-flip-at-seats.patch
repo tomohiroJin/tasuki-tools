@@ -41,6 +41,6 @@ diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src
 +              <div className="reveal-board reveal-board--run">
 +                <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
 +              </div>
-             </>
-           )}
-           <RoundDock
+               {/* 結果の持ち出し（#676）。開いた後だけ。回ごとに作り直す（前の回の失敗の欄を持ち越さない） */}
+               {revealExport !== null && (
+                 <RevealCopy key={round.seq} method={round.method} visibility={round.visibility} piles={round.piles} session={revealExport} />

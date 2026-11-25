@@ -1,0 +1,11 @@
+--- a/apps/landing/src/index.css
++++ b/apps/landing/src/index.css
+@@ -234,7 +234,7 @@
+     transform: rotate(-4deg);
+   }
+   .hand li[data-row-edge='end'] .tool-card {
+-    transform: rotate(4deg);
++    transform: rotate(-4deg);
+   }
+   /* 傾けて配った札は、手をかざすと起き上がって前に出る（傾きを 0 に戻す） */
+   .hand li .tool-card:hover,

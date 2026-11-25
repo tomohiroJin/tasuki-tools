@@ -12,6 +12,7 @@ import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRed
 import { ModePanel } from '../components/ModePanel';
 import { PeoplePanel } from '../components/PeoplePanel';
 import { RegularsSection } from '../components/RegularsSection';
+import { ResultCopy } from '../components/ResultCopy';
 import { Stage } from '../components/Stage';
 import { PAGE_HEADING } from '../copy';
 import { useRouletteSync } from '../hooks/use-roulette-sync';
@@ -31,6 +32,7 @@ import {
   pickCountOf,
   picksOf,
   poolOfView,
+  resultOf,
   revealedCountOf,
   spinButtonOf,
   stageViewOf,
@@ -183,6 +185,8 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
         : orderCaptionOf({ view: current, phase, poolCount: people.poolCount, order });
   const topicTitle = sync.topic?.topic?.title ?? null;
   const locked = !operable || serverSpinning;
+  // 結果のコピー（#676）。結果の札が出ているときだけ。札と同じ局面・人数の値から作る
+  const result = resultOf({ view: current, phase, revealed, order });
   // いつものメンツを入れる（#458）。知らせは押した時点の状態から、サーバーと同じ関数で組む（通信に返事は無い）
   const insertRegular = (group: RegularGroup): string => {
     // 外れている名簿・ゲストの行はサーバーの addMany がとばすだけなので、同じ名前の行は入れ直す（#469）
@@ -231,6 +235,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             captionHidden={pressCaption?.hidden ?? ''}
           />
           <div className="ui-workspace-side roulette-side">
+            {result !== null && <ResultCopy key={`${result.seq}-${result.names.length}`} result={result} />}
             {/* 脇は 決め方 → 入る人（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}
             <ModePanel
               mode={mode}

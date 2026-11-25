@@ -1,0 +1,23 @@
+# 変異 2651: agenda-clear-skips-confirm
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-clear-skips-confirm
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2651-*.patch
+# 復元: git apply -R scripts/mutations/m2651-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 427029d3..903486bc 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -263,7 +263,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+           <ClearDraftControl
+             asking={clearAsking}
+             canClear={canClearDraft(draft)}
+-            needsConfirm={!draftIsDisposable}
++            needsConfirm={false}
+             onOpen={() => setConfirming({ kind: 'clear', draft })}
+             onClose={closeClear}
+             onClear={clear}

@@ -1,0 +1,22 @@
+# 変異 2666: agenda-sample-ask-after-effect
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-sample-ask-after-effect
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2666-*.patch
+# 復元: git apply -R scripts/mutations/m2666-*.patch
+diff --git a/apps/agenda-web/src/components/SampleMenu.tsx b/apps/agenda-web/src/components/SampleMenu.tsx
+index befcb2b5..8567a285 100644
+--- a/apps/agenda-web/src/components/SampleMenu.tsx
++++ b/apps/agenda-web/src/components/SampleMenu.tsx
+@@ -105,7 +105,6 @@ export function SampleMenu({
+                             return;
+                           }
+                           // 開く操作と同じ処理で伝える（effect を待つと、開いている別の確かめの側がこちらを閉じてしまう）
+-                          onAsk(true);
+                           setPending(scenario);
+                         }}
+                       >

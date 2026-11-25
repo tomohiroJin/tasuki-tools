@@ -1,0 +1,23 @@
+# 変異 2704: checkin-md-failure-box-survives-next-round
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 別の回が開いても前の回の失敗の欄が残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2704-*.patch
+# 復元: git apply -R scripts/mutations/m2704-*.patch
+diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
+index 4e23e581..9ca11ecf 100644
+--- a/apps/checkin-web/src/screens/CheckinRoom.tsx
++++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
+@@ -188,7 +188,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
+               <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
+               {/* 結果の持ち出し（#676）。開いた後だけ。回ごとに作り直す（前の回の失敗の欄を持ち越さない） */}
+               {revealExport !== null && (
+-                <RevealCopy key={round.seq} method={round.method} visibility={round.visibility} piles={round.piles} session={revealExport} />
++                <RevealCopy method={round.method} visibility={round.visibility} piles={round.piles} session={revealExport} />
+               )}
+             </>
+           )}
