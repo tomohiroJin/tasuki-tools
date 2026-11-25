@@ -44,6 +44,7 @@ import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { NotifyHint } from "./components/NotifyHint.js";
 import { roomChoiceHref } from "./room-heading.js";
+import { RANDOM_ROTATION_TEXT } from "./random-rotation-text.js";
 import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
 
 interface SessionProps {
@@ -153,6 +154,8 @@ export function Session({
 
   // 「次は誰か」はサーバーが決める（#276 D1 / D6。`session-view.ts` の `driverNames`）。
   const nextIndex = room.session.nextIndex;
+  // ランダム交代（#660）でも次の人は同じ `nextIndex` で届く。変わるのは、輪の並びが順番を表さないことだけ。
+  const randomRotation = room.config.rotationMode === "random";
   // 席はサーバーが組む（識別子・表示名・番が回らない理由）。`participants` も渡すのは
   // 呼び名の判定のためで、輪の外の見学者との同名を取りこぼさないようにする（D9）。
   const rotation = rotationMembers(room.session.seats, room.participants);
@@ -293,6 +296,8 @@ export function Session({
           <div className="session-next boot-reveal" style={{ animationDelay: "150ms" }}>
             <ArrowRight className="session-next-arrow" aria-hidden="true" />
             次: <span className="session-next-name">{nextDriverName}</span>
+            {/* ランダム交代（#660）。輪の並びが次の人を表さないので、決め方の名前を添える */}
+            {randomRotation && <span className="session-next-mode">{RANDOM_ROTATION_TEXT.modeName}</span>}
             {nextIndex === null && (
               <span className="session-next-note">（交代できる人がいません）</span>
             )}
@@ -311,6 +316,7 @@ export function Session({
               intervalSeconds={room.clock.intervalSeconds || 1}
               selfIndex={currentParticipant ? room.session.rotation.indexOf(currentParticipant.participantId) : -1}
               isPaused={room.session.isPaused}
+              random={randomRotation}
             />
           </div>
 

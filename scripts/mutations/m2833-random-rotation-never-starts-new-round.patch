@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 167fc68..ffeaf98 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -468,7 +468,7 @@ export function randomRotationAfterSwitch(
+   const id = rotationEntryId(next);
+   return {
+     order: seatIdsInOrder(session.rotation, order) ?? random.order,
+-    drove: random.drove.includes(id) ? [id] : [...random.drove, id],
++    drove: [...random.drove, id],
+   };
+ }
+ 

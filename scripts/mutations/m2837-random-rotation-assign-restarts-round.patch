@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 7d15d30..42e50d9 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -308,7 +308,7 @@ function decideDriverAssign(
+     return ok([]);
+   }
+   // ランダム交代（#660）なら、指名された人をこの周で運転した人に足す。
+-  const randomRotation = randomRotationAfterAssign(session, index);
++  const randomRotation = randomRotationAfterSwitch(session, index, undefined);
+   return ok([{ type: "DriverSwitched", nextIndex: index, ...(randomRotation !== null && { randomRotation }), now }]);
+ }
+ 

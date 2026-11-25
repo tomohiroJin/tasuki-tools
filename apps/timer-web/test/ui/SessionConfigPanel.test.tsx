@@ -35,6 +35,35 @@ describe("SessionConfigPanel", () => {
     expect(onChange).toHaveBeenCalledWith({ navigatorEnabled: true });
   });
 
+  it("ランダム交代のトグルを押すと、交代先の決め方がランダムになる（#660）", () => {
+    // Given（設定に rotationMode が無い = 輪の順）
+    const onChange = vi.fn();
+    render(<SessionConfigPanel config={config} eligibleSeats={1} onChange={onChange} />);
+    const toggle = screen.getByRole("checkbox", { name: /ランダム/ }) as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    // When
+    fireEvent.click(toggle);
+    // Then
+    expect(onChange).toHaveBeenCalledWith({ rotationMode: "random" });
+  });
+
+  it("ランダム交代のルームでは、トグルが入っていて、押すと輪の順に戻る（#660）", () => {
+    // Given
+    const onChange = vi.fn();
+    render(<SessionConfigPanel config={{ ...config, rotationMode: "random" }} eligibleSeats={1} onChange={onChange} />);
+    const toggle = screen.getByRole("checkbox", { name: /ランダム/ }) as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+    // When
+    fireEvent.click(toggle);
+    // Then
+    expect(onChange).toHaveBeenCalledWith({ rotationMode: "order" });
+  });
+
+  it("輪の順と明示されたルームでは、ランダム交代のトグルは入っていない（#660）", () => {
+    render(<SessionConfigPanel config={{ ...config, rotationMode: "order" }} eligibleSeats={1} onChange={vi.fn()} />);
+    expect((screen.getByRole("checkbox", { name: /ランダム/ }) as HTMLInputElement).checked).toBe(false);
+  });
+
   it("休憩リマインダが存在しない", () => {
     render(<SessionConfigPanel config={config} eligibleSeats={1} onChange={vi.fn()} />);
     expect(screen.queryByText(/休憩リマインダ/)).toBeNull();

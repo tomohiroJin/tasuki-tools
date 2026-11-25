@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 7d15d30..b6d2e20 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -108,7 +108,7 @@ export function decide(
+       const invalid = invalidRandomOrder(cmd.randomOrder, agg.session.rotation.length);
+       if (invalid !== null) return err(invalid);
+       const randomRotation = freshRandomRotation(
+-        { rotation: agg.session.rotation, currentIndex: 0 },
++        agg.session,
+         cmd.randomOrder,
+         agg.session.randomRotation.order,
+       );

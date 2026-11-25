@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 7d15d30..4fb5e26 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -367,7 +367,7 @@ function decideMemberRemove(
+   // （外れた席の次の適格な席・#376）で選ぶ（袋から引くと、開始の運転者が輪の途中の席になり、画面が最初の開始を
+   // リセットで送る。#660 の 2 巡目のレビュー）。
+   // 始まっていれば（走行中・一時停止中・休憩中・完成のあとのロビー）、袋から引く。
+-  const session = sessionHasStarted(agg) ? agg.session : { ...agg.session, randomRotation: null };
++  const session = agg.clock.running ? agg.session : { ...agg.session, randomRotation: null };
+   const nextDriver = nextDriverAfterRemoval(session, index, ineligible);
+   // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
+   // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、袋から引いていないので、指名と同じく

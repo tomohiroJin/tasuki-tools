@@ -2,11 +2,13 @@
  * ドメインイベント定義
  */
 
-import type { TimerConfig, RoomPhase } from "./aggregate.js";
+import type { RandomRotation, TimerConfig, RoomPhase } from "./aggregate.js";
 
 /** セッション開始 */
 interface SessionStarted {
   type: "SessionStarted";
+  /** ランダム交代のモードで始めたときの袋（#660）。輪の順のモードでは載せない。 */
+  randomRotation?: RandomRotation;
   now: number;
 }
 
@@ -14,6 +16,11 @@ interface SessionStarted {
 interface DriverSwitched {
   type: "DriverSwitched";
   nextIndex: number;
+  /**
+   * 交代のあとのランダム交代の袋（#660）。出す側（decide・`advanceDriver`）が決める。
+   * 輪の順のモード・運転者が変わらない交代では載せない。evolve は、集約がランダム交代のときだけ使う。
+   */
+  randomRotation?: RandomRotation;
   now: number;
 }
 
@@ -32,6 +39,11 @@ interface SessionResumed {
 /** リセット（集約は rotation/interval から再構成するため追加情報を持たない） */
 interface SessionReset {
   type: "SessionReset";
+  /**
+   * ランダム交代のモードでリセットしたときの袋（#660）。輪の順のモードでは載せない。
+   * 載っていなければ、evolve は今の引く順のまま、先頭の運転者から周を始め直す。
+   */
+  randomRotation?: RandomRotation;
   now: number;
 }
 
@@ -57,6 +69,11 @@ interface ConfigSet {
   type: "ConfigSet";
   /** 名簿はここを通らない（#95 S4a・D15）。`members` は wire の境界で落ちる。 */
   config: Partial<TimerConfig>;
+  /**
+   * 交代先の決め方が変わったときの袋（#660）。ランダム交代を入れたら袋、輪の順へ戻したら null。
+   * 変わらなければ載せない（集約の袋はそのまま）。
+   */
+  randomRotation?: RandomRotation | null;
   now: number;
 }
 
@@ -77,6 +94,14 @@ interface MemberRemoved {
    * 運転中でない人を外すときは使わない。範囲外なら evolve は位置で次の席にする。
    */
   nextDriverIndex: number;
+  /**
+   * ランダム交代で、開始のあと（`sessionHasStarted`。一時停止中・休憩中・完成のあとのロビーを含む）に
+   * 運転中の人を外したときの袋（#660）。次の担当を袋から引いたなら、交代と同じ扱い（その人をこの周で運転した人に
+   * 足す。運転し終えていた人なら、その 1 人だけに戻して次の周を始める）。ほかの全員が不適格で位置で繰り上げたなら、
+   * その人を足すだけ（周は始め直さない）。
+   * 運転中でない人を外すとき・開始前・輪の順のモードでは載せない。
+   */
+  randomRotation?: RandomRotation;
   now: number;
 }
 

@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/ui/components/SessionConfigPanel.tsx b/apps/timer-web/src/ui/components/SessionConfigPanel.tsx
+--- a/apps/timer-web/src/ui/components/SessionConfigPanel.tsx
++++ b/apps/timer-web/src/ui/components/SessionConfigPanel.tsx
+@@ -65,7 +65,7 @@
+         <div className="session-config-toggles">
+           <Toggle
+             checked={randomRotation}
+-            onChange={(v) => onChange({ rotationMode: v ? "random" : "order" })}
++            onChange={() => onChange({ rotationMode: "random" })}
+             label={RANDOM_ROTATION_TEXT.toggleLabel}
+             hint={RANDOM_ROTATION_TEXT.toggleHint}
+           />

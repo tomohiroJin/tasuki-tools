@@ -1,0 +1,12 @@
+diff --git a/packages/timer-core/src/schemas.ts b/packages/timer-core/src/schemas.ts
+index 37db7ff..58971ca 100644
+--- a/packages/timer-core/src/schemas.ts
++++ b/packages/timer-core/src/schemas.ts
+@@ -84,7 +84,6 @@ const SessionConfigSchema = v.object({
+   break: v.optional(BreakPolicySchema),
+   assertiveSwitch: v.optional(v.boolean()),
+   // 交代先の決め方（#660）。任意なので、古い画面の config.set・room.create はそのまま通る（省略は輪の順）。
+-  rotationMode: v.optional(v.picklist(ROTATION_MODES)),
+ });
+ 
+ // ─── Command スキーマ ────────────────────────────────────────────────────────

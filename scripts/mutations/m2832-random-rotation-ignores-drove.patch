@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 167fc68..2a484a2 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -424,7 +424,7 @@ function nextRandomIndex(
+   const open = [...ordered].filter((i) => i !== fromIndex && !ineligible?.has(i));
+   const drove = new Set(random.drove);
+   // `!`: open の添字は ordered（輪の席の添字）から来る
+-  return open.find((i) => !drove.has(rotationEntryId(rotation[i]!))) ?? open[0] ?? fromIndex;
++  return open[0] ?? fromIndex;
+ }
+ 
+ /** 順列（席の添字）を席の識別子へ写す。順列でなければ undefined。 */

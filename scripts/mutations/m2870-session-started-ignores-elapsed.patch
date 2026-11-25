@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 167fc68..6633e77 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -69,7 +69,7 @@ export function isOnBreak(session: Pick<SessionState, "break">): boolean {
+  * 運転中の人を外すときランダム交代の袋から引くかどうか〔#660〕）が共有する。
+  */
+ export function sessionHasStarted(agg: Aggregate): boolean {
+-  return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null || agg.clock.accumulatedElapsedMs > 0;
++  return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null;
+ }
+ 
+ /**

@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/scheduler-sync.ts b/apps/tasuki-sync/src/application/scheduler-sync.ts
+index 00684fa..941a858 100644
+--- a/apps/tasuki-sync/src/application/scheduler-sync.ts
++++ b/apps/tasuki-sync/src/application/scheduler-sync.ts
+@@ -64,7 +64,7 @@ export function createScheduleSync(deps: ScheduleSyncDeps): ScheduleSync {
+       agg,
+       computeIneligibleIndices(membership, timer),
+       now,
+-      randomOrderFor(timer.session, deps.random.randomInt),
++      undefined,
+     );
+     const switched: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
+     // 交代のあとに休憩の条件を見る。入れば running が偽になり、reconcileSchedule が予約を解除する（#402）

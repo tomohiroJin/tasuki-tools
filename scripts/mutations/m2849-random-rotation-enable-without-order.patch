@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/room-commands/server-values.ts b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+index 194bfea..ee7a69a 100644
+--- a/apps/tasuki-sync/src/application/room-commands/server-values.ts
++++ b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+@@ -42,7 +42,7 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue
+       return { ...draft, randomOrder: sources.randomOrder() };
+     case "config.set":
+       // ランダム交代を入れる設定には、最初の引く順を付ける。既にランダム交代なら decide は使わない。
+-      return draft.config.rotationMode === "random" ? { ...draft, randomOrder: sources.firstRandomOrder() } : draft;
++      return draft;
+     case "member.remove":
+       // 運転中の人が外れたときの次の担当も、交代と同じ資格の規則で選ぶ（#376）。
+       // 以前は位置で次の席になり、一時離脱・不在の人に運転が回った。

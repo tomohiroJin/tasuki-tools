@@ -146,4 +146,50 @@ describe("番が回らない理由（#276 E1 / D11）", () => {
     expect(screen.getByText("あなた: 番が回りません（未接続）")).toBeTruthy();
     expect(screen.queryByText(/あとnull人/)).toBeNull();
   });
+
+  describe("ランダム交代（#660）", () => {
+    // 輪の並びは「次に替わる順」を表さない。分かるのはサーバーが決めた次の人だけ。
+    const props = {
+      rotation: [mk("p1", "Alice"), mk("p2", "Bob"), mk("p3", "Carol")],
+      currentIndex: 0, intervalSeconds: 300, isPaused: false,
+    };
+
+    it("次の人には「次」を出し、ほかの人には「あと N 人」を出さない", () => {
+      render(<RotationLineup {...props} random nextIndex={2} selfIndex={-1} />);
+
+      expect(screen.getByText("▶ 今")).toBeTruthy();
+      expect(screen.getByText("⟶ 次")).toBeTruthy();
+      expect(screen.queryByText(/あと/)).toBeNull();
+      expect(screen.queryByText(/分後/)).toBeNull();
+    });
+
+    it("自分が次でなければ「順番はランダムです」と出す", () => {
+      render(<RotationLineup {...props} random nextIndex={2} selfIndex={1} />);
+
+      expect(screen.getByText("あなた: 順番はランダムです")).toBeTruthy();
+    });
+
+    it("自分が次なら「次です」と出す", () => {
+      render(<RotationLineup {...props} random nextIndex={2} selfIndex={2} />);
+
+      expect(screen.getByText("あなた: 次です")).toBeTruthy();
+    });
+
+    it("自分が運転中なら「あなたの番です」と出す", () => {
+      render(<RotationLineup {...props} random nextIndex={2} selfIndex={0} />);
+
+      expect(screen.getByText("あなたの番です")).toBeTruthy();
+    });
+
+    it("自分の席が飛ばされるときは、輪の順のモードと同じく理由を出す", () => {
+      render(
+        <RotationLineup
+          rotation={[mk("p1", "Alice"), mk("p2", "Bob", "Bob", "stood-down"), mk("p3", "Carol")]}
+          currentIndex={0} nextIndex={2} intervalSeconds={300} isPaused={false} selfIndex={1} random
+        />,
+      );
+
+      expect(screen.getByText("あなた: 番が回りません（離脱中）")).toBeTruthy();
+    });
+  });
 });

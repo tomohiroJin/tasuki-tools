@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 7d15d30..89427ae 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -475,8 +475,6 @@ function decideConfigSet(
+     const invalid = invalidRandomOrder(randomOrder, session.rotation.length);
+     if (invalid !== null) return err(invalid);
+     randomRotation = freshRandomRotation(session, randomOrder);
+-  } else if (partial.rotationMode === "order" && session.randomRotation !== null) {
+-    randomRotation = null;
+   }
+ 
+   // 交代間隔の検証

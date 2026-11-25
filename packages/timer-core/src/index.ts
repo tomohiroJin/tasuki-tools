@@ -53,6 +53,9 @@ export type {
   IntervalMinutes,
   BreakState,
   BreakMark,
+  // #660: `TimerState.session.randomRotation` と `TimerConfig.rotationMode` から到達する
+  RandomRotation,
+  RotationMode,
 } from "./aggregate.js";
 export { secondsLeft, initialAggregate, rotationEntryId } from "./aggregate.js";
 // wire の投影（クライアントへ送る形。ドメインの集約ではない・#95 S4a）

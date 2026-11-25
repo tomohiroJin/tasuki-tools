@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 167fc68..98e91ed 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -484,7 +484,7 @@ export function randomRotationAfterAssign(
+   const target = session.rotation[index];
+   if (random === null || target === undefined) return random;
+   const id = rotationEntryId(target);
+-  return random.drove.includes(id) ? random : { order: random.order, drove: [...random.drove, id] };
++  return random;
+ }
+ 
+ /**

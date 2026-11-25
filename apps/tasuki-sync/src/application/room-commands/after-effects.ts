@@ -6,6 +6,7 @@ import { advanceDriver, rotationEntryId, type DomainEvent, type RecordIdGenerato
 import { applyEvents, type RoomState } from "../apply-room-level-event.js";
 import { computeIneligibleIndices } from "../timer-snapshot-dto.js";
 import type { DomainCommandDraft } from "./domain-command.js";
+import { randomOrderFor } from "./shuffle-order.js";
 
 export interface AfterEffectInput {
   command: DomainCommandDraft;
@@ -15,6 +16,8 @@ export interface AfterEffectInput {
   assignTarget: string | undefined;
   now: number;
   nextRecordId: RecordIdGenerator;
+  /** ランダム交代（#660）の引く順を作る乱数（`RandomSource#randomInt`） */
+  randomInt: (n: number) => number;
 }
 
 export function applyAfterEffects(state: RoomState, input: AfterEffectInput): RoomState {
@@ -27,7 +30,9 @@ export function applyAfterEffects(state: RoomState, input: AfterEffectInput): Ro
   if ((command.command === "driver.skip" || command.command === "break.end") && state.timer.clock.running) {
     const ineligible = computeIneligibleIndices(state.membership, state.timer);
     if (ineligible.has(state.timer.session.currentIndex)) {
-      const advanced = advanceDriver({ session: state.timer.session, clock: state.timer.clock }, ineligible, now);
+      // ランダム交代（#660）なら、交代と同じく引く順を作り直す順列を渡す。
+      const randomOrder = randomOrderFor(state.timer.session, input.randomInt);
+      const advanced = advanceDriver({ session: state.timer.session, clock: state.timer.clock }, ineligible, now, randomOrder);
       return applyEvents(state, advanced, [], nextRecordId);
     }
     return state;
