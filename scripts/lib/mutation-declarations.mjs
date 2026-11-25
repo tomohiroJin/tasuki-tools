@@ -13869,4 +13869,12 @@ export const MUTATIONS = [
     tests: ["lib/changes-since.test.mjs", "changes-since.test.mjs"],
     note: RESERVED_2920_2929 + " " + "#675 のレビュー。日本語の名前のファイルだけを変えた PR から印が消え、「なし」と出る（-z を付ける前は、git の引用符つきの形でこうなっていた）。",
   },
+  {
+    id: 2923,
+    label: "本番の確かめが、接続先に入った資格情報を断りの文にそのまま出す",
+    patch: "m2923-prod-verify-credentials-echoed.patch",
+    pkg: "scripts",
+    tests: ["lib/prod-verify.test.mjs"],
+    note: RESERVED_2920_2929 + " " + "#675 のマージ前のレビュー。http・ローカル宛の値に資格情報が入っていると、端末やログへ値ごと出る。",
+  },
 ];

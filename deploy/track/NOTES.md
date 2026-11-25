@@ -19,7 +19,7 @@
 | 3 | track の配布 | 2 から間を空けずに流す |
 | 4 | main 側に未配布の変更がある静的アプリの配布 | 配る直前に `git log --oneline <最後のタグ>..HEAD -- 'apps/*-web' packages/ui packages/invite-ui packages/web-kit` で数える。**書体の base 層（`packages/ui/src/fonts`）を作り直しているので、全アプリが対象になる** |
 | 5 | landing の配布 | 玄関に 7 枚目の札が出る。静的の最後に回す |
-| 6 | 動作確認（下） | **`pnpm e2e:prod` は 5 まで配り終えてから流す** |
+| 6 | 動作確認（下） | **`pnpm e2e:prod` は 5 まで配り終えてから流す**。`pnpm verify:prod` で確かめるなら、先に `deploy/README.md` の「アプリ一覧」の track を「公開中」に直す（未公開の道具は飛ばされる。`deploy/README.md` の「配る時の確認の一覧」） |
 
 ### 配布中の窓
 

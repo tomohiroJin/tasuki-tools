@@ -82,6 +82,20 @@ describe("resolveBaseUrl", () => {
   });
 });
 
+describe("resolveBaseUrl は、資格情報を文に出さない", () => {
+  test("Given 資格情報の付いた http・ローカル宛・パス付きの URL / When 解く / Then 断り、文に資格情報が出ない", () => {
+    // Given: 資格情報のほかにも断る理由がある値（値を文に出す判定が先に当たると、資格情報ごと出る）
+    const urls = ["http://user:s3cret@tasuki.example.com", "https://user:s3cret@localhost", "https://user:s3cret@tasuki.example.com/timer/"];
+    for (const url of urls) {
+      // When
+      const result = resolveBaseUrl({ TASUKI_E2E_BASE_URL: url });
+      // Then
+      assert.equal(result.ok, false, url);
+      assert.doesNotMatch(result.problem, /s3cret|user:/, url);
+    }
+  });
+});
+
 describe("parseAppEnv", () => {
   test("コメントと空行を除き、KEY=値 を読む", () => {
     assert.deepEqual(parseAppEnv(appEnv("poker", "/poker/")), { APP_NAME: "poker", STATIC_ONLY: "1", WEB_DIST: "apps/poker-web/dist", PUBLIC_PATH: "/poker/" });
