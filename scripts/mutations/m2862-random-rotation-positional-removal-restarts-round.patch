@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 7d15d30..0db9899 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -378,7 +378,7 @@ function decideMemberRemove(
+   const randomRotation = !removesDriver
+     ? null
+     : drawn === index
+-      ? randomRotationAfterAssign(session, (index + 1) % session.rotation.length)
++      ? randomRotationAfterSwitch(session, (index + 1) % session.rotation.length, undefined)
+       : randomRotationAfterSwitch(session, drawn, undefined);
+   return ok([
+     { type: "MemberRemoved", index, nextDriverIndex: nextDriver, ...(randomRotation !== null && { randomRotation }), now },

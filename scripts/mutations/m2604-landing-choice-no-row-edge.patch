@@ -1,0 +1,11 @@
+--- a/apps/landing/src/screens/RoomChoice.tsx
++++ b/apps/landing/src/screens/RoomChoice.tsx
+@@ -65,7 +65,7 @@
+           <h2 className="hub-section-title" id="hub-tools-heading">道具を選ぶ</h2>
+           <ul className="hand" aria-label="ツール">
+             {TOOLS.map((tool, index) => (
+-              <li key={tool.href} style={placementStyle(placements[index], index)} data-row-edge={placements[index]?.edge4 ?? undefined}>
++              <li key={tool.href} style={placementStyle(placements[index], index)}>
+                 <a
+                   className="card tool-card"
+                   href={`${tool.href}?room=${encodeURIComponent(code)}`}

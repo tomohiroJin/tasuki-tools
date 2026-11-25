@@ -9,6 +9,7 @@ import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tasuki/timer-core
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SectionHeader } from "../primitives.js";
 import { BreakSettings } from "./BreakSettings.js";
+import { RANDOM_ROTATION_TEXT } from "../random-rotation-text.js";
 
 interface SessionConfigPanelProps {
   config: SessionConfig;
@@ -20,6 +21,8 @@ interface SessionConfigPanelProps {
 export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionConfigPanelProps) {
   const navigatorEnabled = config.navigatorEnabled === true;
   const assertiveSwitch = config.assertiveSwitch === true;
+  // 交代先の決め方（#660）。省略は輪の順
+  const randomRotation = config.rotationMode === "random";
 
   return (
     // 縦の間は親が gap で持つ（ADR 0035 決定 1）。見出し → 交代間隔は 1rem（内側の組）、組 → 詳細設定は 1.25rem（根）。
@@ -60,6 +63,12 @@ export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionC
           <ChevronDown className="session-config-summary-chevron" aria-hidden="true" />
         </summary>
         <div className="session-config-toggles">
+          <Toggle
+            checked={randomRotation}
+            onChange={(v) => onChange({ rotationMode: v ? "random" : "order" })}
+            label={RANDOM_ROTATION_TEXT.toggleLabel}
+            hint={RANDOM_ROTATION_TEXT.toggleHint}
+          />
           <Toggle
             checked={navigatorEnabled}
             onChange={(v) => onChange({ navigatorEnabled: v })}

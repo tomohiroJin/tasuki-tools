@@ -461,6 +461,31 @@
   border-bottom: 0;
   font-weight: 700;
 }
+/* 終了の一覧の Markdown コピー（#676）。結果の知らせは場所を取り続け、出ても消えても一覧を動かさない */
+.summary-copy {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+.summary-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.summary-copy-status {
+  min-height: 1lh;
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+.summary-copy-manual {
+  box-sizing: border-box;
+  inline-size: 100%;
+  font-family: var(--font-mono);
+  resize: vertical;
+}
 .summary-table .is-late {
   color: var(--rose-bright);
 }

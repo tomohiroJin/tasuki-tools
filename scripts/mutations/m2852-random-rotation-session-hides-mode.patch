@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/ui/Session.tsx b/apps/timer-web/src/ui/Session.tsx
+index 51201ba..2941660 100644
+--- a/apps/timer-web/src/ui/Session.tsx
++++ b/apps/timer-web/src/ui/Session.tsx
+@@ -154,7 +154,7 @@ export function Session({
+   // 「次は誰か」はサーバーが決める（#276 D1 / D6。`session-view.ts` の `driverNames`）。
+   const nextIndex = room.session.nextIndex;
+   // ランダム交代（#660）でも次の人は同じ `nextIndex` で届く。変わるのは、輪の並びが順番を表さないことだけ。
+-  const randomRotation = room.config.rotationMode === "random";
++  const randomRotation = false;
+   // 席はサーバーが組む（識別子・表示名・番が回らない理由）。`participants` も渡すのは
+   // 呼び名の判定のためで、輪の外の見学者との同名を取りこぼさないようにする（D9）。
+   const rotation = rotationMembers(room.session.seats, room.participants);

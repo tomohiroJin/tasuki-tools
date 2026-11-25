@@ -409,7 +409,7 @@ test.describe('poker は見積もりを記録に残す', () => {
     { width: 1280, scope: (page: Page) => sideLog(page) },
     { width: 390, scope: (page: Page) => page.locator('.room-log--foot') },
   ]) {
-    test(`Given コピーが両方失敗する幅 ${width} の画面 / When 手で選ぶ欄を実際にクリックする / Then 全文が選ばれたままになる（#653）`, async ({ page }) => {
+    test(`Given コピーが両方失敗する幅 ${width} の画面 / When 手で選ぶ欄を実際にクリックする / Then 全文が選ばれたままになる（#653）`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 844 });
       await recordItems(page, ['2', '3']);
       await breakCopy(page);
@@ -417,13 +417,24 @@ test.describe('poker は見積もりを記録に残す', () => {
       await log.getByRole('button', { name: '記録をコピー' }).click();
       const field = log.getByRole('textbox', { name: '手動コピー用の Markdown' });
       await expect(field).toBeVisible();
+      const assertFullSelection = async (action: string) => {
+        const length = (await field.inputValue()).length;
+        expect(length).toBeGreaterThan(0);
+        const range = await field.evaluate(async (el) => {
+          // フォーカス直後の一時的な選択で緑にしない。既定動作と次の描画が済んでから読む。
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          const area = el as HTMLTextAreaElement;
+          return { start: area.selectionStart, end: area.selectionEnd, focused: document.activeElement === area };
+        });
+        expect(range, `${action}の後も全文が選ばれている`).toEqual({ start: 0, end: length, focused: true });
+      };
       await field.click();
-      const range = await field.evaluate((el) => {
-        const area = el as HTMLTextAreaElement;
-        return { start: area.selectionStart, end: area.selectionEnd, length: area.value.length, focused: document.activeElement === area };
-      });
-      expect(range, `クリックの後の選択 ${JSON.stringify(range)}`).toEqual({ start: 0, end: range.length, length: range.length, focused: true });
-      expect(range.length).toBeGreaterThan(0);
+      await assertFullSelection('クリック');
+      if (width === 390 && testInfo.project.use.hasTouch) {
+        await field.blur();
+        await field.tap();
+        await assertFullSelection('タップ');
+      }
     });
   }
 

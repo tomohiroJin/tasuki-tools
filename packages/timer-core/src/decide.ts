@@ -4,18 +4,22 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, RoomPhase, SessionAction, TimerConfig } from "./aggregate.js";
+import type { Aggregate, RandomRotation, RoomPhase, SessionAction, TimerConfig } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
   MAX_MEMBERS,
+  freshRandomRotation,
   isPermutation,
   isOnBreak,
   isSeatIndex,
   nextDriverAfterRemoval,
-  nextEligibleIndex,
+  nextDriverIndex,
+  randomRotationAfterAssign,
+  randomRotationAfterSwitch,
   rotationEntryId,
   sessionHasStarted,
 } from "./aggregate.js";
+import { driverSwitchedEvent } from "./driver-switch.js";
 import type { DomainEvent } from "./events.js";
 import type { DomainError } from "./errors.js";
 
@@ -31,10 +35,15 @@ type DecideCommand =
       // advanceDriver の代わりに使っていた「対象外を飛ばす」判定を decide 自身に委譲する
       // ための任意フィールド。省略時（既存呼び出し）は空集合扱いで従来通り隣を返す（後方互換）。
       ineligible?: ReadonlySet<number> | undefined;
+      // START・SWITCH 専用。ランダム交代（#660）の引く順を作る順列（席の添字）。`member.shuffle` の order と
+      // 同じく、サーバーが作って渡す（wire のコマンドは持たない）。輪の順のモードでは見ない。
+      // 省略時は引く順を作り直さない。順列でなければ InvalidIndex で断る。
+      randomOrder?: readonly number[] | undefined;
     }
   | { command: "session.complete"; topicTitle: string | null }
   | { command: "session.abort" }
-  | { command: "session.reset"; config?: TimerConfig }
+  // randomOrder は session.act と同じ（ランダム交代の引く順を作る順列・#660）。
+  | { command: "session.reset"; config?: TimerConfig; randomOrder?: readonly number[] | undefined }
   | { command: "member.add"; participantId: string }
   | {
       command: "member.remove";
@@ -46,7 +55,8 @@ type DecideCommand =
   | { command: "member.move"; fromIndex: number; toIndex: number }
   // order はサーバー（handler）が生成して渡す（wire コマンドは order を持たない）。
   | { command: "member.shuffle"; order: number[] }
-  | { command: "config.set"; config: Partial<TimerConfig> }
+  // randomOrder はランダム交代を入れるときの引く順（#660）。session.act と同じくサーバーが作って渡す。
+  | { command: "config.set"; config: Partial<TimerConfig>; randomOrder?: readonly number[] | undefined }
   | { command: "phase.set"; phase: RoomPhase }
   | { command: "handoff.note.set"; text: string }
   | { command: "break.start" }
@@ -82,7 +92,7 @@ export function decide(
 
   switch (cmd.command) {
     case "session.act":
-      return decideSessionAct(cmd.action, agg, now, cmd.ineligible);
+      return decideSessionAct(cmd.action, agg, now, cmd.ineligible, cmd.randomOrder);
 
     case "session.complete":
       return ok([{ type: "SessionCompleted", now, topicTitle: cmd.topicTitle }]);
@@ -90,8 +100,20 @@ export function decide(
     case "session.abort":
       return ok([{ type: "SessionAborted", now }]);
 
-    case "session.reset":
-      return ok([{ type: "SessionReset", now }]);
+    case "session.reset": {
+      if (agg.session.randomRotation === null) return ok([{ type: "SessionReset", now }]);
+      // ランダム交代（#660）: 開始と同じく引く順を作り、先頭の運転者から周を始める。画面は 2 回目以降の
+      // セッションをリセットで始める（timer-web の `session-start.ts`）ので、ここで作らないと、
+      // ロビーで入った人が最初の周だけ輪の順で並ぶ。
+      const invalid = invalidRandomOrder(cmd.randomOrder, agg.session.rotation.length);
+      if (invalid !== null) return err(invalid);
+      const randomRotation = freshRandomRotation(
+        { rotation: agg.session.rotation, currentIndex: 0 },
+        cmd.randomOrder,
+        agg.session.randomRotation.order,
+      );
+      return ok([{ type: "SessionReset", randomRotation, now }]);
+    }
 
     case "member.add":
       return decideMemberAdd(cmd.participantId, agg, now);
@@ -106,7 +128,7 @@ export function decide(
       return decideMembersShuffle(cmd.order, agg, now);
 
     case "config.set":
-      return decideConfigSet(cmd.config, now);
+      return decideConfigSet(cmd.config, agg, now, cmd.randomOrder);
 
     case "phase.set":
       return ok([{ type: "PhaseSet", phase: cmd.phase, now }]);
@@ -186,6 +208,7 @@ function decideSessionAct(
   agg: Aggregate,
   now: number,
   ineligible?: ReadonlySet<number>,
+  randomOrder?: readonly number[],
 ): Result<DomainEvent[], DomainError> {
   const { clock, session } = agg;
 
@@ -196,7 +219,7 @@ function decideSessionAct(
   }
 
   switch (action) {
-    case "START":
+    case "START": {
       if (clock.running) {
         return err({
           type: "PhaseConflict",
@@ -204,9 +227,16 @@ function decideSessionAct(
           requiredPhase: "stopped",
         });
       }
-      return ok([{ type: "SessionStarted", now }]);
+      if (session.randomRotation === null) return ok([{ type: "SessionStarted", now }]);
+      // ランダム交代（#660）: 開始のたびに引く順を作り、いまの運転者から周を始める。ロビーでモードを選んだ
+      // あとに入った人は引く順に居ないので、ここで作らないと最初の周が輪の順になる。
+      const invalid = invalidRandomOrder(randomOrder, session.rotation.length);
+      if (invalid !== null) return err(invalid);
+      const randomRotation = freshRandomRotation(session, randomOrder, session.randomRotation.order);
+      return ok([{ type: "SessionStarted", randomRotation, now }]);
+    }
 
-    case "SWITCH":
+    case "SWITCH": {
       if (!clock.running) {
         return err({
           type: "PhaseConflict",
@@ -214,11 +244,12 @@ function decideSessionAct(
           requiredPhase: "session",
         });
       }
-      {
-        // ineligible 省略時（undefined）は nextEligibleIndex が従来通り「隣」を返す。
-        const nextIndex = nextEligibleIndex(session, session.currentIndex, ineligible);
-        return ok([{ type: "DriverSwitched", nextIndex, now }]);
-      }
+      const invalid = session.randomRotation === null ? null : invalidRandomOrder(randomOrder, session.rotation.length);
+      if (invalid !== null) return err(invalid);
+      // 交代先は輪の順でもランダム交代でも nextDriverIndex が決める（driverSwitchedEvent）。
+      // ineligible 省略時（undefined）は全員適格として扱う。
+      return ok([driverSwitchedEvent(session, ineligible, now, randomOrder)]);
+    }
 
     case "PAUSE":
       if (!clock.running || session.isPaused) {
@@ -276,7 +307,9 @@ function decideDriverAssign(
   if (index === session.currentIndex) {
     return ok([]);
   }
-  return ok([{ type: "DriverSwitched", nextIndex: index, now }]);
+  // ランダム交代（#660）なら、指名された人をこの周で運転した人に足す。
+  const randomRotation = randomRotationAfterAssign(session, index);
+  return ok([{ type: "DriverSwitched", nextIndex: index, ...(randomRotation !== null && { randomRotation }), now }]);
 }
 
 // ─── メンバー管理 ────────────────────────────────────────────────────────────
@@ -330,8 +363,26 @@ function decideMemberRemove(
 
   // 運転中の人を外すなら、次の担当を交代と同じ資格の規則で選ぶ（#376）。
   // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
-  const nextDriverIndex = nextDriverAfterRemoval(agg.session, index, ineligible);
-  return ok([{ type: "MemberRemoved", index, nextDriverIndex, now }]);
+  // 開始前（ロビー）の「運転中の席」は運転していない。ランダム交代でも袋から引かず、輪の順のモードと同じ規則
+  // （外れた席の次の適格な席・#376）で選ぶ（袋から引くと、開始の運転者が輪の途中の席になり、画面が最初の開始を
+  // リセットで送る。#660 の 2 巡目のレビュー）。
+  // 始まっていれば（走行中・一時停止中・休憩中・完成のあとのロビー）、袋から引く。
+  const session = sessionHasStarted(agg) ? agg.session : { ...agg.session, randomRotation: null };
+  const nextDriver = nextDriverAfterRemoval(session, index, ineligible);
+  // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
+  // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、袋から引いていないので、指名と同じく
+  // その人をこの周で運転した人に足すだけにする（周は始め直さない）。足さないと、全員が戻ったあとに
+  // 同じ人がこの周でもう一度当たる（#660 のレビュー）。
+  const removesDriver = index === session.currentIndex;
+  const drawn = removesDriver ? nextDriverIndex(session, index, ineligible) : index;
+  const randomRotation = !removesDriver
+    ? null
+    : drawn === index
+      ? randomRotationAfterAssign(session, (index + 1) % session.rotation.length)
+      : randomRotationAfterSwitch(session, drawn, undefined);
+  return ok([
+    { type: "MemberRemoved", index, nextDriverIndex: nextDriver, ...(randomRotation !== null && { randomRotation }), now },
+  ]);
 }
 
 function decideMemberMove(
@@ -369,6 +420,15 @@ function firstNonPermutationValue(order: readonly number[], len: number): number
   return order.length;
 }
 
+/**
+ * サーバーが渡したランダム交代の順列（#660）が順列でなければ、その InvalidIndex。省略と順列は null。
+ * `member.shuffle` の order と同じ扱い（乱数の契約違反を、集約へ入れる前に断る）。
+ */
+function invalidRandomOrder(order: readonly number[] | undefined, len: number): DomainError | null {
+  if (order === undefined || isPermutation(order, len)) return null;
+  return { type: "InvalidIndex", index: firstNonPermutationValue(order, len), max: len - 1 };
+}
+
 function decideMembersShuffle(
   order: number[],
   agg: Aggregate,
@@ -403,8 +463,22 @@ function decideMembersShuffle(
  */
 function decideConfigSet(
   partial: Partial<TimerConfig>,
+  agg: Aggregate,
   now: number,
+  randomOrder?: readonly number[],
 ): Result<DomainEvent[], DomainError> {
+  // 交代先の決め方（#660）。変わるときだけ、イベントに袋（輪の順へ戻すなら null）を載せる。
+  // 既にランダム交代なら、もう一度選ばれても袋を作り直さない（周の途中の「運転した人」を消さない）。
+  const { session } = agg;
+  let randomRotation: RandomRotation | null | undefined;
+  if (partial.rotationMode === "random" && session.randomRotation === null) {
+    const invalid = invalidRandomOrder(randomOrder, session.rotation.length);
+    if (invalid !== null) return err(invalid);
+    randomRotation = freshRandomRotation(session, randomOrder);
+  } else if (partial.rotationMode === "order" && session.randomRotation !== null) {
+    randomRotation = null;
+  }
+
   // 交代間隔の検証
   if (partial.intervalMinutes !== undefined) {
     if (
@@ -426,7 +500,8 @@ function decideConfigSet(
     ...(partial.navigatorEnabled !== undefined && { navigatorEnabled: partial.navigatorEnabled }),
     ...(partial.break !== undefined && { break: partial.break }),
     ...(partial.assertiveSwitch !== undefined && { assertiveSwitch: partial.assertiveSwitch }),
+    ...(partial.rotationMode !== undefined && { rotationMode: partial.rotationMode }),
   };
 
-  return ok([{ type: "ConfigSet", config: validatedPartial, now }]);
+  return ok([{ type: "ConfigSet", config: validatedPartial, ...(randomRotation !== undefined && { randomRotation }), now }]);
 }

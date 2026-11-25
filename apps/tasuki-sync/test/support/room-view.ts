@@ -156,6 +156,8 @@ export function putRoomView(
         room.session.previousDriverIndex != null
           ? (room.session.rotation[room.session.previousDriverIndex] ?? null)
           : null,
+      // ランダム交代の袋は wire に載らない（#660）。保管に在る袋をそのまま残す。
+      randomRotation: timers.get(room.code)?.session.randomRotation ?? null,
     },
     clock: room.clock,
     phase: room.phase,

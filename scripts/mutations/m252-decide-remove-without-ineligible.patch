@@ -8,15 +8,15 @@
 #
 # #376（PR #392 の 2 巡目）。運転中の人が外れると、一時離脱・不在の人に運転が回る（本番の経路）。
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
-index e01a7d3..5b576d3 100644
+index 7d15d30..4a6e265 100644
 --- a/packages/timer-core/src/decide.ts
 +++ b/packages/timer-core/src/decide.ts
-@@ -307,7 +307,7 @@ function decideMemberRemove(
- 
-   // 運転中の人を外すなら、次の担当を交代と同じ資格の規則で選ぶ（#376）。
-   // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
--  const nextDriverIndex = nextDriverAfterRemoval(agg.session, index, ineligible);
-+  const nextDriverIndex = nextDriverAfterRemoval(agg.session, index, undefined);
-   return ok([{ type: "MemberRemoved", index, nextDriverIndex, now }]);
- }
- 
+@@ -368,7 +368,7 @@ function decideMemberRemove(
+   // リセットで送る。#660 の 2 巡目のレビュー）。
+   // 始まっていれば（走行中・一時停止中・休憩中・完成のあとのロビー）、袋から引く。
+   const session = sessionHasStarted(agg) ? agg.session : { ...agg.session, randomRotation: null };
+-  const nextDriver = nextDriverAfterRemoval(session, index, ineligible);
++  const nextDriver = nextDriverAfterRemoval(session, index, undefined);
+   // ランダム交代（#660）で運転中の人を外すなら、次の担当は袋から引いた人（予告した人）なので、袋も進める。
+   // 適格な人が居なくて位置で次の席にしたとき（`drawn === index`）は、袋から引いていないので、指名と同じく
+   // その人をこの周で運転した人に足すだけにする（周は始め直さない）。足さないと、全員が戻ったあとに

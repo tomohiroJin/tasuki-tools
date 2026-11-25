@@ -62,12 +62,31 @@ export function isOnBreak(session: Pick<SessionState, "break">): boolean {
 }
 
 /**
- * セッションが始まっているか（走行中・一時停止中・休憩中〔`break.since`〕のいずれか）。
+ * セッションが始まっているか（走行中・一時停止中・休憩中〔`break.since`〕・稼働の累計がある、のいずれか）。
  * 開始前（ロビー）の集約は時計が一度も走っていない（`accumulatedElapsedMs` が 0 で止まっている）。
- * evolve（運転中の席を外したときの直前のドライバー）と decide（開始前の break.start の拒否）が共有する。
+ * 完成・中断のあとロビーへ戻った集約は、時計は止まっているが稼働の累計が残るので、始まっている側になる。
+ * evolve（運転中の席を外したときの直前のドライバー）と、decide（開始前の break.start の拒否・
+ * 運転中の人を外すときランダム交代の袋から引くかどうか〔#660〕）が共有する。
  */
 export function sessionHasStarted(agg: Aggregate): boolean {
   return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null || agg.clock.accumulatedElapsedMs > 0;
+}
+
+/**
+ * ランダム交代の袋（#660）。交代のたびに、**この周でまだ運転していない適格な人**から次のドライバーを引く。
+ *
+ * どちらも席の識別子（{@link rotationEntryId}）で持つ。並べ替え・削除で添字は動くが、識別子は人に付く。
+ * 輪に居ない識別子が残っていてもよい（読むとき {@link nextDriverIndex} が輪の席だけを見る）。席を外した人が
+ * 入り直しても「この周で運転した」ことは残る。
+ */
+export interface RandomRotation {
+  /**
+   * 引く順。サーバーが作った順列（乱数はサーバーが持つ）を席の識別子へ写したもの。交代・開始のたびに作り直す。
+   * 作り直したあとに入った席は載っていない。その席は、載っている席の後ろに輪の順で並ぶものとして読む。
+   */
+  order: readonly string[];
+  /** この周で運転した人（いまの運転者を含む）。適格な全員が運転し終えたら、次の交代で交代先の 1 人に戻す。 */
+  drove: readonly string[];
 }
 
 /** セッション状態（時間系を含まない） */
@@ -99,6 +118,14 @@ interface SessionState {
    * （イベントの形は変えていない）。
    */
   previousDriverId: string | null;
+  /**
+   * ランダム交代の袋（#660）。輪の順で回るモードなら null。
+   *
+   * 設定の `rotationMode`（`TimerState.config`）を集約へ写したもので、交代間隔の `clock.intervalSeconds` と同じ関係にある。
+   * 次に替わる人は {@link nextDriverIndex} がここから決める。交代（decide）と予告（同期サーバーの snapshot DTO）が
+   * 同じ関数を呼ぶので、予告した人と実際に替わる人は食い違わない。
+   */
+  randomRotation: RandomRotation | null;
   /**
    * 休憩の状態（#402）。時計と同じ evolve で変わるので、表示と時計が食い違わない。
    * v2.10 は休憩をルームの `onBreak` に持ち、時計を止めずに食い違った。
@@ -151,12 +178,23 @@ export interface TimerConfig {
   break?: BreakPolicy;
   /** 強い全画面交代通知を使うか */
   assertiveSwitch?: boolean;
+  /** 交代先の決め方（#660）。無ければ輪の順（`"order"`） */
+  rotationMode?: RotationMode;
   // ⚠ かつてここには `language` / `difficulty`（お題を作るときの言語と難易度）と
   // お題機能を使うかの切り替えがあった。**#91 PR 3 で落とした。** お題は
   // ルームの共有資産（`@tasuki/topic-core`）になり、timer はお題を作らず、お題の有無で
   // 開始を止めることもない。`SessionConfigSchema` に項目が無いので、古い画面が
   // `config.set` に載せて送ってきてもパーサの出力に残らない。
 }
+
+/**
+ * 交代先の決め方の一覧（#660）。型とスキーマの両方がここから導く。
+ * `"order"` は輪の順、`"random"` は交代のたびにランダム（{@link RandomRotation}）。
+ */
+export const ROTATION_MODES = ["order", "random"] as const;
+
+/** 交代先の決め方 */
+export type RotationMode = (typeof ROTATION_MODES)[number];
 
 /**
  * ルームフェーズの一覧。**型とスキーマの両方がここから導く**（#363。以前は 6 か所に書いていた）。
@@ -275,7 +313,10 @@ export function elapsedMs(
  * 呼び出し側が「誰が輪に並ぶか」を席として渡す（D6b・#95 S4a）。
  */
 export function initialAggregate(config: TimerConfig, rotation: readonly RotationEntry[]): Aggregate {
-  return initialAggregateInSeconds(config.intervalMinutes * 60, rotation);
+  const agg = initialAggregateInSeconds(config.intervalMinutes * 60, rotation);
+  if (config.rotationMode !== "random") return agg;
+  // 作成の時点では乱数を受けない（`room.create` は decide を通らない）。引く順は空で始め、開始（START）で作る。
+  return { ...agg, session: { ...agg.session, randomRotation: freshRandomRotation(agg.session, undefined) } };
 }
 
 /**
@@ -293,6 +334,7 @@ export function initialAggregateInSeconds(intervalSeconds: number, rotation: rea
       driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
       previousDriverId: null,
+      randomRotation: null,
       break: INITIAL_BREAK_STATE,
     },
     clock: {
@@ -333,6 +375,118 @@ export function nextEligibleIndex(
   return currentIndex;
 }
 
+/** 交代先を決めるのに要る、セッションの部分。`randomRotation` を省くと輪の順として扱う。 */
+type RotationView = Pick<SessionState, "rotation"> & Partial<Pick<SessionState, "randomRotation">>;
+
+/**
+ * `fromIndex` の席の次に運転する席の添字（#660）。**交代先の決め方の入口はここ 1 つである。**
+ *
+ * 輪の順のモードなら {@link nextEligibleIndex}、ランダム交代なら袋（{@link RandomRotation}）から決める。
+ * 交代（decide の SWITCH・`advanceDriver`）・運転中の人を外したときの次の担当・snapshot の予告が、すべてここを呼ぶ。
+ * 交代先が無ければ `fromIndex` を返す（{@link nextEligibleIndex} と同じ約束）。
+ *
+ * @param ineligible 交代先にしない席の添字（undefined = 全員適格）
+ */
+export function nextDriverIndex(
+  session: RotationView,
+  fromIndex: number,
+  ineligible: ReadonlySet<number> | undefined,
+): number {
+  const random = session.randomRotation ?? null;
+  return random === null
+    ? nextEligibleIndex(session, fromIndex, ineligible)
+    : nextRandomIndex(session.rotation, random, fromIndex, ineligible);
+}
+
+/**
+ * ランダム交代の次の席。引く順に並べた席のうち、`fromIndex` でも不適格でもない席から、
+ * この周でまだ運転していない最初の席を選ぶ。全員が運転し終えていれば最初の席（次の周の最初の人）。
+ * 候補が無ければ `fromIndex`。
+ */
+function nextRandomIndex(
+  rotation: readonly RotationEntry[],
+  random: RandomRotation,
+  fromIndex: number,
+  ineligible: ReadonlySet<number> | undefined,
+): number {
+  const len = rotation.length;
+  if (len === 0) return 0;
+  const indexById = new Map(rotation.map((entry, i) => [rotationEntryId(entry), i]));
+  // 引く順の席。輪に居ない識別子は飛ばし、同じ席は 1 回だけ数える（Set は入れた順を保つ）
+  const ordered = new Set<number>();
+  for (const id of random.order) {
+    const i = indexById.get(id);
+    if (i !== undefined) ordered.add(i);
+  }
+  // 引く順に居ない席（作り直したあとに入った人）は、その後ろに輪の順で並べる
+  for (let step = 1; step <= len; step++) ordered.add((fromIndex + step) % len);
+
+  const open = [...ordered].filter((i) => i !== fromIndex && !ineligible?.has(i));
+  const drove = new Set(random.drove);
+  // `!`: open の添字は ordered（輪の席の添字）から来る
+  return open.find((i) => !drove.has(rotationEntryId(rotation[i]!))) ?? open[0] ?? fromIndex;
+}
+
+/** 順列（席の添字）を席の識別子へ写す。順列でなければ undefined。 */
+function seatIdsInOrder(rotation: readonly RotationEntry[], order: readonly number[] | undefined): string[] | undefined {
+  if (order === undefined || !isPermutation(order, rotation.length)) return undefined;
+  // `!`: 直前で [0..len-1] の順列だと確かめた
+  return order.map((i) => rotationEntryId(rotation[i]!));
+}
+
+/**
+ * いまの運転者だけが運転した状態の袋を作る（モードを入れたとき・開始・リセット）。
+ * `order` が順列でなければ（省略を含む）、`fallback` の引く順を使う。無ければ空（輪の順で並ぶ）。
+ */
+export function freshRandomRotation(
+  session: Pick<SessionState, "rotation" | "currentIndex">,
+  order: readonly number[] | undefined,
+  fallback: readonly string[] = [],
+): RandomRotation {
+  const current = session.rotation[session.currentIndex];
+  return {
+    order: seatIdsInOrder(session.rotation, order) ?? fallback,
+    drove: current !== undefined ? [rotationEntryId(current)] : [],
+  };
+}
+
+/**
+ * 交代（SWITCH・時間切れ・運転中の人を外したあとの繰り上げ）で `nextIndex` の席へ替わったあとの袋。
+ * ランダム交代でなければ null。
+ *
+ * 交代先がこの周で運転し終えていたら（{@link nextDriverIndex} が未運転の人を見つけられなかった）、次の周を始める。
+ * `order` が順列なら引く順を作り直す。順列でなければ（省略を含む）今の引く順のまま。
+ */
+export function randomRotationAfterSwitch(
+  session: Pick<SessionState, "rotation" | "randomRotation">,
+  nextIndex: number,
+  order: readonly number[] | undefined,
+): RandomRotation | null {
+  const random = session.randomRotation;
+  const next = session.rotation[nextIndex];
+  if (random === null || next === undefined) return random;
+  const id = rotationEntryId(next);
+  return {
+    order: seatIdsInOrder(session.rotation, order) ?? random.order,
+    drove: random.drove.includes(id) ? [id] : [...random.drove, id],
+  };
+}
+
+/**
+ * 指名（`driver.assign`）で `index` の席へ替わったあとの袋。ランダム交代でなければ null。
+ * 指名された人をこの周で運転した人に足す。運転し終えた人を指名しても、周は始め直さない。
+ */
+export function randomRotationAfterAssign(
+  session: Pick<SessionState, "rotation" | "randomRotation">,
+  index: number,
+): RandomRotation | null {
+  const random = session.randomRotation;
+  const target = session.rotation[index];
+  if (random === null || target === undefined) return random;
+  const id = rotationEntryId(target);
+  return random.drove.includes(id) ? random : { order: random.order, drove: [...random.drove, id] };
+}
+
 /**
  * 輪の席を指す添字か（整数で `0 ≤ i < len`）。#376。
  *
@@ -361,7 +515,7 @@ export function isPermutation(order: readonly number[], len: number): boolean {
 /**
  * 運転中の人の席（`removedIndex`）を外したとき、次に担当になる席を**外した後の添字**で返す（#376）。
  *
- * 交代と同じ資格の規則（{@link nextEligibleIndex}）で、外れた席の次から適格な人を探す。
+ * 交代と同じ規則（{@link nextDriverIndex}。輪の順なら外れた席の次から、ランダム交代なら袋から）で適格な人を探す。
  * 適格な人が居なければ、位置で次の席（末尾なら先頭）にする —— 交代なら「現状維持」になる場面だが、
  * 外れた人の席には留まれないので、`ineligible` を省いたとき（=全員が適格）と同じ席へ倒す。
  * 外した後の輪が空なら 0。
@@ -372,15 +526,15 @@ export function isPermutation(order: readonly number[], len: number): boolean {
  * @param ineligible 交代先にしない席（外す前の添字。undefined = 全員適格）
  */
 export function nextDriverAfterRemoval(
-  session: Pick<SessionState, "rotation" | "currentIndex">,
+  session: RotationView & Pick<SessionState, "currentIndex">,
   removedIndex: number,
   ineligible: ReadonlySet<number> | undefined,
 ): number {
   const len = session.rotation.length;
   if (!isSeatIndex(removedIndex, len)) return session.currentIndex;
-  // 適格な人が居なければ nextEligibleIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
+  // 適格な人が居なければ nextDriverIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
   // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
-  const found = nextEligibleIndex(session, removedIndex, ineligible);
+  const found = nextDriverIndex(session, removedIndex, ineligible);
   const chosen = found === removedIndex ? (removedIndex + 1) % len : found;
   return chosen > removedIndex ? chosen - 1 : chosen;
 }

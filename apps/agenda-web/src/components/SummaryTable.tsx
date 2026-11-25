@@ -3,7 +3,7 @@
  * 行は agenda-core の `summaryOf` が持ち、ここは書き方だけを決める（合計の差 ＝ `summaryOf(v).driftMs`）。
  */
 import { summaryOf, type AgendaView } from '@tasuki/agenda-core';
-import { clockStyleOf, durationClock, signedDuration } from '../agenda-view';
+import { clockStyleOf, durationClock, signedDuration, summaryTotals } from '../agenda-view';
 import {
   DRIFT_LABEL,
   PLANNED_LABEL,
@@ -32,9 +32,7 @@ export function SummaryTable({ view }: { view: AgendaView }) {
   // 書き方は会の予定の合計（盤と同じ `clockStyleOf`）で決める。下の `planned` は表の行の足し上げで、行の定義が変わると盤とずれるので使わない
   const style = clockStyleOf(view);
   const summary = summaryOf(view);
-  const planned = summary.rows.reduce((sum, r) => sum + r.plannedMs, 0);
-  const extension = summary.rows.reduce((sum, r) => sum + r.extensionMs, 0);
-  const spent = summary.rows.reduce((sum, r) => sum + r.spentMs, 0);
+  const { plannedMs: planned, extensionMs: extension, spentMs: spent } = summaryTotals(summary.rows);
   // 回ごとに <tbody> を分ける（1 つの <tbody> に見出しを並べると、前の回の見出しが後ろの回のセルにもかかる）。回数 1 は 1 つ
   const rowGroups = summary.rows.reduce<{ round: number; rows: (typeof summary.rows)[number][] }[]>((groups, row) => {
     const last = groups[groups.length - 1];

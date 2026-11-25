@@ -1,0 +1,12 @@
+diff --git a/apps/roulette-web/src/result-markdown.ts b/apps/roulette-web/src/result-markdown.ts
+index 0aeaf4fc..6b668954 100644
+--- a/apps/roulette-web/src/result-markdown.ts
++++ b/apps/roulette-web/src/result-markdown.ts
+@@ -33,7 +33,6 @@ const MODE_NAME: Record<RouletteMode, string> = {
+  */
+ export function escapeName(name: string): string {
+   return name
+-    .replace(/\s+/gu, ' ')
+     .trim()
+     .replace(/[\\`*_[\]<>#~&!.:@|()]/g, '\\$&')
+     .replace(/^[-+]/, '\\$&');

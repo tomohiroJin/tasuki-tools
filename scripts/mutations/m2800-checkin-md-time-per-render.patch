@@ -1,0 +1,24 @@
+# 変異 2800: checkin-md-time-per-render
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-copy.test.tsx
+#
+# #676 書き出す時刻を描くたびに取り直す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2800-*.patch
+# 復元: git apply -R scripts/mutations/m2800-*.patch
+diff --git a/apps/checkin-web/src/components/RevealCopy.tsx b/apps/checkin-web/src/components/RevealCopy.tsx
+index 1eebebd9..bb1c972a 100644
+--- a/apps/checkin-web/src/components/RevealCopy.tsx
++++ b/apps/checkin-web/src/components/RevealCopy.tsx
+@@ -23,7 +23,8 @@ interface Props {
+ }
+ 
+ export function RevealCopy({ method, visibility, piles, session }: Props) {
+-  const { at, manualKept, setManualKept } = session;
++  const { manualKept, setManualKept } = session;
++  const at = Date.now();
+   const markdown = useMemo(
+     () => revealMarkdown({ method, visibility, piles, nowMs: at, tzOffsetMin: -new Date(at).getTimezoneOffset() }),
+     [method, visibility, piles, at],

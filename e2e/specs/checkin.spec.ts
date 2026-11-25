@@ -280,7 +280,12 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     page,
     openPeer,
     consoleWatcher,
+    browserName,
   }) => {
+    // 26 種類の札を 8 幅で確かめる。WebKit の CI 実測では 60 秒を超える（#674）。延ばすのは WebKit だけ —— Chromium は既定の上限のまま
+    // （上限を全ブラウザで延ばすと、Chromium で遅くなった退行を見逃す）。上限を外した実行（0）には上限を足さない。
+    const { timeout } = test.info();
+    if (browserName === 'webkit' && timeout > 0) test.setTimeout(Math.max(timeout, 120_000));
     // Given: A がルームを作って開く。B は別の文脈で招待 URL から入る
     const framesA = watchWebSocketFrames(page);
     const inviteUrl = await openCheckinTool(page, NAME_A);

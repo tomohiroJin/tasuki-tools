@@ -1,0 +1,23 @@
+# 変異 2706: checkin-md-numeric-no-meaning
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-markdown.test.ts
+#
+# #676 数のやり方の札に、画面の山の下にある意味を添えない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2706-*.patch
+# 復元: git apply -R scripts/mutations/m2706-*.patch
+diff --git a/apps/checkin-web/src/reveal-markdown.ts b/apps/checkin-web/src/reveal-markdown.ts
+index 63e1fd91..48dbf114 100644
+--- a/apps/checkin-web/src/reveal-markdown.ts
++++ b/apps/checkin-web/src/reveal-markdown.ts
+@@ -63,7 +63,7 @@ export interface RevealMarkdownInput {
+ export function revealMarkdown({ method, visibility, piles, nowMs, tzOffsetMin }: RevealMarkdownInput): string {
+   const ordered = orderedPiles(method, piles);
+   const copy = METHOD_COPY[method];
+-  const numeric = NUMERIC_METHODS.has(method);
++  const numeric = false;
+   const rows = ordered.flatMap((pile) => {
+     const card = copy.cards[pile.card];
+     const label = card === undefined ? pile.card : numeric ? `${card.name}（${card.meaning}）` : card.name;

@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/room-commands/server-values.ts b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+index 194bfea..717ecee 100644
+--- a/apps/tasuki-sync/src/application/room-commands/server-values.ts
++++ b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+@@ -35,7 +35,7 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue
+       // ineligible を decide への入力として注入するだけで、決定結果を後から差し替えない。
+       // ランダム交代（#660）は、交代と開始のたびに引く順を作り直す。順列を作るのはサーバーで、
+       // ドメインは受け取った順列から次の人を決める（`member.shuffle` と同じ形）。
+-      if (draft.action === "SWITCH") return { ...draft, ineligible: sources.ineligible(), randomOrder: sources.randomOrder() };
++      if (draft.action === "SWITCH") return { ...draft, ineligible: sources.ineligible() };
+       return draft.action === "START" ? { ...draft, randomOrder: sources.randomOrder() } : draft;
+     case "session.reset":
+       // 2 回目以降のセッションは、画面がリセットで始める。開始と同じく引く順を作り直す（#660）。

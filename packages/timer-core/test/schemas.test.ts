@@ -635,3 +635,50 @@ describe("休憩の wire", () => {
     expect(r.success).toBe(false);
   });
 });
+
+describe("交代先の決め方の wire（#660）", () => {
+  it("Given config.set の rotationMode: random / When 検証する / Then 通り、出力に残る", () => {
+    const r = v.safeParse(CommandSchema, { command: "config.set", config: { rotationMode: "random" } });
+
+    expect(r.success).toBe(true);
+    expect(r.success && r.output).toEqual({ command: "config.set", config: { rotationMode: "random" } });
+  });
+
+  it("Given room.create の rotationMode: random / When 検証する / Then 通り、出力に残る", () => {
+    const r = v.safeParse(CommandSchema, {
+      command: "room.create",
+      displayName: "あや",
+      config: { intervalMinutes: 5, rotationMode: "random" },
+    });
+
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.command === "room.create" && r.output.config).toEqual({
+      intervalMinutes: 5,
+      rotationMode: "random",
+    });
+  });
+
+  it("Given rotationMode: order / When 検証する / Then 通る", () => {
+    expect(v.safeParse(CommandSchema, { command: "config.set", config: { rotationMode: "order" } }).success).toBe(true);
+  });
+
+  it("Given 一覧に無い rotationMode / When 検証する / Then 落ちる", () => {
+    expect(v.safeParse(CommandSchema, { command: "config.set", config: { rotationMode: "shuffle" } }).success).toBe(false);
+  });
+
+  it("Given rotationMode の無い設定（古い画面） / When 検証する / Then 通り、項目は無いまま", () => {
+    const r = v.safeParse(CommandSchema, { command: "config.set", config: { intervalMinutes: 5 } });
+
+    expect(r.success).toBe(true);
+    expect(r.success && r.output).toEqual({ command: "config.set", config: { intervalMinutes: 5 } });
+  });
+
+  it("Given 設定に rotationMode: random がある snapshot / When 検証する / Then 通り、出力に残る", () => {
+    const room = validRoom();
+
+    const r = v.safeParse(RoomSchema, { ...room, config: { ...room.config, rotationMode: "random" } });
+
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.config.rotationMode).toBe("random");
+  });
+});

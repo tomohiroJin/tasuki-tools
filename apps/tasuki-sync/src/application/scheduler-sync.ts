@@ -8,9 +8,11 @@
  */
 import { advanceDriver, secondsLeft, type TimerState } from "@tasuki/timer-core";
 import type { Broadcaster } from "../ports/broadcaster.js";
+import type { RandomSource } from "../ports/random-source.js";
 import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomState } from "./apply-room-level-event.js";
 import { maybeBreakAfterSwitch } from "./break-after-switch.js";
+import { randomOrderFor } from "./room-commands/shuffle-order.js";
 import type { Scheduler } from "./schedule.js";
 import { computeIneligibleIndices, rotationDisplayNames } from "./timer-snapshot-dto.js";
 
@@ -21,6 +23,8 @@ export interface ScheduleSyncDeps {
   broadcaster: Pick<Broadcaster, "broadcastSignal">;
   loadState: (roomCode: string) => RoomState | undefined;
   commit: (state: RoomState) => void;
+  /** ランダム交代（#660）の引く順を作る乱数 */
+  random: Pick<RandomSource, "randomInt">;
 }
 
 export interface ScheduleSync {
@@ -54,7 +58,14 @@ export function createScheduleSync(deps: ScheduleSyncDeps): ScheduleSync {
     const { membership, timer } = state;
     const now = clock.now();
     const agg = { session: timer.session, clock: timer.clock };
-    const newAgg = advanceDriver(agg, computeIneligibleIndices(membership, timer), now);
+    // ランダム交代（#660）なら、手動の SWITCH と同じく引く順を作り直す順列を渡す。交代先は予告と同じ人になる
+    // （予告も交代も timer-core の `nextDriverIndex` が決める）。
+    const newAgg = advanceDriver(
+      agg,
+      computeIneligibleIndices(membership, timer),
+      now,
+      randomOrderFor(timer.session, deps.random.randomInt),
+    );
     const switched: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
     // 交代のあとに休憩の条件を見る。入れば running が偽になり、reconcileSchedule が予約を解除する（#402）
     const updated = maybeBreakAfterSwitch(timer, { membership, timer: switched }, now).timer;

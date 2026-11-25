@@ -80,6 +80,8 @@ describe("F3: リセットを最初から再スタートにする", () => {
         totalSwitches: 0,
         // 2 回交代していても、リセットで直前のドライバーは居なくなる（#374）
         previousDriverId: null,
+        // 輪の順のモードのまま（#660）
+        randomRotation: null,
         break: INITIAL_BREAK_STATE,
       },
       clock: {

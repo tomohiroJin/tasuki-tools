@@ -4,6 +4,7 @@
  * DDD の腐敗防止層にあたる。ドメインのコマンドは wire に無い値を持つので、ここでは仮の値を置き、
  * 呼び出し側（`handleRoomCommand`）が後で埋める:
  * - `session.act` の `ineligible`（SWITCH のときだけ）
+ * - `session.act`（START・SWITCH）・`session.reset`・`config.set` の `randomOrder`（ランダム交代の引く順を作る順列・#660）
  * - `member.remove` の `ineligible`（運転中の人を外すときの次の担当を選ぶ・#376）
  * - `session.complete` の `topicTitle`（保管から）
  * - `driver.assign` の `index`（参加者 ID から解決する。-1 は仮の値）
@@ -30,20 +31,28 @@ export function buildDomainCommand(cmd: RoomScopedCommand) {
         command: "session.act" as const,
         action: cmd.action,
         ineligible: undefined as ReadonlySet<number> | undefined,
+        // ランダム交代（#660）の引く順を作る順列。START・SWITCH のときだけ handlers.ts 側で後から埋める。
+        randomOrder: undefined as readonly number[] | undefined,
       };
     }
     case "session.complete":
       // タイトルは handleRoomCommand が保管から埋める。wire からは受け取らない（#91・spec T9）。
       return { command: "session.complete" as const, topicTitle: null as string | null };
     case "session.reset":
-      return { command: "session.reset" as const };
+      // randomOrder は handlers.ts 側で後から埋める（ランダム交代の引く順を作る順列・#660）。
+      return { command: "session.reset" as const, randomOrder: undefined as readonly number[] | undefined };
     case "config.set":
       // ⚠ ここにはかつて `members` を取り除く分解代入があった。**#294 で不要になった** ——
       // `members` は wire の設定から消え、`SessionConfigSchema` を通った時点で落ちる
       // （v.object の出力に未知のキーは残らない。`packages/timer-core/test/schemas.test.ts`）。
       // 輪の出入りを担うのは member.add/remove/move・addProxy・participant.remove だけ
       // という決まり（D6b）は変わらない。
-      return { command: "config.set" as const, config: toPartialTimerConfig(cmd.config) };
+      // randomOrder はランダム交代を入れる設定のときだけ handlers.ts 側で後から埋める（#660）。wire からは受け取らない。
+      return {
+        command: "config.set" as const,
+        config: toPartialTimerConfig(cmd.config),
+        randomOrder: undefined as readonly number[] | undefined,
+      };
     case "member.add":
       // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
       return { command: "member.add" as const, participantId: cmd.participantId };

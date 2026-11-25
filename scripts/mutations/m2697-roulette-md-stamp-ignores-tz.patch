@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/result-markdown.ts b/apps/roulette-web/src/result-markdown.ts
+index ef2f3192..99dccfa1 100644
+--- a/apps/roulette-web/src/result-markdown.ts
++++ b/apps/roulette-web/src/result-markdown.ts
+@@ -59,7 +59,7 @@ function civilOf(day: number): { year: number; month: number; date: number } {
+ 
+ /** `YYYY-MM-DD HH:MM`（分未満は切り捨て）。 */
+ export function stampText(wallMs: number, tzOffsetMin: number): string {
+-  const local = wallMs + tzOffsetMin * MS_PER_MIN;
++  const local = wallMs;
+   const day = Math.floor(local / MS_PER_DAY);
+   const minuteOfDay = Math.floor((local - day * MS_PER_DAY) / MS_PER_MIN);
+   const { year, month, date } = civilOf(day);

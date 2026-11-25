@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/components/SummaryCopy.tsx b/apps/agenda-web/src/components/SummaryCopy.tsx
+index 0237b99a..8822ac5c 100644
+--- a/apps/agenda-web/src/components/SummaryCopy.tsx
++++ b/apps/agenda-web/src/components/SummaryCopy.tsx
+@@ -27,7 +27,7 @@ export function SummaryCopy({ view, wallNow }: Props) {
+     if (state === 'failed') setManualKept(true);
+     else if (state === 'done') setManualKept(false);
+   }, [state]);
+-  const manualOpen = state === 'failed' || (manualKept && state === 'idle');
++  const manualOpen = manualKept && state === 'idle';
+ 
+   return (
+     <div className="summary-copy">

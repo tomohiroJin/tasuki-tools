@@ -59,7 +59,7 @@ import { createScheduleSync } from "./scheduler-sync.js";
 import { applyAfterEffects } from "./room-commands/after-effects.js";
 import { checkPreconditions, type PreconditionFailure } from "./room-commands/preconditions.js";
 import { fillServerValues } from "./room-commands/server-values.js";
-import { buildShuffleOrder } from "./room-commands/shuffle-order.js";
+import { buildShuffleOrder, drawSeatOrder, randomOrderFor } from "./room-commands/shuffle-order.js";
 import type { DomainCommandDraft } from "./room-commands/domain-command.js";
 
 /**
@@ -92,7 +92,7 @@ export interface HandlerDeps {
   store: RoomStore;
   /** レート制限の時刻を読む単調時計（#367。参加の判定へ渡す） */
   monotonicClock: MonotonicClock;
-  /** `member.shuffle` の順列を作る乱数（#367） */
+  /** `member.shuffle` の順列と、ランダム交代（#660）の引く順を作る乱数（#367） */
   random: Pick<RandomSource, "randomInt">;
   /** timer の状態（`TimerState`）の保管。名簿とは `code` で対になる（#95 S4a）。 */
   timers: TimerStore;
@@ -343,7 +343,7 @@ export function makeHandlers(deps: HandlerDeps) {
   }
 
   // 自動交代のスケジュールの突き合わせ（#366 で `scheduler-sync.ts` へ出した）。
-  const { reconcileSchedule, autoSwitch } = createScheduleSync({ scheduler, clock, broadcaster, loadState, commit });
+  const { reconcileSchedule, autoSwitch } = createScheduleSync({ scheduler, clock, broadcaster, loadState, commit, random: deps.random });
 
   /**
    * コマンドを処理するメインエントリポイント
@@ -466,6 +466,7 @@ export function makeHandlers(deps: HandlerDeps) {
         assignTarget,
         now,
         nextRecordId,
+        randomInt: deps.random.randomInt,
       }),
       now,
     );
@@ -489,6 +490,8 @@ export function makeHandlers(deps: HandlerDeps) {
         topicTitle: () => deps.topics.get(state.timer.code)?.topic?.title ?? null,
         newParticipantId: () => codeGen.generateParticipantId(),
         ineligible: () => computeIneligibleIndices(state.membership, state.timer),
+        randomOrder: () => randomOrderFor(state.timer.session, deps.random.randomInt),
+        firstRandomOrder: () => drawSeatOrder(state.timer.session.rotation.length, deps.random.randomInt),
       }),
     );
   }

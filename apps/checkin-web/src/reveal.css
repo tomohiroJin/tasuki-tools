@@ -239,3 +239,27 @@
     opacity: 0;
   }
 }
+
+/* ---------- 結果の持ち出し（#676） ---------- */
+.reveal-copy {
+  display: grid;
+  gap: var(--space-3);
+}
+.reveal-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.reveal-copy-status {
+  min-height: 1lh;
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+.reveal-copy-manual {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--font-mono);
+  resize: vertical;
+}

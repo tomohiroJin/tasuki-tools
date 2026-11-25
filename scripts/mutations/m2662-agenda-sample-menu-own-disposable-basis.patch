@@ -1,0 +1,23 @@
+# 変異 2662: agenda-sample-menu-own-disposable-basis
+#
+# 検出を期待するテスト:
+#   - (宣言の tests を参照)
+#
+# #667 agenda-sample-menu-own-disposable-basis
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2662-*.patch
+# 復元: git apply -R scripts/mutations/m2662-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 427029d3..51c94fc2 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -255,7 +255,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+         {/* 主の欄（会の名前・ステップ・くりかえし）の下に控えめに置く（主役を押しのけない） */}
+         <div className="builder-draft-tools">
+           <SampleMenu
+-            draftIsDisposable={draftIsDisposable}
++            draftIsDisposable={draftIsEmpty || draftIsRoom}
+             suppressed={clearAsking}
+             onAsk={onSampleAsk}
+             onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}

@@ -64,6 +64,7 @@ class AggregateBuilder {
   private intervalMinutes: IntervalMinutes = 5;
   private clockState: ClockState = "initial";
   private anchor: number = NOW;
+  private random: { order: string[]; drove: string[] | undefined } | undefined = undefined;
 
   /** ローテーション順の参加者ID配列を設定する（D6b: 表示名一覧ではなくIDの配列）。
    *  #95 S4a で rotation は席の配列になったが、ここは ID で受けて席へ写す。 */
@@ -103,6 +104,15 @@ class AggregateBuilder {
     return this;
   }
 
+  /**
+   * ランダム交代のモードにする（#660）。`order` は引く順、`drove` はこの周で運転した人（どちらも席の識別子）。
+   * `drove` を省くと、いまの運転者だけが運転した状態にする（モードを入れた直後・開始の直後と同じ）。
+   */
+  withRandomRotation(order: string[], drove?: string[]): this {
+    this.random = { order, drove };
+    return this;
+  }
+
   /** アンカー時刻（SessionStarted/SessionPaused の now）を設定する。既定は NOW。 */
   at(now: number): this {
     this.anchor = now;
@@ -135,6 +145,16 @@ class AggregateBuilder {
     }
     if (this.clockState === "paused") {
       agg = evolve(agg, { type: "SessionPaused", now: this.anchor }, this.anchor);
+    }
+    if (this.random !== undefined) {
+      const currentId = rotationEntryId(seats[this.currentIndex]!);
+      agg = {
+        ...agg,
+        session: {
+          ...agg.session,
+          randomRotation: { order: this.random.order, drove: this.random.drove ?? [currentId] },
+        },
+      };
     }
 
     return agg;

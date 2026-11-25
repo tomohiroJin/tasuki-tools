@@ -1,0 +1,16 @@
+--- a/apps/landing/src/screens/RoomChoice.tsx
++++ b/apps/landing/src/screens/RoomChoice.tsx
+@@ -129,10 +129,10 @@
+         {/* ルームに入ったままでも端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。
+             戻り先を持たせて、見終わったら同じルームの選択画面へ戻れるようにする。
+             作業領域の末尾に置き、パネルの右端に揃える（画面の下に 1 つだけ浮かせない・#673）。 */}
+-        <p className="hub-foot">
+-          <HistoryLink roomCode={code} />
+-        </p>
+       </div>
++      <p className="hub-foot">
++        <HistoryLink roomCode={code} />
++      </p>
+     </main>
+   );
+ }

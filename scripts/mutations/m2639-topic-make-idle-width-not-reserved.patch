@@ -1,0 +1,12 @@
+diff --git a/apps/topic-web/src/components/TopicMaker.tsx b/apps/topic-web/src/components/TopicMaker.tsx
+--- a/apps/topic-web/src/components/TopicMaker.tsx
++++ b/apps/topic-web/src/components/TopicMaker.tsx
+@@ -132,7 +132,7 @@
+                 {/* 幅は 2 つの文言の長いほうで最初から取る（文言が変わっても押した場所が動かない）。出していないほうは隠して読み上げから外す */}
+                 <span className="topic-make-label">
+                   <span aria-hidden={generating} className={generating ? 'topic-make-label-off' : undefined}>{AI_BUTTON}</span>
+-                  <span aria-hidden={!generating} className={generating ? undefined : 'topic-make-label-off'}>{GENERATING_TEXT}</span>
++                  {generating && <span>{GENERATING_TEXT}</span>}
+                 </span>
+               </button>
+             )}

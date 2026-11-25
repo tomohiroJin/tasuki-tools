@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/summary-markdown.ts b/apps/agenda-web/src/summary-markdown.ts
+index 6837152f..345dabc1 100644
+--- a/apps/agenda-web/src/summary-markdown.ts
++++ b/apps/agenda-web/src/summary-markdown.ts
+@@ -72,7 +72,7 @@ export function summaryMarkdown(view: AgendaView, at: SummaryMoment): string {
+   const summary = summaryOf(view);
+   const style = clockStyleOf(view);
+   const totals = summaryTotals(summary.rows);
+-  const withRounds = view.rounds >= 2;
++  const withRounds = false;
+   const lead = (cell: string): string[] => (withRounds ? [cell] : []);
+ 
+   const header = row([...lead(ROUNDS_UNIT), SUMMARY_STEP_LABEL, PLANNED_LABEL, SUMMARY_EXTENSION_LABEL, SPENT_LABEL, DRIFT_LABEL]);

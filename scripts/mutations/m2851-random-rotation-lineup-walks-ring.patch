@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/ui/rotation-status.ts b/apps/timer-web/src/ui/rotation-status.ts
+index 649a3ba..d357fbb 100644
+--- a/apps/timer-web/src/ui/rotation-status.ts
++++ b/apps/timer-web/src/ui/rotation-status.ts
+@@ -54,7 +54,7 @@ export function computeRotationStatus(args: {
+   if (len === 0) return { members: [], self: null };
+ 
+   const turns = new Map<number, number>();
+-  if (random) {
++  if (random && len === 0) {
+     // 次の人だけが 1。その先はサーバーも画面へ配らない（交代のたびに引く）
+     if (nextIndex !== null) turns.set(nextIndex, 1);
+   } else {

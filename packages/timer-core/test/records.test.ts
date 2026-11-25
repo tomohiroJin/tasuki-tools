@@ -227,7 +227,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
   it("rotation が空なら周回数は 0", () => {
     // Given
     const agg: Aggregate = {
-      session: { rotation: [], currentIndex: 0, isPaused: false, driverCounts: [], totalSwitches: 0, previousDriverId: null, break: INITIAL_BREAK_STATE },
+      session: { rotation: [], currentIndex: 0, isPaused: false, driverCounts: [], totalSwitches: 0, previousDriverId: null, randomRotation: null, break: INITIAL_BREAK_STATE },
       clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
     };
     // When

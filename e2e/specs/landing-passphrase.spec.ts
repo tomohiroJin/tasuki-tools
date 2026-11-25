@@ -29,8 +29,19 @@ async function createHubRoom(page: Page, name: string): Promise<string> {
   return code!;
 }
 
+/**
+ * 合言葉の口を開く。ふだんは 1 行にたたんである（#673）ので、利用者と同じく開いてから操作する。
+ * 開いていれば何もしない（設定のあとは開いたまま）。
+ */
+async function openPassphrase(page: Page): Promise<void> {
+  const toggle = page.getByRole('region', { name: '合言葉' }).getByRole('button', { expanded: false });
+  if ((await toggle.count()) > 0) await toggle.click();
+  await expect(page.getByRole('textbox', { name: '新しい合言葉' })).toBeVisible();
+}
+
 /** 選択画面の合言葉の欄に書いて、押すボタンを押す。 */
 async function submitPassphrase(page: Page, value: string, button: '設定' | '変更'): Promise<void> {
+  await openPassphrase(page);
   await page.getByRole('textbox', { name: '新しい合言葉' }).fill(value);
   await page.getByRole('button', { name: button, exact: true }).click();
 }
@@ -88,6 +99,7 @@ test.describe('玄関で合言葉を設定・変更・解除できる', () => {
     await expect(guest.page.getByRole('list', { name: 'ツール' })).toBeVisible();
     await expect(guest.page.getByText('合言葉を設定中です。', { exact: false })).toBeVisible();
 
+    await openPassphrase(guest.page);
     await guest.page.getByRole('button', { name: '解除', exact: true }).click();
     // 作成者の画面にも解除が届く
     await expect(page.getByText('合言葉は付いていません。', { exact: false })).toBeVisible();

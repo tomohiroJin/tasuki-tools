@@ -49,6 +49,7 @@ const timer: TimerState = {
     driverCounts: [0, 0],
     totalSwitches: 0,
     previousDriverId: null,
+    randomRotation: null,
     break: INITIAL_BREAK_STATE,
   },
   clock: {

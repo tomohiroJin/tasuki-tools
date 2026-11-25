@@ -42,6 +42,7 @@ function timerState(code: string, hasDriver: boolean): TimerState {
       driverCounts: hasDriver ? [0] : [],
       totalSwitches: 0,
       previousDriverId: null,
+      randomRotation: null,
       break: INITIAL_BREAK_STATE,
     },
     clock: {

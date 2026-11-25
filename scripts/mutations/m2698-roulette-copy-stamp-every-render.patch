@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/components/ResultCopy.tsx b/apps/roulette-web/src/components/ResultCopy.tsx
+index 99a2920d..6625dd4e 100644
+--- a/apps/roulette-web/src/components/ResultCopy.tsx
++++ b/apps/roulette-web/src/components/ResultCopy.tsx
+@@ -13,7 +13,7 @@ import { RESULT_COPY_BUTTON, RESULT_COPY_DONE, RESULT_COPY_FAILED, RESULT_COPY_M
+  */
+ export function ResultCopy({ result }: { result: RouletteResult }) {
+   // 時刻は部品を作ったとき（この端末でこの結果を最初に出したとき）に 1 度だけ取る。描き直しでは取り直さない
+-  const [stamp] = useState(() => ({ wallMs: Date.now(), tzOffsetMin: localTzOffsetMin() }));
++  const stamp = { wallMs: Date.now(), tzOffsetMin: localTzOffsetMin() };
+   const markdown = resultMarkdown(result, stamp.wallMs, stamp.tzOffsetMin);
+   const { copy, state } = useCopyText(markdown, { keepFailure: true });
+   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。文が変わって state が idle に戻っても開いたまま残す

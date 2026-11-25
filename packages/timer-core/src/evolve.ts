@@ -3,18 +3,19 @@
  * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-003, FR-007, FR-008
  */
 
-import type { Aggregate, BreakMark, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
+import type { Aggregate, BreakMark, RandomRotation, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
 import {
   INITIAL_BREAK_STATE,
+  freshRandomRotation,
   initialAggregateInSeconds,
   isCurrentIndexFor,
   isPermutation,
   isOnBreak,
   isSeatIndex,
-  nextEligibleIndex,
   rotationEntryId,
   sessionHasStarted,
 } from "./aggregate.js";
+import { driverSwitchedEvent } from "./driver-switch.js";
 import type { DomainEvent } from "./events.js";
 
 /**
@@ -81,14 +82,29 @@ function stopWithoutDriver(agg: Aggregate, now: number): Aggregate {
   };
 }
 
+/**
+ * イベントが運ぶランダム交代の袋を集約へ写す（#660）。
+ * **集約がランダム交代のときだけ写す。** 輪の順の集約に袋を載せたイベントが届いても、モードは変えない
+ * （モードを変えるのは `ConfigSet` だけ）。
+ */
+function withRandomRotation(agg: Aggregate, randomRotation: RandomRotation | undefined): Aggregate {
+  if (randomRotation === undefined || agg.session.randomRotation === null) return agg;
+  return { ...agg, session: { ...agg.session, randomRotation } };
+}
+
 function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
   switch (event.type) {
     case "SessionStarted":
-      return evolveSessionStarted(agg, event.now);
+      return withRandomRotation(evolveSessionStarted(agg, event.now), event.randomRotation);
 
-    case "DriverSwitched":
+    case "DriverSwitched": {
       if (isOnBreak(agg.session)) return agg;
-      return evolveDriverSwitched(agg, event.nextIndex, event.now);
+      const switched = evolveDriverSwitched(agg, event.nextIndex, event.now);
+      // 袋を進めるのは運転者が替わったときだけ（範囲外の添字・同じ席への交代では、イベントの袋を使わない。#660）
+      return switched.session.currentIndex === agg.session.currentIndex
+        ? switched
+        : withRandomRotation(switched, event.randomRotation);
+    }
 
     case "SessionPaused":
       if (isOnBreak(agg.session)) return agg;
@@ -106,8 +122,17 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
       // config（表示名の一覧）からは復元できず、現在の並びをそのまま引き継ぐ（D6b）。
       // 間隔は集約の秒をそのまま使う（設定の真実源は `TimerState.config` であって集約ではない）。
       const fresh = initialAggregateInSeconds(agg.clock.intervalSeconds, agg.session.rotation);
+      // 交代先の決め方は設定なので、リセットで輪の順へ戻さない（#660）。先頭の運転者から周を始め直す。
+      // 袋は decide が作ってイベントに載せる。載っていなければ、引く順は今のままにする。
+      const random = agg.session.randomRotation;
       return {
-        session: fresh.session,
+        session:
+          random === null
+            ? fresh.session
+            : {
+                ...fresh.session,
+                randomRotation: event.randomRotation ?? freshRandomRotation(fresh.session, undefined, random.order),
+              },
         clock: {
           ...fresh.clock,
           running: true,
@@ -129,14 +154,22 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
       if (event.phase === "session") return agg;
       return evolveSessionEnded(agg, event.now);
 
-    case "ConfigSet":
-      return evolveConfigSet(agg, event.config, event.now);
+    case "ConfigSet": {
+      const configured = evolveConfigSet(agg, event.config, event.now);
+      // 交代先の決め方が変わったときだけ、イベントが袋（輪の順へ戻すなら null）を運ぶ（#660）
+      return event.randomRotation === undefined
+        ? configured
+        : { ...configured, session: { ...configured.session, randomRotation: event.randomRotation } };
+    }
 
     case "MemberAdded":
       return evolveMemberAdded(agg, event.participantId);
 
-    case "MemberRemoved":
-      return evolveMemberRemoved(agg, event.index, event.nextDriverIndex);
+    case "MemberRemoved": {
+      const removed = evolveMemberRemoved(agg, event.index, event.nextDriverIndex);
+      // 席が外れなかった（範囲外の添字）なら、イベントの袋も使わない
+      return removed === agg ? agg : withRandomRotation(removed, event.randomRotation);
+    }
 
     case "MemberMoved":
       return evolveMemberMoved(agg, event.fromIndex, event.toIndex);
@@ -177,25 +210,27 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
 /**
  * 稼働中に次の eligible ドライバーへ交代する（plan.md L194/L209）。
  * `ineligible`（driverEligible===false のインデックス集合）を飛ばして次の対象を選ぶ。
- * B-2統合により、交代先の決定（nextEligibleIndex）とイベント適用（担当回数加算・
+ * B-2統合により、交代先の決定（nextDriverIndex。#660 で nextEligibleIndex から入口を替えた）とイベント適用（担当回数加算・
  * タイマー再アンカー・交代回数加算、あるいは全員 ineligible 時の現状維持＋再アンカーのみ）は
  * evolveDriverSwitched に一本化された。本関数はその1行ラッパである。
  * 不変条件 rotation.length === driverCounts.length は evolve(DriverSwitched) が保つ。
  *
+ * 交代先と交代のあとの袋は、decide の SWITCH と同じ {@link driverSwitchedEvent} が決める（#660）。
+ *
  * @param agg 集約
  * @param ineligible ドライバー対象外のインデックス集合（undefined = 全員対象）
  * @param now 現在時刻 (epoch ms)
+ * @param randomOrder ランダム交代の引く順を作り直す順列（サーバーが作る。輪の順のモードでは見ない）。
+ *   順列でなければ（省略を含む）、引く順を作り直さずに替わる。ここは Result を返さないので断れない
+ *   （断るのは decide の SWITCH）。時間切れの交代を止めると、残り 0 のまま予約が発火し続ける。
  */
 export function advanceDriver(
   agg: Aggregate,
   ineligible: Set<number> | undefined,
   now: number,
+  randomOrder?: readonly number[],
 ): Aggregate {
-  return evolve(
-    agg,
-    { type: "DriverSwitched", nextIndex: nextEligibleIndex(agg.session, agg.session.currentIndex, ineligible), now },
-    now,
-  );
+  return evolve(agg, driverSwitchedEvent(agg.session, ineligible, now, randomOrder), now);
 }
 
 // ─── 各イベントの適用 ─────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ import {
   turnLabel,
   turnResultText,
 } from './copy';
+import type { RouletteResult } from './result-markdown';
 import type { PickSpot } from './wheel-motion';
 import type { WheelSeats } from './wheel-view';
 // 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
@@ -418,3 +419,23 @@ export function orderProgressOf(order: OrderStage): string {
   return order.doneCount === 0 ? ORDER_NOT_STARTED : orderProgressText(order.doneCount, order.left);
 }
 
+
+/**
+ * 結果のコピーが書き出す内容（#676）。**結果の札が見せている値と同じ物から作る**（別の計算を持たない）。
+ * 回っている間・まだ回していないときは null（コピーで結果が画面より先に分からないように。札と同じ局面で出る）。
+ * `view` は `stageViewOf` を通した（押して止めるときは止まった位置を足した）もの。
+ * 1 回で決める・押して止めるは、決まった人を止まった順に。順番に回すときは、番が決まった人を 1 番から。
+ */
+export function resultOf(input: { view: RouletteView; phase: Phase; revealed: number; order: OrderStage | null }): RouletteResult | null {
+  const { view, phase, revealed, order } = input;
+  const mode = modeOf(view);
+  if (order !== null) {
+    // 札が出ているとき（回っている間は札が伏せてある）だけ。番の印と同じ「見せてよい番」までを書く
+    if (!order.card.revealed || order.doneCount === 0) return null;
+    const done = view.order?.done ?? [];
+    return { mode, names: done.slice(0, order.doneCount).map((e) => e.name), seq: view.spin?.seq ?? done.length };
+  }
+  if (phase !== 'settled' || view.spin === null) return null;
+  const names = revealedPicksOf(view, revealed).map((e) => e.name);
+  return names.length === 0 ? null : { mode, names, seq: view.spin.seq };
+}
