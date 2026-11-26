@@ -176,6 +176,35 @@ export function insertPreviewOf(input: InsertInput, nowMs: number, epochWallMs: 
   };
 }
 
+/**
+ * 始まり・終わりを合わせる欄に、押す前に出す「読み取った範囲と長さ」（動かした後のその区切り）。
+ * `edgePositionOf` が受ける入力のときだけ返す（読み取れない入力は null）。`otherMs` は動かさない側の端（計測中の終わりは「いま」）。
+ */
+export function edgePreviewOf(
+  edge: 'start' | 'end',
+  value: string,
+  range: { minMs: number; maxMs: number } | null,
+  currentMs: number,
+  otherMs: number,
+  nowMs: number,
+  epochWallMs: number,
+  tzOffsetMin: number,
+): InsertPreview | null {
+  const atMs = edgePositionOf(value, range, currentMs, nowMs, epochWallMs, tzOffsetMin);
+  if (atMs === null) return null;
+  const startMs = edge === 'start' ? atMs : otherMs;
+  const endMs = edge === 'start' ? otherMs : atMs;
+  const start = clockOfPosition(startMs, nowMs, epochWallMs, tzOffsetMin);
+  const end = clockOfPosition(endMs, nowMs, epochWallMs, tzOffsetMin);
+  return {
+    startClock: start.clock,
+    startYesterday: start.yesterday,
+    endClock: end.clock,
+    endYesterday: end.yesterday,
+    lengthMin: Math.floor((endMs - startMs) / MS_PER_MIN),
+  };
+}
+
 /** 長さ（分）を `h:mm` にする。 */
 export function lengthHm(lengthMin: number): string {
   return `${Math.floor(lengthMin / 60)}:${String(lengthMin % 60).padStart(2, '0')}`;
@@ -198,8 +227,10 @@ export function splitPositionOf(value: string, segment: Pick<SegmentView, 'start
  * 始まり・終わりを合わせる時刻の位置。
  *
  * 時刻は、前日・当日・翌日の読み方のうち、**範囲に収まるもの**の中で、動かす前の端の位置（`currentMs`）に最も近い日の時刻として読む。
- * 収まる読み方が無ければ null。日をまたぐ区切りでも入れた時刻が端のすぐ近くの日に読まれ、終わりより後の時刻は範囲に収まらないので
- * 23 時間の区切りにならない。区切り 10:00〜10:30・いま 10:40 で始まりに 21:00 を入れれば、前日の 21:00 として受ける。範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求めたものを渡す。
+ * 収まる読み方が無ければ null。日をまたぐ区切りでも入れた時刻が端のすぐ近くの日に読まれる。
+ * ただし規則では、長い区切りになる読み方も退けない（区切り 10:00〜10:30・いま 10:40 で始まりに 21:00 を入れれば前日の 21:00（長さ 13:30）、
+ * 11:00 を入れれば前日の 11:00（長さ 23:30）として受ける）。その違いは規則で区別せず、押す前に読み取った時刻と長さを欄の中に出して
+ * （`edgePreviewOf`）本人が気づけるようにする。範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求めたものを渡す。
  * `nowMs` は範囲を求めた「いま」。下限がこれから 24 時間前（`MAX_LOOKBACK_MS`）で決まっているかを見るのに使う。
  */
 export function edgePositionOf(

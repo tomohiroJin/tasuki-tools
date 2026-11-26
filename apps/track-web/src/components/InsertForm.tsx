@@ -26,12 +26,11 @@ import {
   INSERT_START_FIELD,
   INSERT_SUBMIT,
   INSERT_YESTERDAY_NOTE,
-  insertPreviewEdgeText,
-  insertPreviewText,
   KIND_BREAK,
   KIND_WORK,
 } from '../copy';
-import { insertPreviewOf, insertRangeOf, lengthHm, type InsertRangeError } from '../time-input';
+import { insertPreviewOf, insertRangeOf, type InsertRangeError } from '../time-input';
+import { ReadRangeHint } from './ReadRangeHint';
 
 const ERROR_TEXT: Record<InsertRangeError, string> = {
   time: INSERT_ERROR_TIME,
@@ -140,11 +139,7 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
           </div>
         )}
       </div>
-      {preview !== null && (
-        <p className="track-hint">
-          {insertPreviewText(insertPreviewEdgeText(preview.startClock, preview.startYesterday), insertPreviewEdgeText(preview.endClock, preview.endYesterday), lengthHm(preview.lengthMin))}
-        </p>
-      )}
+      {preview !== null && <ReadRangeHint preview={preview} />}
       <p className="track-hint">{INSERT_NOTE}</p>
       {error !== null && (
         <p id={errorId} className="track-form-error ui-note ui-note--error" role="alert">

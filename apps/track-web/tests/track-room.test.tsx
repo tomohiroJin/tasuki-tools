@@ -477,6 +477,28 @@ describe('時系列と手直し', () => {
     expect(sentCommands()).toEqual([{ command: 'track.segment.adjust', id: 'g-1', edge: 'start', atMs: 61 * MIN - 24 * 60 * MIN }]);
   });
 
+  it('Given 最初の区切りの始まり / When 前日として読む時刻を入れた（押す前） / Then 前日を添えた時刻と動かした後の長さを欄の中に出す', () => {
+    // Review 0〜30 分・いま 60 分。61 分の時刻は前日として読まれ、区切りは 23:29 になる。押す前に見えて、読み上げの対象にはしない
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 61 * MIN) } });
+    const preview = timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 61 * MIN), true), insertPreviewEdgeText(clock(view, 30 * MIN), false), '23:29'));
+    expect(preview.closest('[aria-live]')).toBeNull();
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('Given 終わりを合わせる時刻を入れた（押す前） / When 範囲に収まる時刻 / Then 同じ書き方で時刻と長さを出し、読み取れない入力では出さない', () => {
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_END)), { target: { value: clock(view, 20 * MIN) } });
+    expect(timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 0), false), insertPreviewEdgeText(clock(view, 20 * MIN), false), '0:20'))).toBeInTheDocument();
+    // 始まりより前に動かす時刻は範囲に収まらないので出さない
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 59 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_END)), { target: { value: '' } });
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
+  });
+
   it('Given 最初の区切りの始まり / When どの読み方も範囲に収まらない時刻を入れる / Then 送らずに知らせる', () => {
     // 59 分の時刻は、今日では終わりより後・前日では下限（前日の 60 分の位置）より前
     const view = stoppedTrack();

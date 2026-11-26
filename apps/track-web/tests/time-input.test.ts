@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edgePositionOf, insertPreviewOf, insertRangeOf, lengthHm, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
+import { edgePositionOf, edgePreviewOf, insertPreviewOf, insertRangeOf, lengthHm, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
 import { MIN_SEGMENT_MS } from '@tasuki/track-core';
 import { EPOCH_WALL_MS, MIN, seg } from './support/track-states';
 
@@ -289,6 +289,26 @@ describe('始まり・終わりを合わせる時刻は、範囲に収まる読�
     const r = { minMs: now - DAY, maxMs: end - MIN_SEGMENT_MS };
     // 21:00 は今日の 21:00（範囲の外）より、前日の 21:00（位置 11 時間 − 24 時間）が収まる
     expect(edgePositionOf('21:00', r, 0, now, EPOCH_WALL_MS, JST)).toBe(11 * HOUR - DAY);
+  });
+
+  it('Given 同じ区切り・いま / When 始まりに 21:00・11:00 を入れる（どちらも受ける） / Then 押す前に、前日と動かした後の長さで区別できる', () => {
+    const now = 40 * MIN;
+    const end = 30 * MIN;
+    const r = { minMs: now - DAY, maxMs: end - MIN_SEGMENT_MS };
+    const p21 = edgePreviewOf('start', '21:00', r, 0, end, now, EPOCH_WALL_MS, JST);
+    expect(p21).toMatchObject({ startClock: '21:00', startYesterday: true, endClock: '10:30', endYesterday: false, lengthMin: 13 * 60 + 30 });
+    const p11 = edgePreviewOf('start', '11:00', r, 0, end, now, EPOCH_WALL_MS, JST);
+    expect(p11).toMatchObject({ startClock: '11:00', startYesterday: true, lengthMin: 23 * 60 + 30 });
+    expect(lengthHm(p11?.lengthMin ?? 0)).toBe('23:30');
+  });
+
+  it('Given 終わりを動かす / When 時刻を入れる / Then 動かした後の長さを出し、読み取れない入力では null', () => {
+    const now = 40 * MIN;
+    const r = { minMs: 10 * MIN, maxMs: now };
+    expect(edgePreviewOf('end', '10:25', r, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toMatchObject({ startClock: '10:00', endClock: '10:25', endYesterday: false, lengthMin: 25 });
+    expect(edgePreviewOf('end', '10:05', { minMs: 10 * MIN, maxMs: now }, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePreviewOf('end', '', r, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePreviewOf('end', '10:25', null, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
   });
 
   it('Given 収まる読み方が 1 つも無い / When 入れる / Then 拒む', () => {
