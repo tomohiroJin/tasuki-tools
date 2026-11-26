@@ -14526,4 +14526,28 @@ export const MUTATIONS = [
     tests: ["tests/saved-record.test.ts","tests/saved-store.test.ts"],
     note: RESERVED_3230_3249 + " " + "#476 第 2 段 B のレビュー。読めない記録のぶん、読める記録を余分に消す。",
   },
+  {
+    id: 3235,
+    label: "計測中でも、前に残した記録と同じとみなして新しく残さない",
+    patch: "m3235-track-saved-running-treated-same.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B の 2 回目のレビュー。計測中に押し直しても、その時点の写しが残らない。",
+  },
+  {
+    id: 3236,
+    label: "同じ記録かの判定を rev だけで見る（ルームの起点を見ない）",
+    patch: "m3236-track-saved-key-rev-only.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B の 2 回目のレビュー。作り直されたルームの記録が、前のルームの記録と同じとみなされて残らない。",
+  },
+  {
+    id: 3237,
+    label: "「この端末の記録」のリンクの名前から、新しいタブで開くことが消える",
+    patch: "m3237-track-saved-link-label-no-newtab.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B の 2 回目のレビュー。読み上げでは、新しいタブが開くことが分からない。",
+  },
 ];

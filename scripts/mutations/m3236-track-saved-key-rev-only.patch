@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/hooks/use-saved-count.ts b/apps/track-web/src/hooks/use-saved-count.ts
+index 396ced3f..d9421119 100644
+--- a/apps/track-web/src/hooks/use-saved-count.ts
++++ b/apps/track-web/src/hooks/use-saved-count.ts
+@@ -24,7 +24,7 @@ export interface SaveToDevice {
+ }
+ 
+ /** 止まっている記録が同じかの印。`rev` はルームごとに 0 から数えるので、ルームの起点（`epochWallMs`）と組にする */
+-const recordKey = (view: TrackView): string => `${view.epochWallMs}:${view.rev}`;
++const recordKey = (view: TrackView): string => `${view.rev}`;
+ 
+ export function useSaveToDevice(view: TrackView, getNow: () => number): SaveToDevice {
+   const [count, setCount] = useState<number | null>(null);
