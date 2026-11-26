@@ -485,15 +485,15 @@
 }
 .track-band-line {
   display: flex;
-  gap: 2px;
   height: var(--space-5);
   overflow: hidden;
   border-radius: var(--radius-sm);
   background: var(--felt-sink);
 }
+/* 幅は割合だけ（min-width・gap は部分の数だけ幅を足して溢れる）。区切りの線は内側の影で、幅を取らない */
 .track-band-part {
   flex: var(--share) 1 0;
-  min-width: 2px;
+  box-shadow: inset -1px 0 var(--felt-sink);
 }
 .track-band-part--break {
   background: repeating-linear-gradient(135deg, var(--ivory-dim) 0 2px, transparent 2px 6px);
