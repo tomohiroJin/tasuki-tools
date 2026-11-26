@@ -148,6 +148,39 @@ describe("stop（停止）", () => {
     s = must(stop(s, { now: at(0) + 500 }));
     expect(s.segments).toEqual([]);
   });
+
+  describe("atMs（時刻軸の位置で止める。離れていたときの問いかけ・FR-27）", () => {
+    const running = (): TrackState => must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
+
+    it("指した位置で閉じる", () => {
+      expect(shape(must(stop(running(), { atMs: 20 * MIN, now: at(130) })))).toEqual(["設計:0-20"]);
+    });
+    it("取り消しの対象になり、取り消すと計測中へ戻る", () => {
+      const stopped = must(stop(running(), { atMs: 20 * MIN, now: at(130) }));
+      expect(stopped.undo!.kind).toBe("stop");
+      expect(shape(undo(stopped, { rev: stopped.undo!.rev, now: at(130) + 1 }))).toEqual(["設計:0-"]);
+    });
+    it("始まり以前は TRACK_BACKDATE_TOO_FAR（さかのぼりと同じ拒み方）", () => {
+      expect(codeOf(stop(running(), { atMs: 0, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(codeOf(stop(running(), { atMs: -MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    });
+    it("いまより先は TRACK_BACKDATE_TOO_FAR", () => {
+      expect(codeOf(stop(running(), { atMs: 131 * MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    });
+    it("いまから 24 時間より前は TRACK_BACKDATE_TOO_FAR", () => {
+      const s = must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
+      const nowMin = 26 * 60;
+      expect(codeOf(stop(s, { atMs: (nowMin - 24 * 60) * MIN - 1, now: at(nowMin) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(shape(must(stop(s, { atMs: (nowMin - 24 * 60) * MIN, now: at(nowMin) })))).toEqual([`設計:0-${String(2 * 60)}`]);
+    });
+    it("さかのぼりと同時には受けない", () => {
+      expect(codeOf(stop(running(), { atMs: 20 * MIN, backMin: 5, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    });
+    it("計測していなければ何もしない（同じ参照）", () => {
+      const s = empty();
+      expect(must(stop(s, { atMs: MIN, now: at(5) }))).toBe(s);
+    });
+  });
 });
 
 describe("undo（取り消し）", () => {
