@@ -279,8 +279,9 @@ describe("checkFfmpeg: 動画の記録に要る ffmpeg の revision が入って
   test("別の revision しか無いとき、入っている revision を示し、入れ方を示す（#509 で 1011 しか無かった）", () => {
     const p = checkFfmpeg("1013", "/opt/pw", ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1011"]);
     assert.deepEqual([p?.tool, p?.declared, p?.actual], ["ffmpeg", "revision 1013", "1011"]);
-    // `playwright install chromium` は ffmpeg も入れる（ブラウザごとに ffmpeg を足す）
+    // `playwright install chromium`・`webkit` は ffmpeg も入れる（ブラウザごとに ffmpeg を足す）。WebKit の段の入れ方も示す（#674）
     assert.match(p?.fix ?? "", /playwright install chromium/);
+    assert.match(p?.fix ?? "", /playwright install --with-deps webkit/);
     assert.match(p?.fix ?? "", /ffmpeg-1013/);
     assert.match(p?.fix ?? "", /\/opt\/pw/);
     assert.match(p?.fix ?? "", /リンク/);
@@ -378,12 +379,16 @@ describe("readWebkitRevision: browsers.json から WebKit の revision を読む
     const r = readWebkitRevision(browsers({ revisionOverrides: { mac14: "2251" } }), "darwin");
     assert.equal(r.webkit, null);
     assert.match(r.problems[0], /webkit に OS ごとの revision（revisionOverrides: mac14）/);
+    // 直す必要の無いスクリプトを直せとは言わず、CI に任せる道を示す（#674 の /code-review）
+    assert.match(r.problems[0], /macOS では WebKit の E2E を CI に任せて/);
+    assert.doesNotMatch(r.problems[0], /toolchain\.mjs を直して/);
   });
 
   test("macOS 以外の差し替えがあれば、Linux でも止める（ubuntu の版ごとの差し替えは判定できない）", () => {
     const r = readWebkitRevision(browsers({ revisionOverrides: { mac14: "2251", "ubuntu22.04-x64": "2300" } }), "linux");
     assert.equal(r.webkit, null);
     assert.match(r.problems[0], /ubuntu22\.04-x64/);
+    assert.match(r.problems[0], /toolchain\.mjs を直して/);
   });
 
   test("revision が無い・数字でないときは、webkit を名指しして止める", () => {

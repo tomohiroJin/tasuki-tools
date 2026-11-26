@@ -148,6 +148,12 @@ describe('e2e:prod の絞り込み', () => {
   });
 });
 
+/** 環境変数を控えた値へ戻す（もともと無かったなら消す）。 */
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+}
+
 describe('WebKit の絞り込み（#674）', () => {
   const specs = readSpecs();
   const allTitles = specs.flatMap((spec) =>
@@ -164,7 +170,9 @@ describe('WebKit の絞り込み（#674）', () => {
   });
 
   it('Given playwright.config.ts / When WebKit の project を見る / Then @core と @webkit を選び、@smoke とタグ無しは選ばない', async () => {
-    // Given: 設定は読み込みの時点で環境変数を読むので、WebKit を選んだ状態で読む
+    // Given: 設定は読み込みの時点で環境変数を読むので、WebKit を選んだ状態で読む。
+    //        前の値は控えて最後に戻す（流す前から設定されていた値を消さない）
+    const saved = { target: process.env['TASUKI_E2E_TARGET'], browser: process.env['TASUKI_E2E_BROWSER'] };
     process.env['TASUKI_E2E_TARGET'] = 'local';
     process.env['TASUKI_E2E_BROWSER'] = 'webkit';
     try {
@@ -182,8 +190,8 @@ describe('WebKit の絞り込み（#674）', () => {
       expect(re.test('poker は見積もりを記録に残す Given 幅 390')).toBe(false);
       expect(projects[0]?.workers).toBe(1);
     } finally {
-      delete process.env['TASUKI_E2E_BROWSER'];
-      delete process.env['TASUKI_E2E_TARGET'];
+      restoreEnv('TASUKI_E2E_TARGET', saved.target);
+      restoreEnv('TASUKI_E2E_BROWSER', saved.browser);
     }
   });
 });

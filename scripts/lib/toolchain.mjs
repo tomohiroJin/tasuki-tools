@@ -319,7 +319,7 @@ export function checkFfmpeg(revision, dir, entries) {
     actual: others.length > 0 ? others.join(", ") : null,
     fix:
       `${dir} に ${name} がありません（Playwright が動画を記録するのに使う）。` +
-      "`pnpm --filter @tasuki/e2e exec playwright install chromium` が Chromium と一緒に入れます。" +
+      "`pnpm --filter @tasuki/e2e exec playwright install chromium`（WebKit の段なら `playwright install --with-deps webkit`）がブラウザと一緒に入れます。" +
       "別の revision へのシンボリックリンクで回避しないでください（要求と違う版で試すことになる）。" +
       UNREACHABLE_GUIDE,
   };
@@ -346,7 +346,7 @@ export function readWebkitRevision(browsersJson, platform) {
   return {
     webkit: null,
     problems: [
-      `playwright-core の browsers.json の webkit に OS ごとの revision（revisionOverrides: ${keys.join(", ")}）があり、この OS（${platform}）で探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+      `playwright-core の browsers.json の webkit に OS ごとの revision（revisionOverrides: ${keys.join(", ")}）があり、この OS（${platform}）で探す revision を決められません。${onlyMac ? "macOS の版ごとの判定は写していないので、macOS では WebKit の E2E を CI に任せてください（docs/adr/0031 の追記（#674））" : "scripts/lib/toolchain.mjs を直してください"}`,
     ],
   };
 }
