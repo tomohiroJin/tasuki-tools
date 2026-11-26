@@ -84,29 +84,59 @@ describe('usePageAway（非表示だった間を端末だけで覚える）', ()
     expect(result.current.returned).toBeNull();
   });
 
-  it('Given 非表示になる時にミニ表示の窓が開いていた / When 戻る / Then 覚えない', () => {
-    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: { window: {} } });
+  /** 偽のミニ表示の API（`enter` を起こせる） */
+  function installPip(open: boolean): EventTarget & { window: unknown } {
+    const api = Object.assign(new EventTarget(), { window: open ? {} : null });
+    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: api });
+    return api;
+  }
+
+  it('Given 非表示になる時にミニ表示の窓が開いていた / When 窓を閉じてから戻る / Then 覚えない', () => {
+    const pip = installPip(true);
     const { result } = renderHook(() => usePageAway(capture(5000)));
     act(() => setVisibility('hidden'));
-    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: { window: null } });
+    pip.window = null;
     act(() => setVisibility('visible'));
     expect(result.current.returned).toBeNull();
   });
 
-  it('Given 戻る時にミニ表示の窓が開いている / When 戻る / Then 覚えない', () => {
+  it('Given 非表示の間にミニ表示の窓が開いた / When 窓を閉じてから戻る / Then 覚えない', () => {
+    const pip = installPip(false);
     const { result } = renderHook(() => usePageAway(capture(5000)));
     act(() => setVisibility('hidden'));
-    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: { window: {} } });
+    pip.window = {};
+    act(() => void pip.dispatchEvent(new Event('enter')));
+    pip.window = null;
     act(() => setVisibility('visible'));
     expect(result.current.returned).toBeNull();
   });
 
-  it('Given ミニ表示に未対応・窓が閉じている / When 戻る / Then 覚える', () => {
-    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: {} });
+  it('Given 表示中にミニ表示の窓が開いて閉じた / When そのあと隠れて戻る / Then 覚える（非表示の間の窓だけを数える）', () => {
+    const pip = installPip(false);
+    const { result } = renderHook(() => usePageAway(capture(5000)));
+    act(() => void pip.dispatchEvent(new Event('enter')));
+    act(() => setVisibility('hidden'));
+    act(() => setVisibility('visible'));
+    expect(result.current.returned).not.toBeNull();
+  });
+
+  it('Given ミニ表示の窓が一度も開かなかった・未対応 / When 戻る / Then 覚える', () => {
+    installPip(false);
     const { result } = renderHook(() => usePageAway(capture(5000)));
     act(() => setVisibility('hidden'));
     act(() => setVisibility('visible'));
     expect(result.current.returned).not.toBeNull();
+  });
+
+  it('Given フック / When 外す / Then ミニ表示の enter の聞き手も同じもので外す', () => {
+    const pip = installPip(false);
+    const add = vi.spyOn(pip, 'addEventListener');
+    const remove = vi.spyOn(pip, 'removeEventListener');
+    const { unmount } = renderHook(() => usePageAway(capture(0)));
+    const added = add.mock.calls.map(([, handler]) => handler);
+    expect(added).toHaveLength(1);
+    unmount();
+    expect(remove.mock.calls.map(([, handler]) => handler)).toEqual(added);
   });
 
   it('Given フック / When 外す / Then 付けた聞き手を同じもので外す', () => {

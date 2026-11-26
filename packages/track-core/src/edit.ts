@@ -178,17 +178,17 @@ export function insertSegment(
  * 計測中の区切りは後ろで同じ名前・種類のまま続く。上書きの規則（端切れ・最短・上限）は {@link insertSegment} と同じ。
  *
  * - 計測していなければ何もしない（同じ参照）。`stop` と同じ
- * - `fromMs` が {@link isBackdatePosition}（`backMin` と同じ判定）を外れる、またはいまとの差が最短に満たないなら
- *   `TRACK_BACKDATE_TOO_FAR`（上書きの範囲の上限〈`MAX_LOOKBACK_MS`〉は `insertSegment` が見る）
+ * - `fromMs` が {@link isBackdatePosition}（`stop` の `backMin`・`atMs` と同じ判定。区切りの始まりより後・
+ *   いまから最短の長さ以上前・`MAX_LOOKBACK_MS` 以内）を外れたら `TRACK_BACKDATE_TOO_FAR`
  * - **手直しと違い、取り消しの対象にする**（`undo.kind` は `"away"`。直前の区切りの列を写しに残す）
  */
 export function away(s: TrackState, input: { fromMs: number; now: number }): R<"TRACK_BACKDATE_TOO_FAR" | "TRACK_FULL"> {
   const running = runningOf(s.segments);
   if (running === undefined) return ok(s);
   const nowMs = input.now - s.epochMono;
-  if (!isBackdatePosition(running, input.fromMs, nowMs) || nowMs - input.fromMs < MIN_SEGMENT_MS) return fail("TRACK_BACKDATE_TOO_FAR");
+  if (!isBackdatePosition(running, input.fromMs, nowMs)) return fail("TRACK_BACKDATE_TOO_FAR");
   const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "break", now: input.now });
-  // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限と、置ける範囲（24 時間）の外だけ
+  // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限だけ
   if (inserted.isErr()) return fail(inserted.error.code === "TRACK_FULL" ? "TRACK_FULL" : "TRACK_BACKDATE_TOO_FAR");
   return ok(timed(s, "away", input.now, { segments: inserted.value.segments, nextSeq: inserted.value.nextSeq }));
 }

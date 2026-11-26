@@ -220,4 +220,26 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(segments(page)).toHaveCount(1);
     await expect(switchPanel(page).getByRole('button', { name: '切り替える', exact: true })).toBeVisible();
   });
+
+  test('Given 計測中のうちわけ / When ページが非表示になってすぐ表に戻る / Then 計測は続いて離れていたときの問いかけは出ず、通知の設定は切のまま', async ({ page }) => {
+    // Given: 計測中（90 分と 10 分の実時間は待てない。条件に当たる側は `apps/track-web` の単体が持つ）
+    await openTrackTool(page, 'e2e-track-away');
+    await startWork(page, '調べもの');
+    await expect(nowName(page)).toHaveText('調べもの');
+    // When: ページの状態を偽装して、非表示 → 表示の順に変える
+    const setVisibility = (state: 'hidden' | 'visible') =>
+      page.evaluate((next) => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => next });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, state);
+    await setVisibility('hidden');
+    await setVisibility('visible');
+
+    // Then: 計測は続き、問いかけは出ない
+    await expect(page.getByRole('button', { name: 'そのまま残す' })).toHaveCount(0);
+    await expect(nowName(page)).toHaveText('調べもの');
+    // 通知の設定は既定で切（押すまで許可を求めない）
+    const toggle = page.getByRole('button', { name: '長く続いたら通知する' });
+    if ((await toggle.count()) > 0) await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  });
 });

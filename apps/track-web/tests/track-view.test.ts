@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LONG_RUNNING_NOTICE_MS } from '@tasuki/track-core';
+import { LONG_RUNNING_NOTICE_MS, MAX_LOOKBACK_MS } from '@tasuki/track-core';
 import { AWAY_PROMPT_MIN_HIDDEN_MS } from '../src/limits';
 import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from '../src/copy';
 import {
@@ -242,6 +242,18 @@ describe('離れていたときの問いかけ', () => {
   it('Given 非表示になった時と区切りが違う（離れている間に切り替わった・止まって始まった） / When 判定する / Then 出さない', () => {
     expect(awayPromptOf(view, NOW, RECEIVED, away({ runningId: 'g-2' }))).toBeNull();
     expect(awayPromptOf(view, NOW, RECEIVED, away({ runningId: null }))).toBeNull();
+  });
+
+  it('Given 計測中の区切りが休憩 / When 判定する / Then 出さない（休憩が長く続いても尋ねない）', () => {
+    const resting = trackView({ nowMs: NOW, segments: [seg('g-3', 'break', '', 45 * MIN, null)] });
+    expect(awayPromptOf(resting, NOW, RECEIVED, away())).toBeNull();
+  });
+
+  it('Given 非表示になった位置が手直しで置ける範囲（24 時間）の外 / When 判定する / Then 出さない（サーバーが拒む）', () => {
+    const long = trackView({ nowMs: 30 * 60 * MIN, segments: [seg('g-3', 'work', 'Build', 0, null)] });
+    const at = 30 * 60 * MIN;
+    expect(awayPromptOf(long, at, RECEIVED, away({ fromMs: at - MAX_LOOKBACK_MS }))).not.toBeNull();
+    expect(awayPromptOf(long, at, RECEIVED, away({ fromMs: at - MAX_LOOKBACK_MS - 1 }))).toBeNull();
   });
 
   it('Given 非表示になった位置が区切りの始まり以前 / When 判定する / Then 出さない（始まりより後ならよい）', () => {

@@ -286,7 +286,7 @@ describe("away（離れていた間を休憩にする・FR-27）", () => {
       ["work", 60 * MIN, null],
     ]);
   });
-  it("いまから 24 時間より前に置こうとすると、上書きの範囲の規則（insertSegment）で拒まれる", () => {
+  it("いまから 24 時間より前は TRACK_BACKDATE_TOO_FAR（ちょうど 24 時間前は通る）", () => {
     const longRunning = must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
     const now = at(30 * 60);
     expect(codeOf(away(longRunning, { fromMs: 6 * 60 * MIN - 1, now }))).toBe("TRACK_BACKDATE_TOO_FAR");

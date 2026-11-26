@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_PINNED, MAX_SEGMENTS, UNDO_WINDOW_MS } from "../src/limits.js";
+import { MAX_PINNED, MAX_SEGMENTS, MIN_SEGMENT_MS, UNDO_WINDOW_MS } from "../src/limits.js";
 import { autoStop, clear, createTrackState, dismissOffer, pin, start, stop, toView, undo } from "../src/track.js";
 import type { TrackState } from "../src/types.js";
 import { EPOCH, MIN, WALL, at, codeOf, empty, must, sample, shape } from "./support/states.js";
@@ -164,19 +164,22 @@ describe("stop（停止）", () => {
       expect(codeOf(stop(running(), { atMs: 0, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
       expect(codeOf(stop(running(), { atMs: -MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
     });
-    it("いまより先・いまちょうどは TRACK_BACKDATE_TOO_FAR（いまより前だけ）", () => {
+    it("いまより先・いまとの差が最短（1 秒）に満たない位置は TRACK_BACKDATE_TOO_FAR", () => {
       expect(codeOf(stop(running(), { atMs: 131 * MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
       expect(codeOf(stop(running(), { atMs: 130 * MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
-      expect(must(stop(running(), { atMs: 130 * MIN - 1, now: at(130) })).segments.map((g) => g.endMs)).toEqual([130 * MIN - 1]);
+      expect(codeOf(stop(running(), { atMs: 130 * MIN - MIN_SEGMENT_MS + 1, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(must(stop(running(), { atMs: 130 * MIN - MIN_SEGMENT_MS, now: at(130) })).segments.map((g) => g.endMs)).toEqual([130 * MIN - MIN_SEGMENT_MS]);
     });
-    it("始まりの 1ms 後は通す（始まりより後ならよい）", () => {
-      expect(must(stop(running(), { atMs: 1_000, now: at(130) })).segments.map((g) => [g.startMs, g.endMs])).toEqual([[0, 1_000]]);
-      // 1 秒に満たなければ、通るが区切りは残らない
+    it("始まりちょうどは拒み、始まりの後の 1 秒に満たない区切りは残さない", () => {
+      expect(codeOf(stop(running(), { atMs: 0, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(must(stop(running(), { atMs: MIN_SEGMENT_MS, now: at(130) })).segments.map((g) => [g.startMs, g.endMs])).toEqual([[0, MIN_SEGMENT_MS]]);
       expect(must(stop(running(), { atMs: 1, now: at(130) })).segments).toEqual([]);
     });
-    it("24 時間より前でも、始まりより後なら通る（置ける範囲は別に見ない）", () => {
+    it("いまから 24 時間より前は TRACK_BACKDATE_TOO_FAR（ちょうど 24 時間前は通る）", () => {
       const s = must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
-      expect(shape(must(stop(s, { atMs: 60 * MIN, now: at(30 * 60) })))).toEqual(["設計:0-60"]);
+      const now = at(30 * 60);
+      expect(codeOf(stop(s, { atMs: 6 * 60 * MIN - 1, now }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(shape(must(stop(s, { atMs: 6 * 60 * MIN, now })))).toEqual(["設計:0-360"]);
     });
     it("さかのぼりと同時には受けない", () => {
       expect(codeOf(stop(running(), { atMs: 20 * MIN, backMin: 5, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");

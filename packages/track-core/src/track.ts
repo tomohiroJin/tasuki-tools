@@ -9,7 +9,7 @@
 import { err, ok, type Result } from "neverthrow";
 import type { TrackError } from "./errors.js";
 import { isValidLabel, normalizeLabel } from "./label.js";
-import { MAX_PINNED, MAX_SEGMENTS, MIN_SEGMENT_MS, UNDO_WINDOW_MS, type BackMinutes } from "./limits.js";
+import { MAX_LOOKBACK_MS, MAX_PINNED, MAX_SEGMENTS, MIN_SEGMENT_MS, UNDO_WINDOW_MS, type BackMinutes } from "./limits.js";
 import type { Segment, SegmentKind, TrackState, TrackView, UndoKind } from "./types.js";
 
 const MS_PER_MIN = 60_000;
@@ -98,10 +98,12 @@ export function start(
 
 /**
  * 時刻軸の位置 `t` が、計測中の区切りを閉じる（または休憩で上書きし始める）位置として置けるか。
- * **区切りの始まりより後・いまより前**。`backMin` と `atMs` と `away` が同じこの判定を通す（外れたら `TRACK_BACKDATE_TOO_FAR`）。
+ * **区切りの始まりより後・いまから最短の長さ（`MIN_SEGMENT_MS`）以上前・いまから `MAX_LOOKBACK_MS` 以内。**
+ * `stop` の `backMin`・`atMs` と `away` が同じこの判定を通す（外れたら `TRACK_BACKDATE_TOO_FAR`）。
+ * `backMin`（15 分まで）にとっては、始まりより後かどうかだけが効く。
  */
 export function isBackdatePosition(running: Segment, t: number, nowMs: number): boolean {
-  return t > running.startMs && t < nowMs;
+  return t > running.startMs && nowMs - t >= MIN_SEGMENT_MS && nowMs - t <= MAX_LOOKBACK_MS;
 }
 
 /**

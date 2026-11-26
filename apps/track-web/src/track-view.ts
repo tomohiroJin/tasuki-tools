@@ -5,7 +5,7 @@
  * （名前・経過の h:mm:ss・時刻・描き直す秒・取り消しの残り・± の行き先・読み上げの文・タブの題）を持つ。
  * **端末（`document`・時計・時間帯）は読まない。** 要る値は引数で受ける。
  */
-import { durationOf, formatClock, formatDuration, longRunningOf, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { MAX_LOOKBACK_MS, durationOf, formatClock, formatDuration, longRunningOf, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
 import { AWAY_PROMPT_MIN_HIDDEN_MS } from './limits';
 import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from './copy';
 
@@ -134,9 +134,9 @@ export interface AwayPrompt {
  *
  * - 写しが、表に戻った後に届いたもの（`receivedAt` ≧ `away.returnedAt`。戻る前の古い写しでは決めない）
  * - 非表示だった長さ（写しの位置 − 非表示になった位置）が `AWAY_PROMPT_MIN_HIDDEN_MS`（10 分）以上
- * - 計測中の区切りが `LONG_RUNNING_NOTICE_MS`（90 分）以上続いている
+ * - 計測中の区切りが作業（`kind: "work"`。休憩が長く続いても尋ねない）で、`LONG_RUNNING_NOTICE_MS`（90 分）以上続いている
  * - その区切りが、非表示になった時に計測中だった区切りと同じ（離れている間に切り替え・停止されていない）
- * - 非表示になった位置が、その区切りの始まりより後
+ * - 非表示になった位置が、その区切りの始まりより後で、いまから `MAX_LOOKBACK_MS` 以内（外ならサーバーが拒む）
  *
  * 長さは端末の単調時計ではなく写しの位置で測る（スリープで端末の時計が進まない環境があるため）。
  * `isAwayPromptStillValid` が、問いかけを出している間の取り消し条件を持つ。
@@ -146,7 +146,8 @@ export function awayPromptOf(view: TrackView, nowMs: number, receivedAt: number,
   const hiddenMs = nowMs - away.fromMs;
   if (hiddenMs < AWAY_PROMPT_MIN_HIDDEN_MS) return null;
   const running = longRunningOf(view, nowMs);
-  if (running === null || running.id !== away.runningId || running.startMs >= away.fromMs) return null;
+  if (running === null || running.kind !== 'work' || running.id !== away.runningId || running.startMs >= away.fromMs) return null;
+  if (hiddenMs > MAX_LOOKBACK_MS) return null;
   return { fromMs: away.fromMs, runningId: running.id, awayMin: Math.floor(hiddenMs / 60_000) };
 }
 
