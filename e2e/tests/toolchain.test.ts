@@ -21,19 +21,31 @@ describe('assertToolchain', () => {
       return 0;
     };
     // When / Then
-    expect(() => assertToolchain(run)).not.toThrow();
+    expect(() => assertToolchain('e2e', run)).not.toThrow();
     expect(calls).toEqual([[path.join(REPO_ROOT, 'scripts/check-toolchain.mjs'), 'e2e']]);
+  });
+
+  it('Given WebKit で流す / When 呼ぶ / Then e2e-webkit の段で起動する（#674）', () => {
+    // Given
+    const calls: (readonly string[])[] = [];
+    const run: ToolchainRunner = (args) => {
+      calls.push(args);
+      return 0;
+    };
+    // When / Then
+    expect(() => assertToolchain('e2e-webkit', run)).not.toThrow();
+    expect(calls).toEqual([[path.join(REPO_ROOT, 'scripts/check-toolchain.mjs'), 'e2e-webkit']]);
   });
 
   it('Given 版が合わない（非ゼロで終わる） / When 呼ぶ / Then 起動せずに落とす', () => {
     // Given
     const run: ToolchainRunner = () => 1;
     // When / Then
-    expect(() => assertToolchain(run)).toThrow(/開発環境の版が宣言と合いません/);
+    expect(() => assertToolchain('e2e', run)).toThrow(/開発環境の版が宣言と合いません/);
   });
 
   it('Given 起動そのものが失敗した（null） / When 呼ぶ / Then 通したことにしない', () => {
-    expect(() => assertToolchain(() => null)).toThrow(/開発環境の版/);
+    expect(() => assertToolchain('e2e', () => null)).toThrow(/開発環境の版/);
   });
 });
 

@@ -849,7 +849,7 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
     await expect(page.getByRole('timer')).toBeVisible();
   }
 
-  test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビーと長いお題を開く / Then ロビーは脇が右・22rem で先頭がお題で、行のアイコンの当たりは重ならない', async ({ page, openPeer }) => {
+  test('@webkit Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビーと長いお題を開く / Then ロビーは脇が右・22rem で先頭がお題で、行のアイコンの当たりは重ならない', async ({ page, openPeer }) => {
     // Given 幅 320 のロビー。ホスト + ドライバーで加わる 1 人
     const code = await openLobby(page, openPeer, 'layout-timer');
 

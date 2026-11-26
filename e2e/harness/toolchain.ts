@@ -10,6 +10,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import type { ToolchainStage } from './browser';
 import { REPO_ROOT } from './paths';
 
 /** `node <args>` を起動して終了コードを返す。起動できなければ null。 */
@@ -18,8 +19,9 @@ export type ToolchainRunner = (args: readonly string[]) => number | null;
 const runWithNode: ToolchainRunner = (args) =>
   spawnSync(process.execPath, args, { stdio: 'inherit' }).status;
 
-export function assertToolchain(run: ToolchainRunner = runWithNode): void {
-  const status = run([path.join(REPO_ROOT, 'scripts/check-toolchain.mjs'), 'e2e']);
+/** `stage` は流すブラウザの段（Chromium は `e2e`・WebKit は `e2e-webkit`。#674）。 */
+export function assertToolchain(stage: ToolchainStage, run: ToolchainRunner = runWithNode): void {
+  const status = run([path.join(REPO_ROOT, 'scripts/check-toolchain.mjs'), stage]);
   if (status === 0) return;
   throw new Error(
     '開発環境の版が宣言と合いません（上の [check-toolchain] の出力）。E2E のハーネスは起動しません。',

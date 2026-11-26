@@ -98,3 +98,31 @@ Caddy の版を知る手段は、CI の YAML を読むことだけだった。
 - patch・minor も含めて Dependency Dashboard での承認制（Bun と同じ。下限が上がると決定 2 の事前の検査が手元の古い Node を止めるので、手元を入れ替える準備ができてから承認する）。Renovate の `node` の versioning は LTS に入った系列だけを安定版と見るので、LTS に入るまで提案されない
 - Caddy は今までどおり手で上げる
 - 根拠: ISSUE #441 のコメント（2026-10-25。「26 系へ固定したあとは、その版を Renovate が追う」）
+
+## 追記（2026-11-26・#674・Proposed）
+
+E2E の一部を WebKit（iPhone の端末）でも流す。招待は QR を読んで iOS の Safari で開くことが多いが、Chromium だけでは
+iOS での崩れを配る前に拾えない（#674）。決めることの 1〜5 は、利用者が推奨どおりと決めた（2026-11-26・ISSUE #674 の会話）。
+
+- **段を足す**: `scripts/check-toolchain.mjs` に `e2e-webkit` の段（Node・pnpm・Bun・WebKit・ffmpeg・Caddy）を足す。
+  WebKit の正本は Chromium と同じ `e2e/package.json` の `@playwright/test`（revision は playwright-core の `browsers.json`。
+  `toolchain.json` には書かない・決定 1 の MUST NOT に WebKit も含める）。見るのは置き場の `webkit-<revision>` の実在だけで、
+  OS の依存（GTK・GStreamer ほか）は見ない（Chromium と同じく、道具が正しく動くかは見ない）
+- **`e2e` の段は WebKit を見ない**。WebKit は OS の依存を入れるのに sudo が要り、手元で揃わないことがある。
+  WebKit が無いだけで Chromium の E2E を止めない
+- WebKit の `browsers.json` は macOS 14 向けの差し替え（`revisionOverrides`）を持つ（Playwright 1.65）。差し替えの名前が
+  すべて `mac` で始まり、macOS でなければ既定の revision を探す。それ以外は決定 2 どおり、比べずに通さず止める
+- **入口**: `pnpm e2e:webkit`（`TASUKI_E2E_BROWSER=webkit`）。1 回の実行で流すのはどちらか一方のブラウザ（`e2e/harness/browser.ts`）。
+  知らない値は Chromium に読み替えずに止める。本番の E2E（`pnpm e2e:prod`）は WebKit で流さない（#674 のスコープ外）
+- **流す範囲（決めること 1）**: `@core`（各道具の主な流れ）と `@webkit`（玄関・幅の狭い画面の配置とボタン・招待の手動コピー・
+  poker の手で選ぶ欄）。`@smoke`（HTTP の応答だけ）は流さない。全件は流さない（試走で 18 件・1 ワーカー約 5 分。
+  全件は Chromium で約 360 件あり、同じ割合なら 1 時間を超える）。範囲を広げるときは、spec に `@webkit` を付ける
+- **端末（決めること 2）**: `devices['iPhone 15']`（タッチ・狭い幅）だけ。Desktop Safari は流さない
+- **1 ワーカーで流す**。WebKit の描画が重なると Check-in Cards とルーレットが時間切れになった（#674 の試走・PR #694）
+- **CI**: `e2e` と並列の別ジョブ `e2e-webkit`。準備の段は `e2e` の写しで、ずれは `scripts/e2e-webkit-workflow.test.mjs` が捕まえる。
+  `e2e` に足すと臨界経路が伸びる（`e2e` は約 10.5 分・最長の変異のシャードは約 13.5 分。2026-11-25 の main）
+- **手元で流せないとき（決めること 4）**: WebKit の E2E は CI に任せてよい。`pnpm check:full` は CI から `pnpm e2e:webkit` を導くので、
+  WebKit が無い手元ではその 1 本が止まる。止まった道具と理由は、終わりの報告の「確かめられなかったこと」に書く（`docs/adr/0033` と同じ扱い）
+- **WebKit で落ちた spec（決めること 5）**: 直すのを基本にする。WebKit で飛ばす・緩めるのは検査を弱める変更なので、1 本ずつ人の承認を得る
+  （`docs/adr/0030` 決定 1）
+- 根拠: ISSUE #674・PR #694（試走で見つかった失敗の直し）

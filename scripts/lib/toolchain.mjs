@@ -13,12 +13,17 @@ import path from "node:path";
  * | pnpm     | `package.json` の `packageManager`         | 完全一致                   |
  * | Chromium | `e2e/package.json` の `@playwright/test`   | revision の実在（両方の dir）|
  * | ffmpeg   | `e2e/package.json` の `@playwright/test`   | revision の実在              |
+ * | WebKit   | `e2e/package.json` の `@playwright/test`   | revision の実在（`e2e-webkit` の段だけ）|
  *
  * ffmpeg は Playwright が動画を記録するために使う（`e2e/playwright.config.ts` の `video`）。revision は
  * Chromium と同じく playwright-core の `browsers.json` が決め、`playwright install chromium` が一緒に入れる。
  * 見ないと、Chromium だけを揃えた環境で OK を出し、画面を開く spec が全件「ffmpeg が無い」で落ちる（#509）。
+ * WebKit の動画の記録も同じ ffmpeg を使い、`playwright install webkit` も一緒に入れる（#674）。
  *
- * pnpm と Chromium を `toolchain.json` に書かないのは、**道具自身がそこを読むから**である
+ * WebKit は E2E の一部を iPhone の端末として流す別の段（`e2e-webkit`・#674・docs/adr/0031 の追記）。
+ * `e2e` の段は WebKit を見ない（手元で WebKit の OS の依存を揃えられなくても、Chromium の E2E は流せる）。
+ *
+ * pnpm と Chromium・WebKit を `toolchain.json` に書かないのは、**道具自身がそこを読むから**である
  * （corepack は `packageManager` を読み、Chromium の revision は Playwright の版に 1 対 1 で
  * 紐づく）。`toolchain.json` に写すと、同じ版が 2 か所に書かれてずれる。
  *
@@ -37,6 +42,8 @@ export const STAGES = Object.freeze({
   test: Object.freeze(["node", "pnpm", "bun"]),
   mutation: Object.freeze(["node", "pnpm", "bun"]),
   e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "ffmpeg", "caddy"]),
+  // WebKit で流す E2E（#674）。Chromium は使わないので見ない
+  "e2e-webkit": Object.freeze(["node", "pnpm", "bun", "webkit", "ffmpeg", "caddy"]),
 });
 
 /**
@@ -92,7 +99,7 @@ export function parseToolchain(text) {
     if (key.startsWith("//") || TOOLCHAIN_KEYS.includes(key)) continue;
     if (key === "pnpm") {
       problems.push("pnpm: ここに書かない。正本は package.json の packageManager（corepack がそこを読む）");
-    } else if (key === "chromium" || key === "playwright") {
+    } else if (key === "chromium" || key === "webkit" || key === "playwright") {
       problems.push(`${key}: ここに書かない。正本は e2e/package.json の @playwright/test（revision は版に 1 対 1）`);
     } else {
       problems.push(`${key}: 知らない道具です（比べる処理が無いまま宣言だけが増える）`);
@@ -319,6 +326,56 @@ export function checkFfmpeg(revision, dir, entries) {
 }
 
 /**
+ * playwright-core の `browsers.json` から、`e2e-webkit` の段に要る WebKit の revision を読む（#674）。
+ * **例外を投げず**、読めないときは null にして `problems` に理由を足す。
+ *
+ * Playwright 1.65 の WebKit は macOS 14 向けの差し替え（`revisionOverrides: { mac14, mac14-arm64 }`）を持つ。
+ * 差し替えの名前がすべて `mac` で始まり、macOS でなければ、Playwright も既定の revision を使う。
+ * それ以外（macOS・ubuntu の版ごとなどの差し替え）は Playwright の OS の判定を写さないと決められないので、
+ * 比べずに通さず止める（{@link readBrowserRevisions} と同じ扱い。#492 のレビュー 2）。
+ */
+export function readWebkitRevision(browsersJson, platform) {
+  const list = Array.isArray(browsersJson?.browsers) ? browsersJson.browsers : [];
+  const entry = list.find((b) => b?.name === "webkit");
+  const revision = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+  if (revision === null) return { webkit: null, problems: ["playwright-core の browsers.json に webkit の revision がありません"] };
+  const overrides = entry.revisionOverrides;
+  const keys = overrides && typeof overrides === "object" ? Object.keys(overrides) : [];
+  const onlyMac = keys.every((k) => k.startsWith("mac"));
+  if (keys.length === 0 || (onlyMac && platform !== "darwin")) return { webkit: revision, problems: [] };
+  return {
+    webkit: null,
+    problems: [
+      `playwright-core の browsers.json の webkit に OS ごとの revision（revisionOverrides: ${keys.join(", ")}）があり、この OS（${platform}）で探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+    ],
+  };
+}
+
+/**
+ * WebKit の要求 revision が `dir` に入っているか（#674）。`entries` は `dir` の中の名前（無ければ null）。
+ * WebKit は OS の依存（GTK・GStreamer ほか）も要るが、ここが見るのは置き場の実在だけ（{@link checkChromium} と同じ）。
+ */
+export function checkWebkit(revision, dir, entries) {
+  const name = `webkit-${revision}`;
+  if ((entries ?? []).includes(name)) return null;
+  const others = (entries ?? [])
+    .map((e) => /^webkit-(\d+)$/.exec(e)?.[1])
+    .filter((r) => r !== undefined && r !== revision)
+    .sort();
+  return {
+    tool: "webkit",
+    declared: `revision ${revision}`,
+    actual: others.length > 0 ? others.join(", ") : null,
+    fix:
+      `${dir} に ${name} がありません。` +
+      "`pnpm --filter @tasuki/e2e exec playwright install --with-deps webkit` で、OS の依存ごと入れてください（OS の依存には sudo が要る）。" +
+      "手元で揃えられなければ、WebKit の E2E は CI に任せてよい（docs/adr/0031 の追記（#674））。" +
+      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版のブラウザで試すことになる）。" +
+      UNREACHABLE_GUIDE,
+  };
+}
+
+/**
  * 段に要る道具を比べる。`actual` は環境から集めた値:
  * `{ node, pnpm, bun, chromium: { dir, entries }, caddy: { present, version, dir } }`
  * （pnpm・bun は見つからなければ null）。`chromium` はブラウザの置き場で、ffmpeg も同じ置き場から探す。
@@ -361,6 +418,21 @@ export function evaluateStage(stage, declared, actual) {
         const { dir, entries } = actual.chromium;
         // 置き場を決められないときは chromium の側が止める（同じ理由を 2 度出さない）
         if (dir !== null) problems.push(checkFfmpeg(declared.ffmpeg, dir, entries));
+        break;
+      }
+      case "webkit": {
+        // ブラウザの置き場は Chromium と同じ（actual.chromium が置き場を持つ。#674）
+        const { dir, entries } = actual.chromium;
+        problems.push(
+          dir === null
+            ? {
+                tool: "webkit",
+                declared: `revision ${declared.webkit}`,
+                actual: null,
+                fix: "Playwright がブラウザを探す置き場を決められません（Playwright が対応しない OS）。Linux・macOS・Windows で流してください",
+              }
+            : checkWebkit(declared.webkit, dir, entries),
+        );
         break;
       }
       case "caddy": {

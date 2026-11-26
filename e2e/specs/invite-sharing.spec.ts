@@ -37,7 +37,7 @@ test.describe('選択画面で参加 URL を配る（#269）', () => {
     await expect(page.getByRole('list', { name: '参加者' })).toContainText('いずみ');
   });
 
-  test('Given clipboard の無いモバイル環境 / When コピーできない / Then URL を手動選択でき QR も使える', async ({ page }, testInfo) => {
+  test('@webkit Given clipboard の無いモバイル環境 / When コピーできない / Then URL を手動選択でき QR も使える', async ({ page }, testInfo) => {
     // Given: モバイル幅で自動コピーが使えない。
     await page.setViewportSize({ width: 390, height: 844 });
     // LAN の非セキュアオリジンと同じ API 不在を再現。従来コピーも使えない場合。

@@ -15,6 +15,8 @@ import {
   checkExact,
   checkChromium,
   checkFfmpeg,
+  checkWebkit,
+  readWebkitRevision,
   readBrowserRevisions,
   evaluateStage,
   formatProblems,
@@ -27,6 +29,7 @@ const DECLARED = Object.freeze({
   caddy: "2.11.7",
   chromium: "1248",
   ffmpeg: "1013",
+  webkit: "2388",
 });
 
 describe("parseVersion / compareVersions: 版の読み方", () => {
@@ -331,17 +334,101 @@ describe("readBrowserRevisions: playwright-core の browsers.json から要る r
   });
 });
 
+describe("checkWebkit: 要求の revision の WebKit が入っているか（#674）", () => {
+  test("要求の revision があれば null", () => {
+    assert.equal(checkWebkit("2388", "/opt/pw", ["chromium-1255", "ffmpeg-1013", "webkit-2388"]), null);
+  });
+
+  test("別の revision しか無いとき、入っている revision を示し、OS の依存ごと入れる方法を示す", () => {
+    const p = checkWebkit("2388", "/opt/pw", ["webkit-2251", "webkit-2300", "chromium-1255"]);
+    assert.deepEqual([p?.tool, p?.declared, p?.actual], ["webkit", "revision 2388", "2251, 2300"]);
+    assert.match(p?.fix ?? "", /webkit-2388/);
+    assert.match(p?.fix ?? "", /playwright install --with-deps webkit/);
+    // 張り替えで回避しない（別の版のブラウザを、要求の revision だと偽ることになる）
+    assert.match(p?.fix ?? "", /シンボリックリンクで回避しないで/);
+  });
+
+  test("置き場が無いときは「見つからない」", () => {
+    const p = checkWebkit("2388", "/home/u/.cache/ms-playwright", null);
+    assert.deepEqual([p?.tool, p?.actual], ["webkit", null]);
+  });
+});
+
+describe("readWebkitRevision: browsers.json から WebKit の revision を読む（#674）", () => {
+  const browsers = (webkit) => ({
+    browsers: [
+      { name: "chromium", revision: "1255" },
+      { name: "webkit", revision: "2388", ...webkit },
+      { name: "ffmpeg", revision: "1013" },
+    ],
+  });
+
+  test("OS ごとの差し替えが無ければ、既定の revision を読む", () => {
+    assert.deepEqual(readWebkitRevision(browsers({}), "linux"), { webkit: "2388", problems: [] });
+  });
+
+  test("差し替えが macOS（mac で始まる名前）だけなら、Linux・Windows では既定の revision を読む（Playwright 1.65 の形）", () => {
+    const json = browsers({ revisionOverrides: { mac14: "2251", "mac14-arm64": "2251" } });
+    for (const platform of ["linux", "win32"]) {
+      assert.deepEqual(readWebkitRevision(json, platform), { webkit: "2388", problems: [] }, platform);
+    }
+  });
+
+  test("macOS で差し替えがあれば、どれを探すかを決められないとして止める（Playwright の OS の判定は写さない）", () => {
+    const r = readWebkitRevision(browsers({ revisionOverrides: { mac14: "2251" } }), "darwin");
+    assert.equal(r.webkit, null);
+    assert.match(r.problems[0], /webkit に OS ごとの revision（revisionOverrides: mac14）/);
+  });
+
+  test("macOS 以外の差し替えがあれば、Linux でも止める（ubuntu の版ごとの差し替えは判定できない）", () => {
+    const r = readWebkitRevision(browsers({ revisionOverrides: { mac14: "2251", "ubuntu22.04-x64": "2300" } }), "linux");
+    assert.equal(r.webkit, null);
+    assert.match(r.problems[0], /ubuntu22\.04-x64/);
+  });
+
+  test("revision が無い・数字でないときは、webkit を名指しして止める", () => {
+    for (const revision of [undefined, "23a", 2388]) {
+      const r = readWebkitRevision(browsers({ revision }), "linux");
+      assert.equal(r.webkit, null, String(revision));
+      assert.ok(r.problems.some((p) => p.includes("webkit の revision がありません")), r.problems.join("\n"));
+    }
+  });
+});
+
 describe("evaluateStage: 段ごとに見る道具", () => {
   const ok = {
     node: "v22.23.4",
     pnpm: "11.28.8",
     bun: "1.4.3",
-    chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1013"] },
+    chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1013", "webkit-2388"] },
     caddy: { present: true, version: "2.11.7" },
   };
 
-  test("段の名前は test・e2e・mutation", () => {
-    assert.deepEqual(Object.keys(STAGES).sort(), ["e2e", "mutation", "test"]);
+  test("段の名前は test・e2e・e2e-webkit・mutation", () => {
+    assert.deepEqual(Object.keys(STAGES).sort(), ["e2e", "e2e-webkit", "mutation", "test"]);
+  });
+
+  test("e2e の段は WebKit を見ない（手元で WebKit の OS の依存が揃わなくても Chromium の E2E は流せる。#674）", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1013"] } };
+    assert.deepEqual(evaluateStage("e2e", DECLARED, actual).problems, []);
+  });
+
+  test("e2e-webkit の段は WebKit・ffmpeg・Caddy を見て、Chromium は見ない（#674）", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: [] }, caddy: { present: true, version: "2.0.0" } };
+    const tools = evaluateStage("e2e-webkit", DECLARED, actual).problems.map((p) => p.tool);
+    assert.deepEqual(tools.sort(), ["caddy", "ffmpeg", "webkit"]);
+  });
+
+  test("e2e-webkit の段は WebKit だけが欠けていても止める（#674）", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: ["ffmpeg-1013", "webkit-2251"] } };
+    const tools = evaluateStage("e2e-webkit", DECLARED, actual).problems.map((p) => p.tool);
+    assert.deepEqual(tools, ["webkit"]);
+  });
+
+  test("e2e-webkit の段も、ブラウザの置き場を決められないときは止める（#674）", () => {
+    const actual = { ...ok, chromium: { dir: null, entries: null } };
+    const tools = evaluateStage("e2e-webkit", DECLARED, actual).problems.map((p) => p.tool);
+    assert.deepEqual(tools, ["webkit"]);
   });
 
   test("全部合っていれば問題 0 件", () => {
@@ -400,11 +487,12 @@ describe("evaluateStage: 段ごとに見る道具", () => {
 describe("揃え方: 公式の取得先に届かない環境（クラウドのセッション）の案内（#509）", () => {
   const CLOUD_GUIDE = /docs\/guides\/development\.md の「クラウドのセッションで道具を揃える」/;
 
-  test("Bun・Chromium・ffmpeg の揃え方は、届かないときの案内の節を指す", () => {
+  test("Bun・Chromium・ffmpeg・WebKit の揃え方は、届かないときの案内の節を指す", () => {
     const fixes = {
       bun: checkExact("bun", "1.4.4", "1.4.3")?.fix,
       chromium: checkChromium("1248", "/opt/pw", ["chromium-1243"])?.fix,
       ffmpeg: checkFfmpeg("1013", "/opt/pw", ["ffmpeg-1011"])?.fix,
+      webkit: checkWebkit("2388", "/opt/pw", ["webkit-2251"])?.fix,
     };
     for (const [tool, fix] of Object.entries(fixes)) assert.match(fix ?? "", CLOUD_GUIDE, tool);
   });

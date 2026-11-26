@@ -11,6 +11,7 @@
  * 次の実行は別 UUID を使うため、残骸を検出・一括削除しない。手動復旧は README を参照。
  */
 import type { ChildProcess } from 'node:child_process';
+import { resolveBrowser, toolchainStageOf } from './browser';
 import { buildWebApps } from './build';
 import { ensureCaddyBinary, installCaddyConfig, removeCaddyConfig, startCaddy, stopCaddy } from './caddy';
 import { runPreflight } from './preflight';
@@ -28,7 +29,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   // **何よりも先に置く**（#487）。版が合わない環境では、ビルドも起動もせずに止める。
   // Chromium の revision の検査もここに含まれる（以前は preflight の中で、変数が未設定なら何も見なかった）。
-  assertToolchain();
+  // WebKit で流すときは WebKit の revision を見る（#674）。
+  assertToolchain(toolchainStageOf(resolveBrowser(process.env)));
 
   // **preflight より前に置く。** 配信するのは「ここで作った成果物」であって、
   // 「そのとき置いてあったもの」ではない。turbo 経由（`pnpm e2e`）なら

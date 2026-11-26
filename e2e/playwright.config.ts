@@ -4,13 +4,32 @@
  * **このファイルの default export は規約（名前付きエクスポート優先）の例外。**
  * Playwright が default export を要求するため。
  */
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, type Project } from '@playwright/test';
+import { resolveBrowser } from './harness/browser';
 import { TEST_RESULTS_DIR } from './harness/paths';
 import { resolveTarget } from './harness/target';
 
 const target = resolveTarget(process.env);
+const browser = resolveBrowser(process.env);
 const isProduction = target.kind === 'production';
 const isCi = process.env['CI'] !== undefined;
+
+const chromium: Project = { name: 'chromium', use: { ...devices['Desktop Chrome'] } };
+
+/**
+ * WebKit は iPhone の端末として、画面を開く主な流れだけを流す（#674・docs/adr/0031 の追記）。
+ *
+ * - **選び方はタグ。** 各道具の主な流れ（`@core`）と、iOS で崩れやすい所（`@webkit`。玄関・幅の狭い
+ *   画面の配置とボタン・招待の手動コピー・poker の手で選ぶ欄）。名前の正規表現で選ぶと、改名で黙って外れる
+ * - `@smoke`（HTTP の応答だけを見る）はブラウザに依らないので流さない
+ * - **1 ワーカー。** WebKit の描画が重なると Check-in Cards とルーレットが時間切れになった（#674 の試走）
+ */
+const webkit: Project = {
+  name: 'webkit-iphone',
+  use: { ...devices['iPhone 15'] },
+  grep: /@core|@webkit/,
+  workers: 1,
+};
 
 export default defineConfig({
   testDir: './specs',
@@ -38,5 +57,6 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // 1 回の実行で流すのはどちらか一方（harness/browser.ts）
+  projects: [browser === 'webkit' ? webkit : chromium],
 });
