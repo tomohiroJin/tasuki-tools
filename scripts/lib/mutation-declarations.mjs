@@ -14001,6 +14001,22 @@ export const MUTATIONS = [
     note: RESERVED_2950_2969 + " " + "選ぶたび・画面を開くたびに同じ mp3 を取り直し、通信が無駄に増える。",
   },
   {
+    id: 2955,
+    label: "AgendaRoom が組む画面へ時間切れの音の欄を渡さない",
+    patch: "m2955-agenda-room-omits-sound-settings.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#669。部品も単体の検査も揃っていても、組む画面に音の欄が出ず、音を選べない。",
+  },
+  {
+    id: 2956,
+    label: "AgendaRoom の音の選択が、選んだ id を端末に覚えず試聴だけする",
+    patch: "m2956-agenda-room-chime-change-not-saved.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#669。選んでも覚えず、時間切れの音が変わらない（選択欄だけ戻る）。",
+  },
+  {
     id: 2970,
     label: "SoundSettings の音の種類の選択が、選んだ id でなく先頭の id を onChimeChange へ渡す",
     patch: "m2970-sound-settings-wrong-chime-id.patch",

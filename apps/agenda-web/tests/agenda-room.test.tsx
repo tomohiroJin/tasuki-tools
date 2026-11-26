@@ -12,7 +12,10 @@ import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { redirectTo } from '../src/router';
 import {
+  CHIME_LABEL,
   EXTEND_LABEL,
+  PREVIEW_CHIME_BUTTON,
+  SOUND_SETTINGS_HEADING,
   FINISHED_ANNOUNCE,
   NEXT_BUTTON,
   PAUSE_BUTTON,
@@ -33,10 +36,10 @@ import {
   skipStepLabel,
   unskipStepLabel,
 } from '../src/copy';
-import { playChime, preloadChime, unlockAudio } from '../src/platform/sound';
+import { playChime, preloadChime, previewChime, unlockAudio } from '../src/platform/sound';
 import { CHIME_SETTING_KEY, SOUND_SETTING_KEY } from '../src/hooks/use-sound-setting';
 import { Driver, MIN } from './support/agenda-states';
-import { RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
+import { IDLE_AGENDA, RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/router')>()),
@@ -52,6 +55,7 @@ vi.mock('../src/platform/sound', async (importOriginal) => ({
   installAudioUnlock: vi.fn(),
   unlockAudio: vi.fn(),
   playChime: vi.fn(),
+  previewChime: vi.fn(),
   isAudioUnlocked: () => audio.unlocked,
   subscribeAudioState: (listener: () => void) => {
     audio.listeners.add(listener);
@@ -76,6 +80,8 @@ beforeEach(() => {
   localStorage.clear();
   window.history.replaceState(null, '', '/agenda/?room=R1');
   vi.mocked(playChime).mockClear();
+  vi.mocked(previewChime).mockClear();
+  vi.mocked(preloadChime).mockClear();
   vi.mocked(unlockAudio).mockClear();
   audio.unlocked = true;
 });
@@ -661,5 +667,45 @@ describe('玄関へ送るとき', () => {
 
     expect(ScriptedWebSocket.instances).toHaveLength(0);
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=agenda');
+  });
+});
+
+/**
+ * 組む画面の「時間切れの音」の欄の配線（#669 D4・D5・D9）。
+ *
+ * @requirements #669
+ */
+describe('時間切れの音の設定（組む画面）', () => {
+  it('Given 開始前のルーム / When 組む画面を開く / Then 「時間切れの音」の欄が出て、覚えた音を先に読む', () => {
+    localStorage.setItem(CHIME_SETTING_KEY, 'bell');
+    joinedRoom(IDLE_AGENDA);
+    expect(screen.getByRole('heading', { name: SOUND_SETTINGS_HEADING })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: CHIME_LABEL })).toHaveValue('bell');
+    expect(preloadChime).toHaveBeenCalledWith('bell');
+  });
+
+  it('Given 開始前のルーム / When 音の種類を変える / Then 端末に覚え、進める画面の時間切れでその音を鳴らす', () => {
+    localStorage.setItem(SOUND_SETTING_KEY, 'on');
+    joinedRoom(IDLE_AGENDA);
+    fireEvent.change(screen.getByRole('combobox', { name: CHIME_LABEL }), { target: { value: 'bell' } });
+    expect(localStorage.getItem(CHIME_SETTING_KEY)).toBe('bell');
+    const d = new Driver([1, 2], undefined, 'advance');
+    deliverAgenda(d.view(1 * MIN - 30));
+    d.tick(1 * MIN + 20);
+    deliverAgenda(d.view(1 * MIN + 20));
+    expect(playChime).toHaveBeenCalledWith('bell');
+  });
+
+  it('Given 開始前のルーム / When 知らない音の値が来る / Then 捨てて覚えない', () => {
+    joinedRoom(IDLE_AGENDA);
+    fireEvent.change(screen.getByRole('combobox', { name: CHIME_LABEL }), { target: { value: 'no-such' } });
+    expect(localStorage.getItem(CHIME_SETTING_KEY)).toBeNull();
+  });
+
+  it('Given 音を選んだ組む画面 / When 「試しに鳴らす」を押す / Then 選んだ音を試聴する', () => {
+    joinedRoom(IDLE_AGENDA);
+    fireEvent.change(screen.getByRole('combobox', { name: CHIME_LABEL }), { target: { value: 'bell' } });
+    fireEvent.click(screen.getByRole('button', { name: PREVIEW_CHIME_BUTTON }));
+    expect(previewChime).toHaveBeenCalledWith('bell');
   });
 });

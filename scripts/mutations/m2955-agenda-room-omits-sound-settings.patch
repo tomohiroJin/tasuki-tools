@@ -1,0 +1,20 @@
+diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
+--- a/apps/agenda-web/src/screens/AgendaRoom.tsx
++++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
+@@ -143,16 +143,6 @@ function PhaseView({
+           canOperate={sync.joined}
+           onLoad={sync.setScenario}
+           onStart={start}
+-          soundSettings={
+-            <SoundSettings
+-              state={soundState}
+-              onToggle={toggleSound}
+-              chimes={CHIMES}
+-              chimeId={chimeId}
+-              onChimeChange={onChimeChange}
+-              onPreview={() => previewChime(chimeId)}
+-            />
+-          }
+         />
+       ) : (
+         <RunScreen
