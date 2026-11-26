@@ -486,7 +486,7 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expect(page.locator('.ui-workspace-side .roster-panel-row'), '名簿は 6 人').toHaveCount(6);
   }
 
-  test('Given 幅 390 の timer のロビー / When ロビーと詳細設定を開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、入力欄は 16px 以上', async ({ page }) => {
+  test('@webkit Given 幅 390 の timer のロビー / When ロビーと詳細設定を開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、入力欄は 16px 以上', async ({ page }) => {
     // ロビー: 開始ボタンが見えてから測る
     await page.setViewportSize({ width: 390, height: 800 });
     await createTimerRoom(page, 'buttons-timer');

@@ -1,0 +1,12 @@
+diff --git a/e2e/playwright.config.ts b/e2e/playwright.config.ts
+--- a/e2e/playwright.config.ts
++++ b/e2e/playwright.config.ts
+@@ -27,7 +27,7 @@ const chromium: Project = { name: 'chromium', use: { ...devices['Desktop Chrome'] } };
+ const webkit: Project = {
+   name: 'webkit-iphone',
+   use: { ...devices['iPhone 15'] },
+-  grep: /@core|@webkit/,
++  grep: /@core/,
+   workers: 1,
+ };
+

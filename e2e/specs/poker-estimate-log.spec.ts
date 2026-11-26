@@ -409,7 +409,7 @@ test.describe('poker は見積もりを記録に残す', () => {
     { width: 1280, scope: (page: Page) => sideLog(page) },
     { width: 390, scope: (page: Page) => page.locator('.room-log--foot') },
   ]) {
-    test(`Given コピーが両方失敗する幅 ${width} の画面 / When 手で選ぶ欄を実際にクリックする / Then 全文が選ばれたままになる（#653）`, async ({ page }, testInfo) => {
+    test(`@webkit Given コピーが両方失敗する幅 ${width} の画面 / When 手で選ぶ欄を実際にクリックする / Then 全文が選ばれたままになる（#653）`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 844 });
       await recordItems(page, ['2', '3']);
       await breakCopy(page);

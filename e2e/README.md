@@ -13,10 +13,23 @@
 # リポジトリルートから
 pnpm e2e              # ローカル環境に立てて全シナリオを実行
 pnpm e2e -- --grep @smoke   # @smoke タグのシナリオだけ実行
+pnpm e2e:webkit       # WebKit（iPhone 15 の端末）で @core と @webkit だけを実行（#674）
 
 # 本番を外から確認する（何も起動しない。既に動いているサーバーへ当てるだけ）
 TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
 ```
+
+### WebKit で流す（#674）
+
+`pnpm e2e:webkit` は `TASUKI_E2E_BROWSER=webkit` を付けて、同じ設定を WebKit の project だけで流します
+（`harness/browser.ts`。1 回の実行で流すのはどちらか一方のブラウザ）。決めごとは `docs/adr/0031` の追記（#674）。
+
+- 流すのは `@core` と `@webkit` のタグ。iOS で確かめたい spec を足すときは、test の題の頭に `@webkit` を書きます
+  （例: `test('@webkit Given …', …)`。ネイティブの `{ tag: '@webkit' }` は `tests/spec-tags.test.ts` が禁じています）
+- 1 ワーカーで流します（描画が重なると Check-in Cards とルーレットが時間切れになった）
+- WebKit は OS の依存が要ります: `pnpm --filter @tasuki/e2e exec playwright install --with-deps webkit`（sudo が要る）。
+  揃わない手元では CI（`e2e-webkit` ジョブ）に任せてかまいません。`pnpm e2e` は WebKit が無くても流れます
+- `playwright test` を直に叩くときは `TASUKI_E2E_BROWSER=webkit` を付けます（付けなければ Chromium）
 
 ## VSCode の Playwright 拡張を入れている場合
 
@@ -91,6 +104,7 @@ teardown が走ると次回は `globalSetup` からやり直すので、ビル�
 |---|---|:-:|:-:|
 | `@smoke` | 経路・リダイレクト・ヘッダ・**WS が SPA に吸われていないこと**（ブラウザを使わない HTTP 確認） | ✓ | ✓ |
 | `@core` | 最小の通し（LP の描画・poker の秘匿と自動公開・timer のドライバー交代） | ✓ | ✓ |
+| `@webkit` | `@core` に加えて WebKit（iPhone）でも流すもの（玄関・幅の狭い画面の配置とボタン・招待の手動コピー・poker の手で選ぶ欄。#674）。Chromium では他と同じく流れる | ✓ | — |
 | （タグ無し） | 手作業や敵対的検証で見つけた壊れ方の回帰防止 | ✓ | — |
 
 **タグ無しを本番で走らせないのは意図です。** 実ルームを作って消えるまで見る種類の

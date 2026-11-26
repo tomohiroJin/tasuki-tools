@@ -2,10 +2,10 @@
 /**
  * 検査を始める前に、開発環境の版を宣言と比べる（#487・docs/adr/0031）。
  *
- *     node scripts/check-toolchain.mjs <test|e2e|mutation>
+ *     node scripts/check-toolchain.mjs <test|e2e|e2e-webkit|mutation>
  *
  * 合わなければ**検査を始めずに** exit 1 で終わり、どの道具がどの版で、どう揃えるかを示す。
- * `pnpm test`・`pnpm e2e`（ルートの package.json）・`scripts/mutation-check.mjs`・
+ * `pnpm test`・`pnpm e2e`・`pnpm e2e:webkit`（ルートの package.json）・`scripts/mutation-check.mjs`・
  * E2E のハーネス（`e2e/harness/global-setup.ts`）がこれを先に呼ぶ。
  *
  * 宣言の置き場と比べ方は `scripts/lib/toolchain.mjs` の冒頭の表。
@@ -34,6 +34,7 @@ import {
   parseCaddyVersionOutput,
   chromiumBrowsersDir,
   readBrowserRevisions,
+  readWebkitRevision,
   evaluateStage,
   formatProblems,
 } from "./lib/toolchain.mjs";
@@ -41,7 +42,12 @@ import {
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const SOURCES =
-  "宣言: toolchain.json（Node・Bun・Caddy）/ package.json の packageManager（pnpm）/ e2e/package.json の @playwright/test（Chromium・ffmpeg）";
+  "宣言: toolchain.json（Node・Bun・Caddy）/ package.json の packageManager（pnpm）/ e2e/package.json の @playwright/test（Chromium・ffmpeg・WebKit）";
+
+/** ブラウザ（Chromium か WebKit）を使う段か。ブラウザの revision と置き場を読むのはこの段だけ。 */
+function usesBrowsers(stage) {
+  return STAGES[stage].includes("chromium") || STAGES[stage].includes("webkit");
+}
 
 /** 宣言を集める。読めなければ problems を返す（例外を投げない）。 */
 function readDeclared(stage) {
@@ -55,8 +61,9 @@ function readDeclared(stage) {
 
   let chromium = null;
   let ffmpeg = null;
+  let webkit = null;
   let playwrightCoreDir = null;
-  if (STAGES[stage].includes("chromium")) {
+  if (usesBrowsers(stage)) {
     // revision は playwright-core の browsers.json が決める。package.json の exports に
     // browsers.json は無いので、package.json を解決してから隣を読む。
     try {
@@ -68,12 +75,18 @@ function readDeclared(stage) {
       chromium = revisions.chromium;
       ffmpeg = revisions.ffmpeg;
       problems.push(...revisions.problems);
+      // WebKit は e2e-webkit の段だけが読む（e2e の段を WebKit の差し替えの形で止めない。#674）
+      if (STAGES[stage].includes("webkit")) {
+        const w = readWebkitRevision(browsers, process.platform);
+        webkit = w.webkit;
+        problems.push(...w.problems);
+      }
     } catch (e) {
       problems.push(`playwright-core を読めません（先に \`pnpm install\` を流してください）: ${e.message}`);
     }
   }
   if (problems.length > 0) return { ok: false, problems };
-  return { ok: true, value: { ...toolchain.value, pnpm, chromium, ffmpeg }, playwrightCoreDir };
+  return { ok: true, value: { ...toolchain.value, pnpm, chromium, ffmpeg, webkit }, playwrightCoreDir };
 }
 
 /** コマンドを起動して標準出力を返す。起動できない・非ゼロなら null。 */
@@ -111,7 +124,7 @@ function collectActual(stage, declared, playwrightCoreDir) {
     chromium: { dir: null, entries: null },
     caddy: { present: false, version: null, dir: null },
   };
-  if (tools.includes("chromium")) {
+  if (usesBrowsers(stage)) {
     // Playwright は e2e パッケージの中で pnpm が起動する。pnpm は INIT_CWD をその cwd で上書きするので、
     // 相対パスの指定はいつも e2e/ から解かれる。ルートから流しても同じ置き場を見るよう、ここで揃える
     // （揃えないと、ルートの検査は通るのにハーネスの検査で止まる。#492 の再レビュー）
@@ -164,6 +177,7 @@ function main() {
     .map((tool) => {
       if (tool === "chromium") return `chromium ${declared.value.chromium}`;
       if (tool === "ffmpeg") return `ffmpeg ${declared.value.ffmpeg}`;
+      if (tool === "webkit") return `webkit ${declared.value.webkit}`;
       if (tool === "caddy") return `caddy ${actual.caddy.present ? actual.caddy.version : "（未取得）"}`;
       return `${tool} ${tool === "node" ? process.version.slice(1) : actual[tool]}`;
     })

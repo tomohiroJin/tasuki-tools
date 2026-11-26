@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -341,7 +341,7 @@ export function readWebkitRevision(browsersJson, platform) {
+   if (revision === null) return { webkit: null, problems: ["playwright-core の browsers.json に webkit の revision がありません"] };
+   const overrides = entry.revisionOverrides;
+   const keys = overrides && typeof overrides === "object" ? Object.keys(overrides) : [];
+-  const onlyMac = keys.every((k) => k.startsWith("mac"));
++  const onlyMac = keys.length >= 0;
+   if (keys.length === 0 || (onlyMac && platform !== "darwin")) return { webkit: revision, problems: [] };
+   return {
+     webkit: null,

@@ -10,6 +10,7 @@
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev --continue",
     "e2e": "node scripts/check-toolchain.mjs e2e && turbo run e2e",
+    "e2e:webkit": "node scripts/check-toolchain.mjs e2e-webkit && turbo run e2e:webkit",
     "e2e:prod": "turbo run e2e:prod",
     "verify:prod": "node scripts/verify-prod.mjs",
     "changes:since": "node scripts/changes-since.mjs",

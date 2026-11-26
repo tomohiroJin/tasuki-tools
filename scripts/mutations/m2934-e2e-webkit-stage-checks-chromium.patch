@@ -1,0 +1,10 @@
+diff --git a/e2e/harness/browser.ts b/e2e/harness/browser.ts
+--- a/e2e/harness/browser.ts
++++ b/e2e/harness/browser.ts
+@@ -39,5 +39,5 @@ export function resolveBrowser(env: Record<string, string | undefined>): E2eBrowser {
+ }
+
+ export function toolchainStageOf(browser: E2eBrowser): ToolchainStage {
+-  return browser === 'webkit' ? 'e2e-webkit' : 'e2e';
++  return browser === 'webkit' ? 'e2e' : 'e2e';
+ }

@@ -20,6 +20,18 @@ test("CI の全検査と matrix の全シャードを同じ引数で導く", () 
   ]);
 });
 
+test("WebKit の E2E（#674）は全件の段で E2E の後に流し、速い段では理由つきで省略する", () => {
+  const full = planChecks(deriveChecks(workflow), "full", true);
+  const commands = full.filter((c) => !c.reason).map((c) => c.command);
+  assert.ok(commands.includes("pnpm e2e:webkit"), commands.join("\n"));
+  assert.ok(commands.indexOf("pnpm e2e") < commands.indexOf("pnpm e2e:webkit"));
+  // WebKit の導入は CI の導入処理として省く（手元は先に入れる）
+  assert.ok(full.some((c) => c.command.includes("playwright install --with-deps webkit") && c.reason));
+  const fast = planChecks(deriveChecks(workflow), "fast", true);
+  assert.match(fast.find((c) => c.command === "pnpm e2e:webkit").reason, /速い段/);
+  assert.ok(fast.filter((c) => c.job === "e2e-webkit").every((c) => c.reason));
+});
+
 test("CI に足した検査・変えた引数が自動で全件の段に入る", () => {
   const changed = workflow.replace("- run: pnpm lint", "- run: node scripts/new-check.mjs --strict\n      - run: pnpm lint --new-flag");
   const plan = planChecks(deriveChecks(changed), "full", true);

@@ -55,6 +55,10 @@ describe('turbo.json の TASUKI_E2E_BASE_URL passThroughEnv', () => {
     expect(task?.passThroughEnv ?? []).toContain('TASUKI_E2E_BASE_URL');
   });
 
+  it('Given turbo.json / When e2e:webkit タスクを見る / Then TASUKI_E2E_BASE_URL が passThroughEnv に含まれる（#674。ローカルの WebKit の実行でも取り違えを止める）', () => {
+    expect(turbo.tasks['e2e:webkit']?.passThroughEnv ?? []).toContain('TASUKI_E2E_BASE_URL');
+  });
+
   it('Given turbo.json / When e2e:prod タスクを見る / Then TASUKI_E2E_BASE_URL が passThroughEnv に含まれる', () => {
     // Given: turbo.json の tasks["e2e:prod"]
     const task = turbo.tasks['e2e:prod'];
@@ -78,7 +82,7 @@ describe('turbo.json の PLAYWRIGHT_BROWSERS_PATH passThroughEnv', () => {
    */
   const turbo = readTurboJson();
 
-  for (const taskName of ['e2e', 'e2e:prod'] as const) {
+  for (const taskName of ['e2e', 'e2e:webkit', 'e2e:prod'] as const) {
     it(`Given turbo.json / When ${taskName} タスクを見る / Then PLAYWRIGHT_BROWSERS_PATH が passThroughEnv に含まれる`, () => {
       // Given / When
       const task = turbo.tasks[taskName];
@@ -105,7 +109,7 @@ describe('turbo.json の WAYLAND_DISPLAY passThroughEnv', () => {
    */
   const turbo = readTurboJson();
 
-  for (const taskName of ['e2e', 'e2e:prod'] as const) {
+  for (const taskName of ['e2e', 'e2e:webkit', 'e2e:prod'] as const) {
     it(`Given turbo.json / When ${taskName} タスクを見る / Then WAYLAND_DISPLAY が passThroughEnv に含まれる`, () => {
       // Given / When
       const task = turbo.tasks[taskName];

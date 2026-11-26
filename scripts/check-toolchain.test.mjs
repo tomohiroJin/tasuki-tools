@@ -160,6 +160,36 @@ describe("check-toolchain の配線: Chromium の revision（#492）", () => {
     assert.match(r.stderr, new RegExp(`chromium: 宣言 revision ${revision} / 環境 1`));
   });
 
+  test("e2e-webkit の段: 要求の revision の WebKit と ffmpeg があれば exit 0 で WebKit の revision を名指しする（Chromium は要らない。#674）", () => {
+    const webkitRevision = browsers.find((b) => b.name === "webkit").revision;
+    const r = withBrowsersDir([`webkit-${webkitRevision}`, `ffmpeg-${ffmpegRevision}`], (dir) =>
+      runWith("e2e-webkit", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, new RegExp(`OK（e2e-webkit: .*webkit ${webkitRevision} / ffmpeg ${ffmpegRevision}`));
+    assert.doesNotMatch(r.stdout, /chromium/);
+  });
+
+  test("e2e-webkit の段: WebKit が無ければ非ゼロで終わり、WebKit の要求の revision を名指しする（#674）", () => {
+    const webkitRevision = browsers.find((b) => b.name === "webkit").revision;
+    const r = withBrowsersDir(
+      [`chromium-${revision}`, `chromium_headless_shell-${revision}`, `ffmpeg-${ffmpegRevision}`],
+      (dir) => runWith("e2e-webkit", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+    );
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stderr, /e2e-webkit の検査を始めません/);
+    assert.match(r.stderr, new RegExp(`webkit: 宣言 revision ${webkitRevision} / 環境 見つからない`));
+  });
+
+  test("e2e の段は WebKit が無くても止めない（#674）", () => {
+    const r = withBrowsersDir(
+      [`chromium-${revision}`, `chromium_headless_shell-${revision}`, `ffmpeg-${ffmpegRevision}`],
+      (dir) => runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.doesNotMatch(r.stdout, /webkit/);
+  });
+
   test("PLAYWRIGHT_BROWSERS_PATH=0 でも比べる（playwright-core の中の .local-browsers を見る）", () => {
     const r = runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: "0" });
     // .local-browsers に要求の revision が入っていない限り止まる（このリポジトリは使っていない）
@@ -217,7 +247,7 @@ describe("Chromium の置き場を決める変数が turbo の中へ届く（#49
     assert.deepEqual(read.filter((k) => !declared.includes(k)), []);
   });
 
-  for (const task of ["e2e", "e2e:prod"]) {
+  for (const task of ["e2e", "e2e:webkit", "e2e:prod"]) {
     test(`turbo の ${task} タスクの passThroughEnv に、渡す変数がすべてある`, () => {
       const pass = turbo.tasks[task]?.passThroughEnv ?? [];
       assert.deepEqual(BROWSERS_LOCATION_ENV.filter((k) => !pass.includes(k)), []);
@@ -264,8 +294,9 @@ describe("Chromium の置き場を決める変数が turbo の中へ届く（#49
 });
 
 describe("入口の配線（#487）", () => {
-  test("pnpm test と pnpm e2e は、turbo より先にそれぞれの段で版を比べる", () => {
+  test("pnpm test と pnpm e2e・pnpm e2e:webkit は、turbo より先にそれぞれの段で版を比べる", () => {
     assert.equal(REAL_PACKAGE.scripts.test, "node scripts/check-toolchain.mjs test && turbo run test");
     assert.equal(REAL_PACKAGE.scripts.e2e, "node scripts/check-toolchain.mjs e2e && turbo run e2e");
+    assert.equal(REAL_PACKAGE.scripts["e2e:webkit"], "node scripts/check-toolchain.mjs e2e-webkit && turbo run e2e:webkit");
   });
 });

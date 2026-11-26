@@ -175,7 +175,7 @@ test.describe('既に入っている人・timer の画面', () => {
     await expect(page.getByLabel('あなたの名前')).toHaveCount(0);
   });
 
-  test('Given timer のロビー / When 画面を見る / Then 合言葉（パスフレーズ）の設定の口は無い', async ({ page }) => {
+  test('@webkit Given timer のロビー / When 画面を見る / Then 合言葉（パスフレーズ）の設定の口は無い', async ({ page }) => {
     const code = await createHubRoom(page, 'あや');
     await page.goto(`/timer/?room=${encodeURIComponent(code)}`);
     await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -43,7 +43,7 @@ export const STAGES = Object.freeze({
+   mutation: Object.freeze(["node", "pnpm", "bun"]),
+   e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "ffmpeg", "caddy"]),
+   // WebKit で流す E2E（#674）。Chromium は使わないので見ない
+-  "e2e-webkit": Object.freeze(["node", "pnpm", "bun", "webkit", "ffmpeg", "caddy"]),
++  "e2e-webkit": Object.freeze(["node", "pnpm", "bun", "ffmpeg", "caddy"]),
+ });
+
+ /**

@@ -26,8 +26,17 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { REPO_ROOT } from '../harness/paths';
 
-/** 本番でも走らせるシナリオのタグ。ここに無いタグは使わない。 */
+/** 本番でも走らせるシナリオのタグ。 */
 const PRODUCTION_TAGS = ['@smoke', '@core'] as const;
+
+/**
+ * 本番では走らせない（`local` 専用の）タグ。`@webkit` は WebKit（iPhone）でも流すもの（#674）。
+ * 付いたシナリオは本番の絞り込みの側では「タグ無し」と同じに扱う（本番へ漏れれば下の検査が赤くなる）。
+ */
+const LOCAL_TAGS = ['@webkit'] as const;
+
+/** ここに無いタグは使わない。 */
+const KNOWN_TAGS: readonly string[] = [...PRODUCTION_TAGS, ...LOCAL_TAGS];
 
 const SPECS_DIR = path.join(REPO_ROOT, 'e2e/specs');
 
@@ -139,6 +148,70 @@ describe('e2e:prod の絞り込み', () => {
   });
 });
 
+/** 環境変数を控えた値へ戻す（もともと無かったなら消す）。 */
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+}
+
+describe('WebKit の絞り込み（#674）', () => {
+  const specs = readSpecs();
+  const allTitles = specs.flatMap((spec) =>
+    titlesOf(spec.source, DESCRIBE_CALL).flatMap((d) => titlesOf(spec.source, TEST_CALL).map((t) => `${d} ${t}`)),
+  );
+
+  it('Given @webkit を付けたシナリオ / When e2e:prod の絞り込みに当てる / Then 選ばれない（本番では流さない）', () => {
+    // Given
+    const grep = new RegExp(grepPatternOf(prodCommand()) ?? '(?:)');
+    const webkitOnly = allTitles.filter((t) => t.includes('@webkit') && !PRODUCTION_TAGS.some((tag) => t.startsWith(tag)));
+    expect(webkitOnly.length, '@webkit を付けたシナリオ').toBeGreaterThan(0);
+    // When / Then
+    expect(webkitOnly.filter((t) => grep.test(t)).join('\n'), '本番へ漏れる @webkit のシナリオ').toBe('');
+  });
+
+  it('Given playwright.config.ts / When WebKit の project を見る / Then @core と @webkit を選び、@smoke とタグ無しは選ばない', async () => {
+    // Given: 設定は読み込みの時点で環境変数を読むので、WebKit を選んだ状態で読む。
+    //        前の値は控えて最後に戻す（流す前から設定されていた値を消さない）
+    const saved = { target: process.env['TASUKI_E2E_TARGET'], browser: process.env['TASUKI_E2E_BROWSER'] };
+    process.env['TASUKI_E2E_TARGET'] = 'local';
+    process.env['TASUKI_E2E_BROWSER'] = 'webkit';
+    try {
+      const { default: config } = await import('../playwright.config');
+      // When
+      const projects = config.projects ?? [];
+      expect(projects.map((p) => p.name)).toEqual(['webkit-iphone']);
+      const grep = projects[0]?.grep;
+      expect(grep).toBeInstanceOf(RegExp);
+      const re = grep as RegExp;
+      // Then
+      expect(re.test('@core 玄関 LP が実ブラウザで描画される')).toBe(true);
+      expect(re.test('poker は見積もりを記録に残す @webkit Given 幅 390')).toBe(true);
+      expect(re.test('@smoke 各系統が並存する')).toBe(false);
+      expect(re.test('poker は見積もりを記録に残す Given 幅 390')).toBe(false);
+      expect(projects[0]?.workers).toBe(1);
+      // 名前だけでなく、実際に WebKit の iPhone として動く（端末の記述を替えると Chromium で流れ、両方が入った手元で緑になる。#674 のレビュー）
+      const use = projects[0]?.use ?? {};
+      expect(use.browserName ?? use.defaultBrowserType).toBe('webkit');
+      expect(use.isMobile).toBe(true);
+      expect(use.hasTouch).toBe(true);
+    } finally {
+      restoreEnv('TASUKI_E2E_TARGET', saved.target);
+      restoreEnv('TASUKI_E2E_BROWSER', saved.browser);
+    }
+  });
+});
+
+describe('pnpm e2e:webkit の入口（#674）', () => {
+  it('Given e2e/package.json / When e2e:webkit を見る / Then ローカルの対象で WebKit を選んで流す', () => {
+    // Given / When
+    const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, 'e2e/package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    // Then: TASUKI_E2E_BROWSER が落ちると Chromium で流れ、WebKit の E2E を流したつもりになる（#674 のレビュー）
+    expect(pkg.scripts?.['e2e:webkit']).toBe('TASUKI_E2E_TARGET=local TASUKI_E2E_BROWSER=webkit playwright test');
+  });
+});
+
 describe('specs のタグの書き方', () => {
   const specs = readSpecs();
 
@@ -165,7 +238,7 @@ describe('specs のタグの書き方', () => {
       ];
       for (const title of titles) {
         for (const tag of title.match(/@[\w-]+/g) ?? []) {
-          if (!PRODUCTION_TAGS.includes(tag as (typeof PRODUCTION_TAGS)[number])) {
+          if (!KNOWN_TAGS.includes(tag)) {
             unknown.push(`${spec.file}: ${tag}（${title}）`);
           }
         }

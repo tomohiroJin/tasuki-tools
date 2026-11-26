@@ -43,7 +43,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     await expectBlocksSeparated(page, '玄関（道具選び）');
   });
 
-  test('Given 招待の URL で開いた玄関（参加を名乗る） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page, openPeer }) => {
+  test('@webkit Given 招待の URL で開いた玄関（参加を名乗る） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page, openPeer }) => {
     test.setTimeout(120_000);
     await page.goto('/');
     await page.getByLabel('あなたの名前').fill('block-host');

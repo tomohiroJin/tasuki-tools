@@ -79,7 +79,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   [`docs/guides/development.md`](docs/guides/development.md) の「9p 越しで実行するとき」）
 - クラウドのセッション（claude.ai/code）では、プロキシで届かない取得先がある。`check-toolchain` が止めたら、
   [`docs/guides/development.md`](docs/guides/development.md) の「クラウドのセッションで道具を揃える」に従う。
-  そこにある取得先で揃わない道具（いまは E2E の Chromium と ffmpeg・shellcheck）は、**別の取得先や別の版で代えず**、
+  そこにある取得先で揃わない道具（いまは E2E の Chromium と ffmpeg・shellcheck。WebKit は未実測で、同じ CDN なので揃わない見込み）は、**別の取得先や別の版で代えず**、
   その検査を CI に任せ、「確かめられなかったこと」に止まった道具と届かなかった取得先を書く（`docs/adr/0033`）
 - 起動した dev サーバーは使い終わったら止める（`ss -tlnp` で確認）
 
@@ -106,6 +106,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `pnpm check:full` — 全件の段。CI からコマンドと変異のシャードを導いて同じ引数で流す。依存・ブラウザの導入は先に済ませる。両方とも版が合わなければ検査を始めない。`--list` で実行予定だけを確認できる
 - `pnpm test` — 全パッケージのテスト
 - `pnpm e2e` — E2E テスト
+- `pnpm e2e:webkit` — E2E の `@core`・`@webkit` を WebKit（iPhone 15）で流す。OS の依存に sudo が要り、揃わない手元では CI（`e2e-webkit`）に任せる（`docs/adr/0031` の追記（#674））
 - `TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm verify:prod` — 本番に配った後の、読むだけの確かめ（公開中の道具の配信ハッシュと手元のビルドの一致・公開パス・`/ws` の 426。`--e2e` で続けて `pnpm e2e:prod`。配る時の確認の一覧は [`deploy/README.md`](deploy/README.md)）
 - `pnpm changes:since <前のタグ>` — 前のタグから HEAD までのコミットを、wire・同期サーバー・`deploy/` に触れたかの印つきで並べる（配る順を決める材料。読むだけで、順は人が決める）
 - `node scripts/audit-structure.mjs` — 構造監査
@@ -116,7 +117,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/audit-domain-side-effects.mjs` — ドメインの副作用（core が環境から直接値を読まない）
 - `node scripts/check-links.mjs` — リンク検査
 - `node scripts/audit-agent-entries.mjs` — AI ツールの入口（`CLAUDE.md` ほか）が本書とずれていないか・スキルが手順書へ向く薄い入口か
-- `node scripts/check-toolchain.mjs <test|e2e|mutation>` — 開発環境の版（Node・pnpm・Bun・Chromium・ffmpeg・Caddy）が宣言と合うか。`pnpm test`・`pnpm e2e`・変異検査は先にこれを通し、合わなければ始めない（`docs/adr/0031`）
+- `node scripts/check-toolchain.mjs <test|e2e|e2e-webkit|mutation>` — 開発環境の版（Node・pnpm・Bun・Chromium・WebKit・ffmpeg・Caddy）が宣言と合うか。`pnpm test`・`pnpm e2e`・`pnpm e2e:webkit`・変異検査は先にこれを通し、合わなければ始めない（`docs/adr/0031`）
 - `node scripts/audit-toolchain.mjs` — 版の宣言（`toolchain.json` ほか）と、それを読む CI・ハーネスのずれ
 - `node scripts/audit-agent-guard.mjs` — AI ツールの設定（`.claude/settings.json`）が本番デプロイのコマンドを止めるフックへ配線されているか・止める一覧（`scripts/lib/agent-guard.mjs`）と `deploy/` の実体が合うか（`docs/adr/0032`）
 - `node scripts/audit-codex-guard.mjs` — Codex の設定（`.codex/hooks.json`）が本番デプロイを `deny` で止める入口へ配線されているか（`docs/adr/0032` の追記（#578））

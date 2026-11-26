@@ -17,14 +17,15 @@
 | pnpm | `package.json` の `packageManager` | 完全一致（`corepack enable` すればその版が使われる） |
 | Bun（同期サーバーの起動とテスト） | `toolchain.json` の `bun` | 完全一致（本番と同じ版） |
 | Chromium（E2E） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること |
-| ffmpeg（E2E の動画の記録） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること（`playwright install chromium` が一緒に入れる。`docs/adr/0033` 決定 3） |
+| WebKit（`pnpm e2e:webkit`） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること（OS の依存は見ない。`docs/adr/0031` の追記（#674）） |
+| ffmpeg（E2E の動画の記録） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること（`playwright install chromium`・`webkit` が一緒に入れる。`docs/adr/0033` 決定 3） |
 | Caddy（E2E） | `toolchain.json` の `caddy` | 完全一致（ハーネスが取得してキャッシュする） |
 
-**`pnpm test`・`pnpm e2e`・変異検査は、始める前に版を比べ、合わなければ始めません。**
+**`pnpm test`・`pnpm e2e`・`pnpm e2e:webkit`・変異検査は、始める前に版を比べ、合わなければ始めません。**
 どの道具がどの版で、どう揃えるかを出して止まります。先に確かめるだけなら次を叩きます。
 
 ```bash
-node scripts/check-toolchain.mjs test   # test・mutation は Node・pnpm・Bun、e2e は Chromium・ffmpeg・Caddy も見る
+node scripts/check-toolchain.mjs test   # test・mutation は Node・pnpm・Bun、e2e は Chromium・ffmpeg・Caddy、e2e-webkit は WebKit・ffmpeg・Caddy も見る
 ```
 
 ```bash
@@ -57,6 +58,7 @@ claude.ai/code のクラウドのセッションでは、外への通信がプ�
 | Bun | 公式の配布物（GitHub Releases）を `SHASUMS256.txt` と照合し、`~/.bun/bin/bun` に置く（下のコマンド。本番と同じ取り方） | 取れる。`bun.sh/install` は 403 |
 | Caddy | 何もしない。E2E のハーネスが GitHub Releases から取り、公式の checksums と照合する | 取れる |
 | Chromium・ffmpeg | `pnpm --filter @tasuki/e2e exec playwright install chromium`（Playwright の CDN から取る） | **取れない**。Playwright の CDN が 403 |
+| WebKit（`pnpm e2e:webkit`） | `pnpm --filter @tasuki/e2e exec playwright install --with-deps webkit`（Playwright の CDN から取る。OS の依存に sudo が要る） | 未実測（同じ CDN なので取れない見込み）。CI の `e2e-webkit` に任せる（`docs/adr/0031` の追記（#674）） |
 | shellcheck | 版を宣言していない（CI はランナーに入っているものを使う） | コンテナに無い。照合できる取得先が無い |
 
 コンテナには、宣言と違う版の Bun（`~/.bun/bin/bun`）と、宣言と違う revision のブラウザ（`PLAYWRIGHT_BROWSERS_PATH` の先）が

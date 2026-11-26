@@ -289,6 +289,9 @@ const RESERVED_2900_2919 =
 const RESERVED_2920_2929 =
   "**対応表より後に足した変異。** 2920〜2929 は #675 の続き（前のタグからの一覧のレビューの指摘）に割り当てた範囲。";
 
+const RESERVED_2930_2949 =
+  "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13876,5 +13879,79 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/prod-verify.test.mjs"],
     note: RESERVED_2920_2929 + " " + "#675 のマージ前のレビュー。http・ローカル宛の値に資格情報が入っていると、端末やログへ値ごと出る。",
+  },
+  {
+    id: 2930,
+    label: "check-toolchain の e2e-webkit の段が WebKit を見ない（段の道具から外す）",
+    patch: "m2930-toolchain-e2e-webkit-skips-webkit.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note: RESERVED_2930_2949 + " " + "#674。WebKit の無い環境で OK を出し、WebKit の E2E が起動の時に全件落ちる。",
+  },
+  {
+    id: 2931,
+    label: "WebKit の revision を、macOS 以外の OS ごとの差し替えがあっても既定の revision で読む",
+    patch: "m2931-webkit-revision-accepts-any-overrides.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note: RESERVED_2930_2949 + " " + "#674。Playwright が ubuntu の版ごとに別の revision を探すようになったとき、違う revision を「ある」「無い」と誤る。",
+  },
+  {
+    id: 2932,
+    label: "checkWebkit が別の revision の WebKit でも通す（名前の頭だけを見る）",
+    patch: "m2932-check-webkit-accepts-any-revision.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note: RESERVED_2930_2949 + " " + "#674。古い revision の WebKit しか無い環境で OK を出し、Playwright が起動の時に落ちる（#509 の ffmpeg と同じ形）。",
+  },
+  {
+    id: 2933,
+    label: "TASUKI_E2E_BROWSER の知らない値を Chromium に読み替える",
+    patch: "m2933-e2e-browser-unknown-read-as-chromium.patch",
+    pkg: "e2e",
+    tests: ["tests/browser.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674。綴りを誤ると、WebKit で流したつもりで Chromium の結果を見る。",
+  },
+  {
+    id: 2934,
+    label: "toolchainStageOf が WebKit にも e2e の段（Chromium）を返す",
+    patch: "m2934-e2e-webkit-stage-checks-chromium.patch",
+    pkg: "e2e",
+    tests: ["tests/browser.test.ts"],
+    note:
+      RESERVED_2930_2949 + " " + "#674。playwright test を直に叩いたとき、WebKit が無くても止まらず、ブラウザの起動で初めて落ちる。" +
+      "#674 のレビュー: global-setup.ts がこの関数へ渡す値（resolveBrowser(process.env)）の配線は、どの試験も守っていない（ルートの pnpm e2e:webkit が先に e2e-webkit の段を流し、直の実行でも Playwright が起動で落とすので、記録に留めた）。",
+  },
+  {
+    id: 2935,
+    label: "WebKit の project の絞り込みから @webkit を落とす（@core だけを流す）",
+    patch: "m2935-webkit-project-drops-webkit-tag.patch",
+    pkg: "e2e",
+    tests: ["tests/spec-tags.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674。iOS で崩れやすい所（玄関・狭い幅の配置とボタン・手動コピー）が WebKit で流れなくなっても、件数が減るだけで緑のまま。",
+  },
+  {
+    id: 2936,
+    label: "WebKit の project の端末の記述を Desktop Chrome に替える（名前は webkit-iphone のまま Chromium で流れる）",
+    patch: "m2936-webkit-project-runs-on-desktop-chrome.patch",
+    pkg: "e2e",
+    tests: ["tests/spec-tags.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674 のレビュー。CI では Chromium が無いので起動で落ちるが、両方が入った手元の check:full では Chromium で流れて緑になる。",
+  },
+  {
+    id: 2937,
+    label: "e2e:webkit のスクリプトが TASUKI_E2E_BROWSER=webkit を付けない",
+    patch: "m2937-e2e-webkit-script-drops-browser.patch",
+    pkg: "e2e",
+    tests: ["tests/spec-tags.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674 のレビュー。pnpm e2e:webkit が Chromium の全件を流し、WebKit の E2E を流したつもりになる。",
+  },
+  {
+    id: 2938,
+    label: "turbo の e2e:webkit タスクが TASUKI_E2E_BASE_URL を渡さない",
+    patch: "m2938-turbo-e2e-webkit-drops-base-url.patch",
+    pkg: "e2e",
+    tests: ["tests/turbo-env.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
   },
 ];
