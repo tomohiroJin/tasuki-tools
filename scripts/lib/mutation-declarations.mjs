@@ -292,6 +292,9 @@ const RESERVED_2920_2929 =
 const RESERVED_2930_2949 =
   "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
 
+const RESERVED_2970_2989 =
+  "**対応表より後に足した変異。** 2970〜2989 は #670（開票の演出の第 2 段の判定）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13953,5 +13956,85 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/turbo-env.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
+  },
+  {
+    id: 2970,
+    label: "全員休憩の下限を 2 票から 1 票へ下げる",
+    patch: "m2970-poker-break-min-votes-one.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement-break-near.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。☕ を出した人が 1 人だけの回でも「全員休憩」の演出が出る。",
+  },
+  {
+    id: 2971,
+    label: "全員休憩の判定を「全部が ☕」から「1 枚でも ☕」へ緩める",
+    patch: "m2971-poker-all-break-accepts-some-coffee.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement-break-near.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。数字や ? が混ざった回でも「全員休憩」と祝われる。",
+  },
+  {
+    id: 2972,
+    label: "ほぼ同じの下限を 3 票から 2 票へ下げる",
+    patch: "m2972-poker-near-min-votes-two.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement-break-near.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。2 人で違っただけ（よくあること）なのに「ほぼ同じ」が出る。",
+  },
+  {
+    id: 2973,
+    label: "ほぼ同じの判定が ? と ☕ の混在を除外しない",
+    patch: "m2973-poker-near-accepts-question-and-coffee.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement-break-near.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。棄権や休憩が混ざった回を「ほぼ同じ」と祝う（? の人が 1 人だけ違う人として扱われる）。",
+  },
+  {
+    id: 2974,
+    label: "ほぼ同じの「片方がちょうど 1 枚」を「片方が 2 枚以下」へ緩める",
+    patch: "m2974-poker-near-accepts-two-card-minority.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement-break-near.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。2 対 2 のように、本当に割れた回が「ほぼ同じ」になる。",
+  },
+  {
+    id: 2975,
+    label: "ほぼ同じの「札がちょうど 2 種類」を「2 種類以上」へ緩める",
+    patch: "m2975-poker-near-accepts-three-kinds.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement-break-near.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。3 種類以上に散った回で、1 枚の札があれば「ほぼ同じ」になる。",
+  },
+  {
+    id: 2976,
+    label: "全員同じの連続の数え方が、途切れた行で止まらず数え続ける",
+    patch: "m2976-poker-streak-skips-broken-row.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/unanimous-streak.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。間に割れた回があっても、全員同じの回を全部足して「N 回続けて」と出る。",
+  },
+  {
+    id: 2977,
+    label: "全員同じの連続が、1 枚だけの行（1 票）も数える",
+    patch: "m2977-poker-streak-counts-single-card-row.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/unanimous-streak.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。1 人だけの開票が「全員同じ」として連続に数えられる。",
+  },
+  {
+    id: 2978,
+    label: "全員同じの連続が、☕ や ? だけの行も数える",
+    patch: "m2978-poker-streak-counts-non-number-row.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/unanimous-streak.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。全員休憩・全員 ? の回が、見積もりが一致した連続に数えられる。",
+  },
+  {
+    id: 2979,
+    label: "全員同じの連続が、末尾の束の中だけを数える",
+    patch: "m2979-poker-streak-last-group-only.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/unanimous-streak.test.ts"],
+    note: RESERVED_2970_2989 + " " + "#670。アイテムが変わって束がまたがると、連続が 1 から数え直しになる。",
   },
 ];

@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/agreement.ts b/packages/poker-core/src/agreement.ts
+index 62ff2ea4..71c8e14e 100644
+--- a/packages/poker-core/src/agreement.ts
++++ b/packages/poker-core/src/agreement.ts
+@@ -13,7 +13,7 @@ export const UNANIMOUS_MIN_VOTES = 2;
+ export const SCATTER_MIN_VOTES = 3;
+ 
+ /** 全員休憩（#670）の下限。1 人の休憩は「全員」と呼べないので 2 票から */
+-export const BREAK_MIN_VOTES = 2;
++export const BREAK_MIN_VOTES = 1;
+ /**
+  * ほぼ同じ（#670）の下限。2 票で割れるのは「一致でない」だけで、ほぼ同じとは言えない。
+  * 3 票あって初めて「2 人がそろい、1 人だけ違う」が成り立つ

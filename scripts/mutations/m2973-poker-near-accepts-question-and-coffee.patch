@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/agreement.ts b/packages/poker-core/src/agreement.ts
+index 62ff2ea4..cf29e028 100644
+--- a/packages/poker-core/src/agreement.ts
++++ b/packages/poker-core/src/agreement.ts
+@@ -50,7 +50,7 @@ export function judgeAllBreak(votes: readonly VoteView[]): boolean {
+  */
+ export function judgeNearAgreement(votes: readonly VoteView[]): boolean {
+   if (votes.length < NEAR_MIN_VOTES) return false;
+-  if (votes.some((v) => v.card.kind !== 'number')) return false;
++  if (false) return false;
+   const counts = new Map<string, number>();
+   for (const v of votes) {
+     const key = cardKey(v.card);

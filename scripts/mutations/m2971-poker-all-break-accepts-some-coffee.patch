@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/agreement.ts b/packages/poker-core/src/agreement.ts
+index 62ff2ea4..9dd1739b 100644
+--- a/packages/poker-core/src/agreement.ts
++++ b/packages/poker-core/src/agreement.ts
+@@ -40,7 +40,7 @@ export function judgeAgreement(votes: readonly VoteView[]): Agreement | null {
+  */
+ export function judgeAllBreak(votes: readonly VoteView[]): boolean {
+   if (votes.length < BREAK_MIN_VOTES) return false;
+-  return votes.every((v) => v.card.kind === 'coffee');
++  return votes.some((v) => v.card.kind === 'coffee');
+ }
+ 
+ /**
