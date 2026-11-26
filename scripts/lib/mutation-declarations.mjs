@@ -13970,7 +13970,7 @@ export const MUTATIONS = [
     label: "時系列の帯の計測中の終わりを、1 分の刻みに切り下げない",
     patch: "m3181-track-band-now-not-stepped.patch",
     pkg: "packages/track-core",
-    tests: ["tests/band.test.ts","apps/track-web/tests/track-display.test.tsx"],
+    tests: ["tests/band.test.ts"],
     note: RESERVED_3180_3209 + " " + "#476 第 2 段 D。D5。帯が毎秒動く。",
   },
   {

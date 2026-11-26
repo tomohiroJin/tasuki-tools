@@ -2,7 +2,6 @@
 #
 # 検出を期待するテスト:
 #   - packages/track-core/tests/band.test.ts
-#   - apps/track-web/tests/track-display.test.tsx
 #
 # #476 時系列の帯の計測中の終わりを、1 分の刻みに切り下げない。D5。帯が毎秒動く。
 #
