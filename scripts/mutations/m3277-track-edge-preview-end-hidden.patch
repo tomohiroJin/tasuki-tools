@@ -1,0 +1,22 @@
+# 変異 3277: track-edge-preview-end-hidden
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 終わりの欄では「読み取った時間」を出さない（始まりの欄だけに出る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3277-*.patch
+# 復元: git apply -R scripts/mutations/m3277-*.patch
+diff --git a/apps/track-web/src/components/SegmentEditor.tsx b/apps/track-web/src/components/SegmentEditor.tsx
+--- a/apps/track-web/src/components/SegmentEditor.tsx
++++ b/apps/track-web/src/components/SegmentEditor.tsx
+@@ -194,7 +194,7 @@
+             </button>
+           </form>
+           {(() => {
+-            const preview = previewOf(edge);
++            const preview = edge === 'start' ? previewOf(edge) : null;
+             return preview !== null && <ReadRangeHint preview={preview} />;
+           })()}
+           {edgeError === edge && (

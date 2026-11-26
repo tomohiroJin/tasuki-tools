@@ -1,0 +1,23 @@
+# 変異 3274: track-edge-preview-start-not-yesterday
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 端を合わせる欄の「読み取った時間」で、前日に読んだ始まりに前日が添わない（11:00 を前日として 23:30 の区切りにすると気づけない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3274-*.patch
+# 復元: git apply -R scripts/mutations/m3274-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -198,7 +198,7 @@
+   const end = clockOfPosition(endMs, nowMs, epochWallMs, tzOffsetMin);
+   return {
+     startClock: start.clock,
+-    startYesterday: start.yesterday,
++    startYesterday: false,
+     endClock: end.clock,
+     endYesterday: end.yesterday,
+     lengthMin: Math.floor((endMs - startMs) / MS_PER_MIN),
