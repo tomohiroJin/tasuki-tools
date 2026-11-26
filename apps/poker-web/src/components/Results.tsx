@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { RoundStats } from '@tasuki/poker-core';
 import { cardLabel } from '../card-label';
-import { EFFECT_COPY, type ResultsEffect } from '../effect-copy';
+import { EFFECT_COPY, announcementOf, type ResultsEffect } from '../effect-copy';
 import type { SpreadPrompt } from '../room-view';
 
 interface Props {
@@ -22,6 +22,8 @@ interface Props {
    * （再読み込み・途中入室で最初から公開済みのときは出さない。毎回の開票で結果の節が作り直されるので、再投票でも毎回動く）
    */
   effect?: ResultsEffect | null;
+  /** 演出の添え書き（連続の「N 回続けて」ほか）。無ければ null（省略も同じ）。読み上げは題と続けて読む（#670） */
+  effectSub?: string | null;
 }
 
 /** 平均は小数 1 桁に丸めて表示（core は生値を返す。data-model 集計ルール） */
@@ -76,7 +78,7 @@ export function effectAnnounceDelay(seatCount: number, afterFlip: boolean): numb
   return afterFlip ? Math.min(seatCount - 1, 8) * 90 + 450 : 0;
 }
 
-export function Results({ stats, seatCount, afterFlip, spread, effect = null }: Props) {
+export function Results({ stats, seatCount, afterFlip, spread, effect = null, effectSub = null }: Props) {
   // 読み上げの知らせは、結果の節と一緒に空で挿入しておき、待ちの後に文言を入れる（中身を持って挿入された live region は読まれないことがある）
   const [announced, setAnnounced] = useState<string>('');
   useEffect(() => {
@@ -85,9 +87,9 @@ export function Results({ stats, seatCount, afterFlip, spread, effect = null }: 
       return undefined;
     }
     const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const timer = setTimeout(() => setAnnounced(EFFECT_COPY[effect]), reduced ? 0 : effectAnnounceDelay(seatCount, afterFlip));
+    const timer = setTimeout(() => setAnnounced(announcementOf(effect, effectSub)), reduced ? 0 : effectAnnounceDelay(seatCount, afterFlip));
     return () => clearTimeout(timer);
-  }, [effect, seatCount, afterFlip]);
+  }, [effect, effectSub, seatCount, afterFlip]);
   return (
     <section
       className={`results${afterFlip ? ' results--after-flip' : ''}`}
@@ -98,7 +100,8 @@ export function Results({ stats, seatCount, afterFlip, spread, effect = null }: 
           読み上げは下の status 1 つだけが受け持つ（二重に読ませない）。動きを減らす設定では動かず、色と文言が残る */}
       {effect && (
         <p className="results-effect" data-effect={effect} aria-hidden="true">
-          {EFFECT_COPY[effect]}
+          <span className="results-effect-title">{EFFECT_COPY[effect]}</span>
+          {effectSub !== null && <span className="results-effect-sub">{effectSub}</span>}
         </p>
       )}
       <p className="ui-visually-hidden results-effect-live" role="status">

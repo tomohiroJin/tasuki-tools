@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -164,7 +164,7 @@
+           kicker: CUTIN_KICKER,
+           ...(effectSub !== null && { sub: effectSub }),
+           tone: EFFECT_TONE[effect],
+-          delayMs: effectAnnounceDelay(seatCount, true),
++          delayMs: 0,
+         }
+       : null;
+   // ゲームの間は、手札・結果・下端の帯をテーブルに置き換える（#403・設計 §5.2）。席の一覧・お題・記録は残す

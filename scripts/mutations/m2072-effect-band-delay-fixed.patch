@@ -1,5 +1,4 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
-index 0e6ef2ad..22558ba4 100644
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
 @@ -499,7 +499,7 @@
@@ -10,4 +9,4 @@ index 0e6ef2ad..22558ba4 100644
 +  animation-delay: 0.25s;
  }
  
- .results-effect[data-effect='unanimous'] {
+ .results-effect[data-effect='break'] {

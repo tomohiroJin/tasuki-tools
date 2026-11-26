@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/effect-copy.ts b/apps/poker-web/src/effect-copy.ts
+--- a/apps/poker-web/src/effect-copy.ts
++++ b/apps/poker-web/src/effect-copy.ts
+@@ -30,7 +30,7 @@
+ export const EFFECT_TONE = {
+   break: 'ivory',
+   unanimous: 'gold',
+-  split: 'rose',
++  split: 'gold',
+   near: 'gold',
+   scattered: 'rose',
+   complete: 'jade',

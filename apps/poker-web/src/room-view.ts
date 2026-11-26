@@ -2,9 +2,20 @@
  * ルーム画面の判断（#370 で `pages/RoomPage.tsx` から出した。`docs/adr/0015` 決定 1）。
  * React にも I/O にも依存しない。
  */
-import { cardKey, findSpread, judgeAgreement, type Card, type ParticipantView, type RoomStateMessage, type SpreadEnd } from '@tasuki/poker-core';
+import {
+  cardKey,
+  findSpread,
+  judgeAgreement,
+  judgeAllBreak,
+  judgeNearAgreement,
+  unanimousStreak,
+  type Card,
+  type ParticipantView,
+  type RoomStateMessage,
+  type SpreadEnd,
+} from '@tasuki/poker-core';
 import type { ConnectionStatus } from '@tasuki/sync-client';
-import type { ResultsEffect } from './effect-copy';
+import { streakSub, type ResultsEffect } from './effect-copy';
 
 type RoundStatus = RoomStateMessage['round']['status'];
 
@@ -45,10 +56,14 @@ export function isOffline(status: ConnectionStatus): boolean {
 }
 
 /**
- * 開票の演出（#639）。出さないなら null。**開票の瞬間の名簿で一度だけ呼ぶ**（画面は公開へ移った描画で決めて持つ。
- * 開票の後の入退室・切断で種類を変えない）。優先は 全員一致 > 全員バラバラ > 全員の投票完了。
+ * 開票の演出（#639・#670）。出さないなら null。**開票の瞬間の名簿で一度だけ呼ぶ**（画面は公開へ移った描画で決めて持つ。
+ * 開票の後の入退室・切断で種類を変えない）。優先は 全員休憩 > 全員同じ > 全員バラバラ > 大きく割れた > ほぼ同じ > 全員の投票完了
+ * （設計 `docs/superpowers/specs/2026-11-27-cutin-design.md` §3 の補遺）。
  *
- * - 一致・バラバラの判定は `poker-core` の `judgeAgreement`（数字の札だけ・人数の下限つき）
+ * - 休憩・一致・バラバラ・ほぼ同じの判定は `poker-core` の `judgeAllBreak`・`judgeAgreement`・`judgeNearAgreement`（人数の下限つき）、
+ *   割れは `findSpread`（2 段以上）。**バラバラは割れより先に見る**: 数字の札が 3 枚以上すべて違えば必ず 2 段以上離れるので、
+ *   割れを先に見ると #639 の「全員バラバラ」が数字だけの回で一度も出なくなる。割れは「同じ札の組があるのに大きく離れた」回に出る。
+ *   割れの促し（`spreadPromptOf`）と同じことを言う割れを、ほぼ同じより先に出す（「ほぼ同じ」と「割れました」を同時に言わない）
  * - 全員の投票完了（'complete'）: 接続中の投票者（見学者を除く）が 2 人以上で、全員が票を出して開票された。
  *   **全員が出すとサーバーは自動で開票する（FR-008）ので、「全員が出した・まだ開票していない」状態は wire に無い。**
  *   開票と同時に届いた状態から導く。手動で先に開票した（出していない人が居る）ときは出さない
@@ -63,7 +78,24 @@ export function resultsEffectOf(
   const voters = participants.filter((p) => p.connected && !p.spectator);
   if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
   // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
-  return judgeAgreement(round.votes) ?? 'complete';
+  if (judgeAllBreak(round.votes)) return 'break';
+  const agreement = judgeAgreement(round.votes);
+  if (agreement !== null) return agreement;
+  if (findSpread(round.votes) !== null) return 'split';
+  if (judgeNearAgreement(round.votes)) return 'near';
+  return 'complete';
+}
+
+/**
+ * 連続の添え書き「N 回続けて」（#670）。**開票の瞬間に一度だけ呼ぶ**（画面は帯と一緒に持ち、開票の後の記録の変化で変えない）。
+ * 全員同じで、見積もりの記録が「記録する」で、記録の末尾から数えた連続が 2 以上のときだけ。
+ * 記録しない間は出さない（画面ごとの見届けで数えると、途中入室の人とずれる）。記録は全員の画面が同じものを持つので、同じ数が出る。
+ * `recording` が無い（古いサーバー）は「記録する」と読む。
+ */
+export function streakSubOf(effect: ResultsEffect | null, estimate: RoomStateMessage['estimate']): string | null {
+  if (effect !== 'unanimous' || estimate === undefined || estimate.recording === false) return null;
+  const streak = unanimousStreak(estimate.log);
+  return streak >= 2 ? streakSub(streak) : null;
 }
 
 /**

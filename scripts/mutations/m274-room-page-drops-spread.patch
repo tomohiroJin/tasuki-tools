@@ -1,13 +1,12 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 5f1d0020..308ab773 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -274,7 +274,7 @@ export function RoomPage({ roomId, sync }: Props) {
+@@ -304,7 +304,7 @@
                stats={snapshot.round.stats}
                seatCount={seatCount}
                afterFlip={revealedLive}
 -              spread={spreadPromptOf(snapshot.round, snapshot.participants)}
 +              spread={null}
                effect={effect}
+               effectSub={effectSub}
              />
-           )}

@@ -10,7 +10,9 @@ import { mediaBlock } from '@tasuki/test-css';
 import { effectAnnounceDelay } from '../src/components/Results';
 
 const css = read('src/index.css');
-const KINDS = ['unanimous', 'scattered', 'complete'] as const;
+const KINDS = ['break', 'unanimous', 'split', 'near', 'scattered', 'complete'] as const;
+/** 場面ごとの色（設計 §3）。静かな帯の色もカットインの tone と同じ対応にそろえる（#670） */
+const TONE_TOKEN = { break: 'ivory', unanimous: 'gold', split: 'rose', near: 'gold', scattered: 'rose', complete: 'jade' } as const;
 
 /** `@keyframes name { ... }` の中身（コメントを除き、ちょうど 1 つあることを確かめる） */
 const keyframes = (name: string): string => mediaBlock(css, `@keyframes ${name}`);
@@ -56,6 +58,23 @@ describe('開票の演出の帯の CSS（#639）', () => {
     expect(rule).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/);
     // 帯の規則は長さを持たず、要素層の reduced-motion の一括の手当て（長さ・遅延を 0）に任せる
     expect(rule).not.toMatch(/prefers-reduced-motion/);
+  });
+
+  it.each(KINDS)('Given %s の帯 / Then 色は場面の tone のトークン（ivory は字の色だけ・gold・rose・jade は枠と字と地）で、取り違えない（#670）', (kind) => {
+    const rule = foundBody(rulesOf(css, `.results-effect[data-effect='${kind}']`), kind);
+    const tone = TONE_TOKEN[kind];
+    const color = /(?:^|[\s;{])color:\s*var\(--([a-z]+)-?[a-z]*\)/.exec(rule)?.[1];
+    expect(color, `${kind} の字の色`).toBe(tone);
+    if (tone !== 'ivory') {
+      expect(rule).toMatch(new RegExp(`border-color:\\s*var\\(--${tone}-edge\\)`));
+      expect(rule).toMatch(new RegExp(`background:\\s*var\\(--${tone}-tint\\)`));
+    }
+  });
+
+  it('Given 添え書き / Then 帯の中で題の下に小さく置く（高さは動かさない・折り返してよい）', () => {
+    const sub = foundBody(rulesOf(css, '.results-effect-sub'), '添え書き');
+    expect(sub).toMatch(/display:\s*block;/);
+    expect(sub).toMatch(/font-size:\s*var\(--font-size-(xs|sm)\);/);
   });
 
   it('Given 動きの枠 / Then レイアウトを変える性質を使わない（折り返し・高さの変化で下の統計を跳ねさせない。transform・opacity・clip-path・filter だけ）', () => {
