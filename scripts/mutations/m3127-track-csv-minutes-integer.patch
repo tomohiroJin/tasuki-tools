@@ -1,10 +1,10 @@
 diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
-index fee38671..0e1db53e 100644
+index 17c88fca..a421454f 100644
 --- a/packages/track-core/src/csv.ts
 +++ b/packages/track-core/src/csv.ts
-@@ -39,7 +39,7 @@ export function toCsv(view: TrackView, nowMs: number, tzOffsetMin: number): stri
-       formatDate(startWall, tzOffsetMin),
+@@ -40,7 +40,7 @@ export function toCsv(view: TrackView, nowMs: number, tzOffsetMin: number): stri
        formatClock(startWall, tzOffsetMin),
+       formatDate(endWall, tzOffsetMin),
        formatClock(endWall, tzOffsetMin),
 -      (durationOf(g, nowMs) / MS_PER_MIN).toFixed(2),
 +      (durationOf(g, nowMs) / MS_PER_MIN).toFixed(0),

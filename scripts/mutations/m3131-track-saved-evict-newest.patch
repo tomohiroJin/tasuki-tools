@@ -1,11 +1,11 @@
 diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
-index fcdef1a6..e56d5c25 100644
+index c678fa59..045d0ff2 100644
 --- a/apps/track-web/src/storage/saved-record.ts
 +++ b/apps/track-web/src/storage/saved-record.ts
-@@ -84,7 +84,7 @@ export function evictedIds(records: readonly SavedRecord[]): string[] {
-   const excess = records.length - MAX_SAVED_RECORDS;
+@@ -88,7 +88,7 @@ export function evictedIds(records: readonly SavedRecord[], keepId?: string): st
    if (excess <= 0) return [];
-   return [...records]
+   return records
+     .filter((r) => r.id !== keepId)
 -    .sort((a, b) => a.savedAtMs - b.savedAtMs)
 +    .sort((a, b) => b.savedAtMs - a.savedAtMs)
      .slice(0, excess)

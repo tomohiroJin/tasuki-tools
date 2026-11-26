@@ -1,5 +1,5 @@
 diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
-index fee38671..03eeab49 100644
+index 17c88fca..033e6d6c 100644
 --- a/packages/track-core/src/csv.ts
 +++ b/packages/track-core/src/csv.ts
 @@ -12,7 +12,7 @@ import type { TrackView } from "./types.js";
@@ -10,4 +10,4 @@ index fee38671..03eeab49 100644
 +const EOL = "\n";
  
  /** 列の見出し（順も含めて契約。表計算や工数の道具へ移すときの取り決め） */
- export const CSV_COLUMNS = ["date", "start", "end", "minutes", "kind", "label", "auto_closed"] as const;
+ export const CSV_COLUMNS = ["start_date", "start", "end_date", "end", "minutes", "kind", "label", "auto_closed"] as const;

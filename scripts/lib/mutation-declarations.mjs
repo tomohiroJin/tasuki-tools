@@ -298,6 +298,9 @@ const RESERVED_3100_3119 =
 const RESERVED_3270_3289 =
   "**対応表より後に足した変異。** 3270〜3289 は #476 の第 2 段 PR A（手直しの残り）の 2 回目の直しに割り当てた範囲。";
 
+const RESERVED_3230_3249 =
+  "**対応表より後に足した変異。** 3230〜3249 は #476 の第 2 段 B（端末に残す・CSV）のレビューの直しに追加で割り当てた範囲。";
+
 const RESERVED_3120_3149 =
   "**対応表より後に足した変異。** 3120〜3149 は #476 の第 2 段 B（端末に残す・CSV）に割り当てた範囲。";
 
@@ -14421,11 +14424,11 @@ export const MUTATIONS = [
   },
   {
     id: 3142,
-    label: "全部消すが、読めない記録（新しい版）まで消す",
+    label: "全部消すが、渡された ID の外（読めない記録・一覧を読んだ後に残した記録）まで消す",
     patch: "m3142-track-saved-clear-deletes-unreadable.patch",
     pkg: "apps/track-web",
     tests: ["tests/saved-record.test.ts","tests/saved-store.test.ts"],
-    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B。新しい版のアプリが残した記録を、見えないまま消す。",
+    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B。見えていない記録を、見ないまま消す。",
   },
   {
     id: 3143,
@@ -14442,5 +14445,85 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/saved-record.test.ts","tests/saved-store.test.ts","tests/saved-records.test.tsx"],
     note: RESERVED_3120_3149 + " " + "#476 第 2 段 B。ルームの時刻軸と端末の時計がずれたとき、残した時刻が合わない。",
+  },
+  {
+    id: 3145,
+    label: "上限で消す候補に、残したばかりの記録が入る",
+    patch: "m3145-track-saved-evict-candidate-includes-just-saved.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-record.test.ts","tests/saved-store.test.ts"],
+    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B のレビュー。時刻が古い記録を残すと、残した直後にその記録が消える。",
+  },
+  {
+    id: 3146,
+    label: "ダウンロードの URL を、クリックの直後に手放す",
+    patch: "m3146-track-saved-download-revokes-immediately.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/download.test.ts"],
+    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B のレビュー。ブラウザによっては、保存したファイルが空になる。",
+  },
+  {
+    id: 3147,
+    label: "知らせの欄が、コピーの失敗が残っている間、保存の結果を隠す",
+    patch: "m3147-track-saved-status-copy-hides-save.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B のレビュー。残せたのに、コピーできませんでしたと出続ける。",
+  },
+  {
+    id: 3148,
+    label: "同じ記録を押すたびに新しく残す",
+    patch: "m3148-track-saved-same-rev-saved-twice.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B のレビュー。同じ記録が端末に何件も溜まる。",
+  },
+  {
+    id: 3149,
+    label: "ルームの画面からの「この端末の記録」が同じタブで開く",
+    patch: "m3149-track-saved-link-same-tab.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3120_3149 + " " + "#476 第 2 段 B のレビュー。ルームの接続が切れる。",
+  },
+  {
+    id: 3230,
+    label: "記録が変わっても、残しましたの表示が残る",
+    patch: "m3230-track-saved-status-not-reset-on-rev.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B のレビュー。新しい記録を残していないのに、残したと読める。",
+  },
+  {
+    id: 3231,
+    label: "一覧の作業名の数に、名前なしの作業まで数える",
+    patch: "m3231-track-saved-named-count-includes-unnamed.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B のレビュー。数が文言（作業名）と合わない。",
+  },
+  {
+    id: 3232,
+    label: "ルームの画面の CSV のファイル名を、端末の時計から作る",
+    patch: "m3232-track-saved-csv-filename-device-clock.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-records.test.tsx"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B のレビュー。時刻軸（記録の時刻）とファイル名がずれる。",
+  },
+  {
+    id: 3233,
+    label: "CSV の end_date に、始まりの日付を出す",
+    patch: "m3233-track-csv-end-date-uses-start.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/csv.test.ts"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B のレビュー。日をまたぐ区切りの終わりの日付が 1 日前になる。",
+  },
+  {
+    id: 3234,
+    label: "上限で消す数に、読めない記録まで数える",
+    patch: "m3234-track-saved-evict-counts-unreadable.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/saved-record.test.ts","tests/saved-store.test.ts"],
+    note: RESERVED_3230_3249 + " " + "#476 第 2 段 B のレビュー。読めない記録のぶん、読める記録を余分に消す。",
   },
 ];

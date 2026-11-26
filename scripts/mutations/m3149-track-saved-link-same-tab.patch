@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/components/TakeHome.tsx b/apps/track-web/src/components/TakeHome.tsx
+index 26ac5fcd..3f34077f 100644
+--- a/apps/track-web/src/components/TakeHome.tsx
++++ b/apps/track-web/src/components/TakeHome.tsx
+@@ -96,7 +96,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, savedCount,
+         <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord} onClick={onCsv}>
+           {CSV_BUTTON}
+         </button>
+-        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref} target="_blank" rel="noopener">
++        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref}>
+           {SAVED_LINK}
+         </a>
+       </div>

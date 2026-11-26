@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/screens/SavedRecords.tsx b/apps/track-web/src/screens/SavedRecords.tsx
+index 4c95cff3..8cc27aaf 100644
+--- a/apps/track-web/src/screens/SavedRecords.tsx
++++ b/apps/track-web/src/screens/SavedRecords.tsx
+@@ -121,7 +121,7 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
+                 const view = viewOfRecord(record);
+                 const when = `${formatDate(record.savedAtMs, tzOffsetMin)} ${formatClock(record.savedAtMs, tzOffsetMin)}`;
+                 const total = formatDuration(totalsOf(view, view.nowMs).totalMs);
+-                const names = new Set(record.segments.filter((g) => g.kind === 'work' && g.label !== '').map((g) => g.label)).size;
++                const names = new Set(record.segments.filter((g) => g.kind === 'work').map((g) => g.label)).size;
+                 const open = openId === record.id;
+                 return (
+                   <li key={record.id} className="track-saved-item" data-saved={record.id}>
