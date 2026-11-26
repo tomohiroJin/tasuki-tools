@@ -131,8 +131,9 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), three)).toBe('unanimous');
   });
 
-  it('同じ札が 1 組も無く 3 段以上離れていれば split（割れが先。3 枚すべて違えば必ず 3 段以上離れるので、数字だけの回では scattered は split に隠れる）', () => {
-    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), three)).toBe('split');
+  it('同じ札が 1 組も無ければ、大きく離れていても scattered（バラバラが割れより先。3 枚すべて違えば必ず 2 段以上離れるので、割れを先に見るとバラバラが出なくなる）', () => {
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), three)).toBe('scattered');
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(2)], ['c', n(3)]]), three)).toBe('scattered');
   });
 
   it('大きく割れた（3 段以上）なら、同じ札が 2 組あっても split', () => {
@@ -193,9 +194,9 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), five)).toBeNull();
   });
 
-  it('接続中の 2 人が 5・8 で、切断した人が 13 を出して開票されたなら、見える 3 枚がすべて違い 3 段以上離れるので split（帯は札の事実と合う）', () => {
+  it('接続中の 2 人が 5・8 で、切断した人が 13 を出して開票されたなら、見える 3 枚がすべて違うので scattered（帯は札の事実と合う）', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
-    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('split');
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('scattered');
   });
 
   it('卓の見える札が 3 枚とも 5（切断した人の 5 を含む）なら、unanimous（見える全票で判定する）', () => {
@@ -203,9 +204,9 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), people)).toBe('unanimous');
   });
 
-  it('卓の見える札が 3 枚とも違う（切断した人の 13 を含む）なら、split（見える全票で判定する）', () => {
+  it('卓の見える札が 3 枚とも違う（切断した人の 13 を含む）なら、scattered（見える全票で判定する）', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
-    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(13)]]), people)).toBe('split');
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(13)]]), people)).toBe('scattered');
   });
 
   it('接続中の 2 人が同じ 5 で、切断した人が 13 を出していたなら、見える札は 3 段離れているので split', () => {

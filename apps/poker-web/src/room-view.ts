@@ -57,12 +57,13 @@ export function isOffline(status: ConnectionStatus): boolean {
 
 /**
  * 開票の演出（#639・#670）。出さないなら null。**開票の瞬間の名簿で一度だけ呼ぶ**（画面は公開へ移った描画で決めて持つ。
- * 開票の後の入退室・切断で種類を変えない）。優先は 全員休憩 > 全員同じ > 大きく割れた > ほぼ同じ > 全員バラバラ > 全員の投票完了
- * （設計 `docs/superpowers/specs/2026-11-27-cutin-design.md` §3）。
+ * 開票の後の入退室・切断で種類を変えない）。優先は 全員休憩 > 全員同じ > 全員バラバラ > 大きく割れた > ほぼ同じ > 全員の投票完了
+ * （設計 `docs/superpowers/specs/2026-11-27-cutin-design.md` §3 の補遺）。
  *
  * - 休憩・一致・バラバラ・ほぼ同じの判定は `poker-core` の `judgeAllBreak`・`judgeAgreement`・`judgeNearAgreement`（人数の下限つき）、
- *   割れは `findSpread`（3 段以上）。割れの促し（`spreadPromptOf`）と同じことを言う割れを、バラバラ・ほぼ同じより先に出す。
- *   なお数字の札が 3 枚以上すべて違えば必ず 3 段以上離れる（札の並びは 8 段）ので、数字だけの回の「バラバラ」は割れに先を越される
+ *   割れは `findSpread`（2 段以上）。**バラバラは割れより先に見る**: 数字の札が 3 枚以上すべて違えば必ず 2 段以上離れるので、
+ *   割れを先に見ると #639 の「全員バラバラ」が数字だけの回で一度も出なくなる。割れは「同じ札の組があるのに大きく離れた」回に出る。
+ *   割れの促し（`spreadPromptOf`）と同じことを言う割れを、ほぼ同じより先に出す（「ほぼ同じ」と「割れました」を同時に言わない）
  * - 全員の投票完了（'complete'）: 接続中の投票者（見学者を除く）が 2 人以上で、全員が票を出して開票された。
  *   **全員が出すとサーバーは自動で開票する（FR-008）ので、「全員が出した・まだ開票していない」状態は wire に無い。**
  *   開票と同時に届いた状態から導く。手動で先に開票した（出していない人が居る）ときは出さない
@@ -79,10 +80,10 @@ export function resultsEffectOf(
   // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
   if (judgeAllBreak(round.votes)) return 'break';
   const agreement = judgeAgreement(round.votes);
-  if (agreement === 'unanimous') return 'unanimous';
+  if (agreement !== null) return agreement;
   if (findSpread(round.votes) !== null) return 'split';
   if (judgeNearAgreement(round.votes)) return 'near';
-  return agreement ?? 'complete';
+  return 'complete';
 }
 
 /**

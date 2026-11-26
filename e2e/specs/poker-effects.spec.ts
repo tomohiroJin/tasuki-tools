@@ -1,7 +1,7 @@
 /**
  * poker の開票の演出（#639・#670）。静かな帯 1 行と、画面全体のカットイン。
  * 場面は 6 つ: 全員休憩・全員同じ・大きく割れた・ほぼ同じ・全員バラバラ・全員出そろいました
- * （数字だけの回の「全員バラバラ」は、3 段以上離れる「大きく割れた」に先を越されるので、画面からは出ない。単体が見る）。
+ * （「全員バラバラ」は「大きく割れた」より先に見る。全員が違う札なら必ず離れているので、逆にするとバラバラが出なくなる）。
  *
  * **タグを付けない（`local` 専用）。** 2〜3 つのブラウザ文脈を使う画面の確認で、本番の煙には要らない。
  *
@@ -22,6 +22,7 @@ const BREAK = '全員休憩';
 const UNANIMOUS = '全員同じ';
 const SPLIT = '大きく割れた';
 const NEAR = 'ほぼ同じ';
+const SCATTERED = '全員バラバラ';
 const COMPLETE = '全員出そろいました';
 /** カットインを出している長さ（ms）。正本は `@tasuki/web-kit/room` の `CUTIN_DURATION_MS`（e2e はアプリのコードを読まないので写す。ずれたら下の消える待ちが先に気づく） */
 const CUTIN_MS = 1800;
@@ -169,6 +170,16 @@ test.describe('poker の開票の演出（#639・#670）', () => {
       await expect(cutIn(p, SPLIT)).toBeVisible();
       await expect(cutIn(p, SPLIT).locator('.ui-cutin__sub')).toHaveText('上と下の見方を話そう');
       await expect(band(p, SPLIT)).toBeVisible();
+    }
+  });
+
+  test('Given 3 人 / When 全員が違う札を出す / Then 「大きく割れた」でなく「全員バラバラ」のカットインと帯が出る', async ({ page, openPeer }) => {
+    const pages = await openRoom(page, openPeer, 'fx-s', 3);
+    await everyoneVotes(pages, ['1', '5', '13']);
+    for (const p of pages) {
+      await expect(cutIn(p, SCATTERED)).toBeVisible();
+      await expect(band(p, SCATTERED)).toBeVisible();
+      await expect(band(p, SPLIT)).toHaveCount(0);
     }
   });
 

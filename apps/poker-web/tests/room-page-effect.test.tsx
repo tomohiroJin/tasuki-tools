@@ -90,7 +90,8 @@ describe('RoomPage の開票の演出（#639）', () => {
   it.each([
     ['全員が同じ数字', [n(5), n(5), n(5)], 'unanimous', '全員同じ'],
     ['全員が休憩', [{ kind: 'coffee' }, { kind: 'coffee' }, { kind: 'coffee' }], 'break', '全員休憩'],
-    ['3 段以上離れて割れた', [n(1), n(5), n(13)], 'split', '大きく割れた'],
+    ['同じ札の組があって大きく割れた', [n(1), n(1), n(13)], 'split', '大きく割れた'],
+    ['全員が違う数字', [n(1), n(5), n(13)], 'scattered', '全員バラバラ'],
     ['2 人がそろい 1 人だけ違う', [n(5), n(5), n(8)], 'near', 'ほぼ同じ'],
     ['? が混ざって出そろった', [n(5), n(5), { kind: 'question' }], 'complete', '全員出そろいました'],
   ] as const)('Given 投票中から開票を見届けた・%s / When 描く / Then 結果の節に「%s」の帯が出る', (_label, cards, effect, text) => {
@@ -304,7 +305,7 @@ describe('RoomPage のカットイン（#670）', () => {
 
   it.each([
     ['全員休憩', [{ kind: 'coffee' }, { kind: 'coffee' }, { kind: 'coffee' }], 'ivory', 'ひと休みしよう'],
-    ['大きく割れた', [n(1), n(5), n(13)], 'rose', '上と下の見方を話そう'],
+    ['大きく割れた', [n(1), n(1), n(13)], 'rose', '上と下の見方を話そう'],
     ['ほぼ同じ', [n(5), n(5), n(8)], 'gold', undefined],
     ['全員出そろいました', [n(5), n(5), { kind: 'question' }], 'jade', undefined],
   ] as const)('Given 場面「%s」 / When 開票を見届ける / Then 色 %s と添え書きが cue に載る', (title, cards, tone, sub) => {
