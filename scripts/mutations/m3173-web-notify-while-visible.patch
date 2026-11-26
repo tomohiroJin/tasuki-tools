@@ -11,24 +11,24 @@
 diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
 --- a/apps/track-web/src/hooks/use-long-running-notify.ts
 +++ b/apps/track-web/src/hooks/use-long-running-notify.ts
-@@ -32,7 +32,7 @@
+@@ -44,7 +44,7 @@
        return;
      }
      if (longRunningId === null || longRunningId === previous || notifiedRef.current.has(longRunningId)) return;
 -    if (enabledRef.current && pageHidden()) {
 +    if (enabledRef.current) {
        notifiedRef.current.add(longRunningId);
-       notifyWhenHidden(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MS_PER_MIN), LONG_RUNNING_NOTIFY_BODY);
-     }
+       const minutes = LONG_RUNNING_NOTICE_MS / MS_PER_MIN;
+       const title = kindRef.current === 'break' ? longRunningBreakNotifyTitle(minutes) : longRunningNotifyTitle(minutes);
 diff --git a/apps/track-web/src/platform/notify.ts b/apps/track-web/src/platform/notify.ts
 --- a/apps/track-web/src/platform/notify.ts
 +++ b/apps/track-web/src/platform/notify.ts
-@@ -63,7 +63,7 @@
- 
- /** 非表示のときだけ通知を出す。許可が無い・前面・未対応では何もしない。 */
- export function notifyWhenHidden(title: string, body: string): void {
--  if (!notificationGranted() || !pageHidden()) return;
-+  if (!notificationGranted()) return;
+@@ -77,7 +77,7 @@
+  * **`new Notification()` が投げたら `failed` を返し、以後この端末では出さない**（黙って握りつぶさない。呼ぶ側が設定を切に戻して知らせる）。
+  */
+ export function notifyWhenHidden(title: string, body: string): 'sent' | 'skipped' | 'failed' {
+-  if (!notificationGranted() || !pageHidden()) return 'skipped';
++  if (!notificationGranted()) return 'skipped';
    try {
      // 同じ知らせが重ならないよう tag を付ける
      new Notification(title, { body, tag: 'tasuki-track-long-running' });

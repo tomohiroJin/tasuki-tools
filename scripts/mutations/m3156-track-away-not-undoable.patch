@@ -11,12 +11,12 @@
 diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
 --- a/packages/track-core/src/edit.ts
 +++ b/packages/track-core/src/edit.ts
-@@ -190,7 +190,7 @@
-   const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "break", now: input.now });
-   // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限だけ
-   if (inserted.isErr()) return fail(inserted.error.code === "TRACK_FULL" ? "TRACK_FULL" : "TRACK_BACKDATE_TOO_FAR");
--  return ok(timed(s, "away", input.now, { segments: inserted.value.segments, nextSeq: inserted.value.nextSeq }));
-+  return ok(inserted.value);
+@@ -199,7 +199,7 @@
+     tail === undefined || tail.id === running.id
+       ? inserted.value.segments
+       : inserted.value.segments.map((g) => (g.id === running.id ? { ...g, id: tail.id } : g === tail ? { ...g, id: running.id } : g));
+-  return ok(timed(s, "away", input.now, { segments, nextSeq: inserted.value.nextSeq }));
++  return ok({ ...inserted.value, segments });
  }
  
  /** 閉じた区切りを消す。その時間は隙間になる。 */

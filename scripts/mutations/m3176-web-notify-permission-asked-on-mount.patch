@@ -11,11 +11,11 @@
 diff --git a/apps/track-web/src/hooks/use-notify-setting.ts b/apps/track-web/src/hooks/use-notify-setting.ts
 --- a/apps/track-web/src/hooks/use-notify-setting.ts
 +++ b/apps/track-web/src/hooks/use-notify-setting.ts
-@@ -24,6 +24,7 @@
+@@ -29,6 +29,7 @@
  export function useNotifySetting(): NotifySetting {
    const [enabled, setEnabled] = useState(() => loadNotifyPreference() && notificationGranted());
    const [denied, setDenied] = useState(false);
 +  void requestNotificationPermission();
- 
-   const toggle = useCallback(() => {
-     if (enabled) {
+   const [unavailable, setUnavailable] = useState(() => notificationUnavailable());
+   const markUnavailable = useCallback(() => {
+     saveNotifyPreference(false);

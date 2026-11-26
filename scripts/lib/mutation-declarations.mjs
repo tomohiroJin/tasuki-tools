@@ -283,6 +283,9 @@ const RESERVED_2820_2829 =
 const RESERVED_3150_3179 =
   "**対応表より後に足した変異。** 3150〜3179 は #476 第 2 段の PR C（離れていたとき・FR-27・FR-6 の通知）に割り当てた範囲。";
 
+const RESERVED_3210_3229 =
+  "**対応表より後に足した変異。** 3210〜3229 は #476 第 2 段の PR C に追加で割り当てた範囲（3150〜3179 の残りが 3 つになったため。#700 のレビューの直し）。";
+
 const RESERVED_2830_2879 =
   "**対応表より後に足した変異。** 2830〜2879 は #660（ランダム交代。交代のたびに次のドライバーをランダムに決めるモード）に割り当てた範囲。";
 
@@ -14768,5 +14771,61 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/track-room.test.tsx"],
     note: RESERVED_3150_3179 + " " + "#476 第 2 段 PR C。画面を開いただけで通知の許可を求める（押したときにだけ求める約束を破る）。",
+  },
+  {
+    id: 3177,
+    label: "離れていたときの問いかけが、計測中の区切りが 90 分に満たなくても出る（短い区切りを切ってしまう）",
+    patch: "m3177-web-away-prompt-ignores-90min.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-view.test.ts"],
+    note: RESERVED_3150_3179 + " " + "#476 第 2 段 PR C。離れていたときの問いかけが、計測中の区切りが 90 分に満たなくても出る（短い区切りを切ってしまう）。",
+  },
+  {
+    id: 3178,
+    label: "出している問いかけを見直さず、いつまでも出し続ける（別の人が止めた後も、止まった区切りを切る問いかけが残る）",
+    patch: "m3178-web-away-prompt-always-valid.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-view.test.ts", "tests/track-room.test.tsx"],
+    note: RESERVED_3150_3179 + " " + "#476 第 2 段 PR C。出している問いかけを見直さず、いつまでも出し続ける（別の人が止めた後も、止まった区切りを切る問いかけが残る）。",
+  },
+  {
+    id: 3179,
+    label: "出している問いかけを、区切りの番号だけで見直す（始まりが動いた・24 時間を越えても出し続ける）",
+    patch: "m3179-web-away-prompt-valid-by-id-only.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-view.test.ts", "tests/track-room.test.tsx"],
+    note: RESERVED_3150_3179 + " " + "#476 第 2 段 PR C。出している問いかけを、区切りの番号だけで見直す（始まりが動いた・24 時間を越えても出し続ける）。",
+  },
+  {
+    id: 3210,
+    label: "計測中の区切りが休憩のときも、away が休憩を休憩で上書きする（ドメインで弾かない）",
+    patch: "m3210-track-away-on-resting-runs.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/edit.test.ts"],
+    note: RESERVED_3210_3229 + " " + "#476 第 2 段 PR C。計測中の区切りが休憩のときも、away が休憩を休憩で上書きする（ドメインで弾かない）。",
+  },
+  {
+    id: 3211,
+    label: "away の後、計測中の続きが新しい番号を取る（読み上げが「切り替え」と読み、問いかけの番号の比べが崩れる）",
+    patch: "m3211-track-away-tail-gets-new-id.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/edit.test.ts"],
+    note: RESERVED_3210_3229 + " " + "#476 第 2 段 PR C。away の後、計測中の続きが新しい番号を取る（読み上げが「切り替え」と読み、問いかけの番号の比べが崩れる）。",
+  },
+  {
+    id: 3212,
+    label: "new Notification() が投げても握りつぶし、設定を切に戻さず・知らせない（Android の Chrome）",
+    patch: "m3212-web-notify-constructor-failure-swallowed.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-room.test.tsx"],
+    note: RESERVED_3210_3229 + " " + "#476 第 2 段 PR C。new Notification() が投げても握りつぶし、設定を切に戻さず・知らせない（Android の Chrome）。",
+  },
+  {
+    id: 3213,
+    label: "休憩が長く続いたときも、通知の題が「同じ作業が…」になる",
+    patch: "m3213-web-notify-break-uses-work-title.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-room.test.tsx"],
+    note: RESERVED_3210_3229 + " " + "#476 第 2 段 PR C。休憩が長く続いたときも、通知の題が「同じ作業が…」になる。",
   },
 ];

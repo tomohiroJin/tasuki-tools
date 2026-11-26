@@ -11,12 +11,12 @@
 diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
 --- a/apps/track-web/src/track-view.ts
 +++ b/apps/track-web/src/track-view.ts
-@@ -141,7 +141,7 @@
- export function awayPromptOf(view: TrackView, nowMs: number, receivedAt: number, away: AwayReturn | null): AwayPrompt | null {
-   if (away === null || receivedAt < away.returnedAt) return null;
-   const hiddenMs = nowMs - away.fromMs;
--  if (hiddenMs < AWAY_PROMPT_MIN_HIDDEN_MS) return null;
-+  if (hiddenMs <= AWAY_PROMPT_MIN_HIDDEN_MS) return null;
+@@ -138,7 +138,7 @@
+  */
+ function awayTargetOf(view: TrackView, nowMs: number, fromMs: number, runningId: string | null): SegmentView | null {
+   const hiddenMs = nowMs - fromMs;
+-  if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
++  if (hiddenMs <= Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
    const running = longRunningOf(view, nowMs);
-   if (running === null || running.kind !== 'work' || running.id !== away.runningId || running.startMs >= away.fromMs) return null;
-   if (hiddenMs > MAX_LOOKBACK_MS) return null;
+   if (running === null || running.kind !== 'work' || running.id !== runningId || running.startMs >= fromMs) return null;
+   return running;

@@ -15,29 +15,28 @@ diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/scree
      if (awayPrompt !== null) send(awayPrompt.fromMs);
      setShownAwayPrompt(null);
    };
--  useLongRunningNotify(longRunning?.id ?? null, notify.enabled);
-+  useLongRunningNotify(longRunning?.id ?? null, notify.enabled, longText);
+-  useLongRunningNotify(longRunning?.id ?? null, longRunning?.kind ?? null, notify.enabled, notify.markUnavailable);
++  useLongRunningNotify(longRunning?.id ?? null, longRunning?.kind ?? null, notify.enabled, notify.markUnavailable, longText);
    const announcement = useAnnouncement(view, longText);
    useTabTitle(tabTitleOf(view, nowMs));
  
 diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
 --- a/apps/track-web/src/hooks/use-long-running-notify.ts
 +++ b/apps/track-web/src/hooks/use-long-running-notify.ts
-@@ -15,7 +15,7 @@
- const MS_PER_MIN = 60_000;
- 
- /** `longRunningId` は、知らせが出ている区切りの id（出ていなければ null）。 */
--export function useLongRunningNotify(longRunningId: string | null, enabled: boolean): void {
-+export function useLongRunningNotify(longRunningId: string | null, enabled: boolean, pageText: string | null = null): void {
+@@ -22,6 +22,7 @@
+   kind: SegmentKind | null,
+   enabled: boolean,
+   onUnavailable: () => void,
++  pageText: string | null = null,
+ ): void {
    // undefined = まだ 1 度も見ていない（最初に見た値は「出る瞬間」ではない）
    const seenRef = useRef<string | null | undefined>(undefined);
-   /** 通知した区切りの id（1 つの区切りにつき 1 回） */
-@@ -34,7 +34,7 @@
-     if (longRunningId === null || longRunningId === previous || notifiedRef.current.has(longRunningId)) return;
-     if (enabledRef.current && pageHidden()) {
-       notifiedRef.current.add(longRunningId);
--      notifyWhenHidden(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MS_PER_MIN), LONG_RUNNING_NOTIFY_BODY);
-+      notifyWhenHidden(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MS_PER_MIN), pageText ?? LONG_RUNNING_NOTIFY_BODY);
+@@ -49,7 +50,7 @@
+       const minutes = LONG_RUNNING_NOTICE_MS / MS_PER_MIN;
+       const title = kindRef.current === 'break' ? longRunningBreakNotifyTitle(minutes) : longRunningNotifyTitle(minutes);
+       // 通知を作れない端末（Android の Chrome ほか）では、設定を切に戻して知らせる
+-      if (notifyWhenHidden(title, LONG_RUNNING_NOTIFY_BODY) === 'failed') unavailableRef.current();
++      if (notifyWhenHidden(title, pageText ?? LONG_RUNNING_NOTIFY_BODY) === 'failed') unavailableRef.current();
      }
    }, [longRunningId]);
  }

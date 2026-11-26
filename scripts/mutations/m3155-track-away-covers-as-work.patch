@@ -11,12 +11,12 @@
 diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
 --- a/packages/track-core/src/edit.ts
 +++ b/packages/track-core/src/edit.ts
-@@ -187,7 +187,7 @@
-   if (running === undefined) return ok(s);
+@@ -190,7 +190,7 @@
+   if (running === undefined || running.kind === "break") return ok(s);
    const nowMs = input.now - s.epochMono;
    if (!isBackdatePosition(running, input.fromMs, nowMs)) return fail("TRACK_BACKDATE_TOO_FAR");
 -  const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "break", now: input.now });
 +  const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "work", now: input.now });
    // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限だけ
    if (inserted.isErr()) return fail(inserted.error.code === "TRACK_FULL" ? "TRACK_FULL" : "TRACK_BACKDATE_TOO_FAR");
-   return ok(timed(s, "away", input.now, { segments: inserted.value.segments, nextSeq: inserted.value.nextSeq }));
+   // 上書きは後ろの残りに新しい番号を振るので、計測中の続きが元の番号を保つよう、前の残りと入れ替える

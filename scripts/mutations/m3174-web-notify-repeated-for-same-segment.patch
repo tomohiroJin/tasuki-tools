@@ -11,7 +11,7 @@
 diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
 --- a/apps/track-web/src/hooks/use-long-running-notify.ts
 +++ b/apps/track-web/src/hooks/use-long-running-notify.ts
-@@ -31,7 +31,7 @@
+@@ -43,7 +43,7 @@
        if (longRunningId !== null) notifiedRef.current.add(longRunningId);
        return;
      }
@@ -19,4 +19,4 @@ diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-we
 +    if (longRunningId === null || longRunningId === previous) return;
      if (enabledRef.current && pageHidden()) {
        notifiedRef.current.add(longRunningId);
-       notifyWhenHidden(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MS_PER_MIN), LONG_RUNNING_NOTIFY_BODY);
+       const minutes = LONG_RUNNING_NOTICE_MS / MS_PER_MIN;
