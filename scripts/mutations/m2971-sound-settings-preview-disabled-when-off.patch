@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/components/SoundSettings.tsx b/apps/agenda-web/src/components/SoundSettings.tsx
+index 497a07b0..bdd54f83 100644
+--- a/apps/agenda-web/src/components/SoundSettings.tsx
++++ b/apps/agenda-web/src/components/SoundSettings.tsx
+@@ -35,7 +35,7 @@ export function SoundSettings({ state, onToggle, chimes, chimeId, onChimeChange,
+       </div>
+       <div className="builder-sound-actions">
+         <SoundToggle state={state} onToggle={onToggle} />
+-        <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onPreview}>
++        <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={state === 'off'} onClick={onPreview}>
+           {PREVIEW_CHIME_BUTTON}
+         </button>
+       </div>

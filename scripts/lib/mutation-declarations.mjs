@@ -292,6 +292,9 @@ const RESERVED_2920_2929 =
 const RESERVED_2930_2949 =
   "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
 
+const RESERVED_2970_2984 =
+  "**対応表より後に足した変異。** 2970〜2984 は #669（agenda の時間切れの音を選べる）の組む画面の音の欄に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13953,5 +13956,29 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/turbo-env.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
+  },
+  {
+    id: 2970,
+    label: "SoundSettings の音の種類の選択が、選んだ id でなく先頭の id を onChimeChange へ渡す",
+    patch: "m2970-sound-settings-wrong-chime-id.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound-settings.test.tsx"],
+    note: RESERVED_2970_2984 + " " + "#669。どの音を選んでも先頭の音（時打ち）に戻り、音を選べない。",
+  },
+  {
+    id: 2971,
+    label: "SoundSettings の「試しに鳴らす」が音なしのとき押せなくなる",
+    patch: "m2971-sound-settings-preview-disabled-when-off.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound-settings.test.tsx"],
+    note: RESERVED_2970_2984 + " " + "#669。音なしにしている端末で、選んだ音を試せない（D9: 明示の操作なので音なしでも鳴らす）。",
+  },
+  {
+    id: 2972,
+    label: "ScenarioBuilder が時間切れの音の欄を保存の一覧の後ろに描く",
+    patch: "m2972-sound-settings-after-saved-list.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2970_2984 + " " + "#669。音の欄が保存の一覧の下へ押し下げられ、狭い幅で見つけにくい（D4: プレビューの下・保存の上）。",
   },
 ];
