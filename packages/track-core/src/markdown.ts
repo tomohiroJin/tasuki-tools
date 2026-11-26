@@ -58,7 +58,8 @@ export function formatClock(wallMs: number, tzOffsetMin: number): string {
   return `${pad2(Math.floor(minuteOfDay / 60))}:${pad2(minuteOfDay % 60)}`;
 }
 
-const formatDate = (wallMs: number, tzOffsetMin: number): string => {
+/** 壁時計の日付を YYYY-MM-DD にする（CSV も使う）。 */
+export const formatDate = (wallMs: number, tzOffsetMin: number): string => {
   const { year, month, date } = civilOf(dayOf(wallMs, tzOffsetMin));
   return `${year}-${pad2(month)}-${pad2(date)}`;
 };

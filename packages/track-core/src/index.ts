@@ -30,6 +30,8 @@ export type { TotalRow, Totals, Candidate } from "./projection.js";
 
 export { MARKDOWN_TEXT, formatDuration, formatClock, escapeLabel, toMarkdown } from "./markdown.js";
 
+export { CSV_COLUMNS, csvField, toCsv, csvFileName } from "./csv.js";
+
 export { TrackCommandSchema, TrackFrameSchema, TrackErrorFrameSchema, TRACK_ERROR_CODES } from "./schemas.js";
 export type { TrackCommand, TrackErrorCode } from "./schemas.js";
 
