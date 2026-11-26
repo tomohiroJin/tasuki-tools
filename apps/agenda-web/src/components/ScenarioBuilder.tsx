@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { MAX_ROUNDS, MAX_SCENARIO_TITLE, MIN_ROUNDS, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
 import {
   ADD_STEP_BUTTON,
@@ -63,6 +63,8 @@ interface Props {
   canOperate: boolean;
   onLoad: (scenario: ScenarioInput) => void;
   onStart: () => void;
+  /** 「時間切れの音」の欄（#669 D4）。プレビューの盤の下・保存の一覧の上に置く。渡さなければ何も描かない */
+  soundSettings?: ReactNode;
 }
 
 /** 主の操作を押せない理由（押せるなら空）。読み上げに届くよう、常設の status に入れる */
@@ -76,7 +78,7 @@ function actionReason(check: DraftCheck, hasSteps: boolean, sameAsRoom: boolean)
  * 組む画面（#429 spec §4.2・§7.5）。左に行の一覧、右にプレビューの盤と主の操作。狭い幅では
  * 行 → サンプルの開閉 → 盤と操作 → 保存 の順に積む（DOM の順）。
  */
-export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+export function ScenarioBuilder({ view, canOperate, onLoad, onStart, soundSettings }: Props) {
   const room = inputFromView(view);
   const { draft, changed, roomKey, setDraft, adoptRoom, markSent } = useScenarioDraft(room);
   const wallNow = useWallClock();
@@ -313,6 +315,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
             </button>
           </div>
         </section>
+        {soundSettings}
         <SavedScenarioList scenario={check.ok ? check.input : null} suggestedName={draft.title} onPick={(s) => setDraft(draftFromInput(s))} />
       </div>
     </div>
