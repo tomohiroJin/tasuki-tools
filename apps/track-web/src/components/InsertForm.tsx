@@ -6,7 +6,7 @@
  * 押す前に、読み取った範囲と長さを欄の中に出す（前日に読んだ端には前日と添える。読み上げの対象にはしない）。
  * 範囲の誤り（時刻が無い・順が逆・いまより先）は送る前にここで示し、それ以外の拒否はサーバーの文が画面の上に出る。
  */
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { MAX_LABEL_INPUT, type SegmentKind } from '@tasuki/track-core';
 import {
   EDIT_KIND_FIELD,
@@ -30,6 +30,7 @@ import {
   KIND_WORK,
 } from '../copy';
 import { insertPreviewOf, insertRangeOf, type InsertRangeError } from '../time-input';
+import { OPEN_TICK_MS } from '../track-view';
 import { ReadRangeHint } from './ReadRangeHint';
 
 const ERROR_TEXT: Record<InsertRangeError, string> = {
@@ -64,6 +65,13 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
   const [end, setEnd] = useState('');
   const [lengthMin, setLengthMin] = useState('');
   const [error, setError] = useState<{ code: InsertRangeError; yesterday: boolean } | null>(null);
+
+  // 開いている間は 1 秒ごとに描き直す（0 時をまたぐと、前日の添えが古くなる）
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), OPEN_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
 
   // 入力のたびに読み直す（「いま」は描くたびに取り直す）。読み取れない入力では出さない
   const preview = insertPreviewOf({ start, mode, end, lengthMin }, getNow(), epochWallMs, tzOffsetMin);
@@ -110,19 +118,28 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
       <div className="track-editor-row">
         <div className="track-field">
           <label htmlFor={modeId}>{INSERT_MODE_FIELD}</label>
-          <select id={modeId} className="ui-select" value={mode} onChange={(event) => setMode(event.target.value === 'length' ? 'length' : 'end')}>
+          <select id={modeId} className="ui-select" value={mode} onChange={(event) => {
+              setMode(event.target.value === 'length' ? 'length' : 'end');
+              setError(null);
+            }}>
             <option value="end">{INSERT_MODE_END}</option>
             <option value="length">{INSERT_MODE_LENGTH}</option>
           </select>
         </div>
         <div className="track-field">
           <label htmlFor={startId}>{INSERT_START_FIELD}</label>
-          <input id={startId} className="ui-input" type="time" value={start} aria-describedby={error ? errorId : undefined} onChange={(event) => setStart(event.target.value)} />
+          <input id={startId} className="ui-input" type="time" value={start} aria-describedby={error ? errorId : undefined} onChange={(event) => {
+              setStart(event.target.value);
+              setError(null);
+            }} />
         </div>
         {mode === 'end' ? (
           <div className="track-field">
             <label htmlFor={endId}>{INSERT_END_FIELD}</label>
-            <input id={endId} className="ui-input" type="time" value={end} aria-describedby={error ? errorId : undefined} onChange={(event) => setEnd(event.target.value)} />
+            <input id={endId} className="ui-input" type="time" value={end} aria-describedby={error ? errorId : undefined} onChange={(event) => {
+              setEnd(event.target.value);
+              setError(null);
+            }} />
           </div>
         ) : (
           <div className="track-field">
@@ -134,7 +151,10 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
               inputMode="numeric"
               value={lengthMin}
               aria-describedby={error ? errorId : undefined}
-              onChange={(event) => setLengthMin(event.target.value)}
+              onChange={(event) => {
+                setLengthMin(event.target.value);
+                setError(null);
+              }}
             />
           </div>
         )}

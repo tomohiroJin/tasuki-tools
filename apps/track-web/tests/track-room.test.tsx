@@ -603,6 +603,51 @@ describe('抜けを足す', () => {
     expect(timeline.getByText(expected)).toBeInTheDocument();
   });
 
+  it('Given 誤りを示した後 / When 入力を直す（始まり・終わり・指定のしかた・長さのどれでも） / Then 前の誤りは下ろし、新しい「読み取った時間」と並べない', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    const failOnce = (): void => {
+      fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
+      fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 10 * MIN) } });
+      fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+      expect(timeline.getByRole('alert')).toBeInTheDocument();
+    };
+    failOnce();
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 30 * MIN) } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+    expect(timeline.getByText(/^読み取った時間/)).toBeInTheDocument();
+    // 始まりを直した場合
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 10 * MIN) } });
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 5 * MIN) } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+    // 指定のしかたを変えた場合
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: '' } });
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(timeline.getByRole('combobox', { name: INSERT_MODE_FIELD }), { target: { value: 'length' } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+    // 長さを直した場合
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(timeline.getByRole('textbox', { name: INSERT_LENGTH_FIELD }), { target: { value: '10' } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+  });
+
+  it('Given 前日に読んだ範囲を出している / When 開いたまま「いま」が進む / Then 前日の添えを描き直して外す', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    // いまは 60 分の位置。70・80 分の位置の時刻は前日
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 70 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 80 * MIN) } });
+    expect(timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 70 * MIN), true), insertPreviewEdgeText(clock(view, 80 * MIN), true), '0:10'))).toBeInTheDocument();
+    nowMs += 30 * MIN;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 70 * MIN), false), insertPreviewEdgeText(clock(view, 80 * MIN), false), '0:10'))).toBeInTheDocument();
+  });
+
   it('Given 読み取れない入力（順が逆） / When 押す前 / Then 範囲は出さない', () => {
     const view = stoppedTrack();
     const timeline = openInsert(view);
@@ -716,6 +761,43 @@ describe('持ち帰り', () => {
     act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '拒まれました' }));
     expect(button(CLEAR_BUTTON)).toHaveFocus();
     expect(button(START_BUTTON)).not.toHaveFocus();
+  });
+
+  it('Given 前の操作の拒否の文が画面に出たまま / When 記録を消して空の写しが届く / Then 前の文を今回の拒否と取り違えず、フォーカスは開始のボタンへ移る', () => {
+    renderRoom(stoppedTrack());
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '作業名は 80 字までです' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('作業名は 80 字までです');
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    deliver(trackView({ nowMs: 60 * MIN, rev: 9 }));
+    expect(button(START_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 前の操作の拒否の文が出たまま / When 記録を消すが同じ文で拒まれる / Then フォーカスは元の「記録を消す」へ戻る', () => {
+    renderRoom(stoppedTrack());
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '同じ拒否の文' }));
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '同じ拒否の文' }));
+    expect(button(CLEAR_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 消すを送った後に接続が切れた / When つながり直す / Then フォーカスは「記録を消す」へ飛ばない', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    act(() => latestSocket().drop());
+    expect(button(CLEAR_BUTTON)).toBeDisabled();
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => {
+      latestSocket().open();
+      latestSocket().deliver(JOINED);
+      latestSocket().deliver(ROSTER_FRAME);
+      latestSocket().deliver(trackFrame(stoppedTrack()));
+    });
+    expect(button(CLEAR_BUTTON)).toBeEnabled();
+    expect(button(CLEAR_BUTTON)).not.toHaveFocus();
   });
 
   it('Given 空の記録 / When 画面を描く / Then 記録を消すは押せない', () => {

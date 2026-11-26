@@ -33,12 +33,10 @@ import {
 } from '../copy';
 import type { TrackActions } from '../hooks/use-track-sync';
 import { edgePositionOf, edgePreviewOf, splitPositionOf, type InsertPreview } from '../time-input';
-import { clockOf, steppedEdge } from '../track-view';
+import { OPEN_TICK_MS, clockOf, steppedEdge } from '../track-view';
 import { ReadRangeHint } from './ReadRangeHint';
 
 const MS_PER_MIN = 60_000;
-/** 開いている間の描き直しの間隔。止まっている間は画面が描き直さないので、押せる・押せないを古いまま残さない */
-const OPEN_TICK_MS = 1000;
 /** ± のボタンの刻み（分）。並びは左から */
 const STEPS = [-5, -1, 1, 5] as const;
 

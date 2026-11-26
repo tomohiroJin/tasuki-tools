@@ -89,12 +89,13 @@ function ClearControl({
     if (asking) noRef.current?.focus();
   }, [asking]);
   useEffect(() => {
-    // 押せないボタンにはフォーカスが乗らない。押せるようになるまで待つ
-    if (!asking && returnFocus && openRef.current !== null && !openRef.current.disabled) {
-      openRef.current.focus();
+    // 押せないボタンにはフォーカスが乗らない。すぐに受けられないときは戻すのをやめる
+    // （待ち続けると、つながり直した後に、使っていない人の「記録を消す」へフォーカスが飛ぶ）
+    if (!asking && returnFocus) {
+      if (openRef.current !== null && !openRef.current.disabled) openRef.current.focus();
       setReturnFocus(false);
     }
-  }, [asking, returnFocus, enabled, canOperate]);
+  }, [asking, returnFocus]);
   useEffect(() => {
     if (!pending) return;
     if (!enabled) {
