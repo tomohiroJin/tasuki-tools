@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bandOf } from '@tasuki/track-core';
 import { axisLabelsOf, bandSummaryOf } from '../src/track-view';
-import { MIN, seg, trackView } from './support/track-states';
+import { EPOCH_WALL_MS, MIN, seg, trackView } from './support/track-states';
 
 const JST = 540;
 
@@ -15,6 +15,12 @@ describe('帯の両端の時刻', () => {
     expect(band.endMs).toBe(25 * MIN);
     // 2026-11-23 01:00 UTC = 10:00 JST。いまは 10:25:40 → 10:25
     expect(axisLabelsOf(view, band, view.nowMs, JST)).toEqual({ start: '10:00', end: '10:25' });
+  });
+
+  it('Given 時刻軸の 0 が分の途中（壁時計は 10:00:30） / When 端の時刻を求める / Then 右端は切り下げた位置でなく、いまの壁時計の分（10:26）', () => {
+    const view = trackView({ epochWallMs: EPOCH_WALL_MS + 30_000, nowMs: 25 * MIN + 40_000, segments: [seg('g-1', 'work', 'A', 0, null)] });
+    // 切り下げた位置（25 分）の壁時計は 10:25:30（10:25）。いま（25 分 40 秒）は 10:26:10
+    expect(axisLabelsOf(view, bandOf(view, view.nowMs)!, view.nowMs, JST).end).toBe('10:26');
   });
 
   it('Given 計測中で、いまが次の分に入った / When 端の時刻を求める / Then 右端の時刻が進む', () => {
