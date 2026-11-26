@@ -58,6 +58,7 @@ export function Timeline({ view, nowMs, totals, getNow, tzOffsetMin, canOperate,
           {INSERT_BUTTON}
         </button>
       </div>
+      <TimeBand view={view} nowMs={nowMs} totals={totals} tzOffsetMin={tzOffsetMin} />
       {inserting && (
         <div id={insertId}>
           <InsertForm
@@ -74,7 +75,6 @@ export function Timeline({ view, nowMs, totals, getNow, tzOffsetMin, canOperate,
           />
         </div>
       )}
-      <TimeBand view={view} nowMs={nowMs} totals={totals} tzOffsetMin={tzOffsetMin} />
       {/* 名前のない区切りは時系列の順のまま目立たせ、件数で名前を付けるよう促す（FR-20） */}
       {unnamedCount > 0 && <p className="ui-note track-unnamed-prompt">{unnamedPrompt(unnamedCount)}</p>}
       {view.segments.length === 0 ? (
