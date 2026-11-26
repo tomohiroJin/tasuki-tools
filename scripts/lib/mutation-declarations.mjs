@@ -297,6 +297,9 @@ const RESERVED_2970_2989 =
 
 const RESERVED_2950_2969 = "**対応表より後に足した変異。** 2950〜2969 は #670（カットインの共通部品）に割り当てた範囲。";
 
+const RESERVED_2990_3019 =
+  "**対応表より後に足した変異。** 2990〜3019 は #670（poker の開票へのカットインの配線と第 2 段の場面）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -14118,5 +14121,117 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/cut-in.test.mjs"],
     note: RESERVED_2950_2969 + " " + "#670。画面外から滑り込む帯と字が横の scroll を出す。",
+  },
+  {
+    id: 2990,
+    label: "ほぼ同じの判定を、大きく割れたより先に置く",
+    patch: "m2990-effect-near-before-split.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。1・1・13 のように 3 段以上割れた回が「ほぼ同じ」と呼ばれ、割れの促し（SpreadNote）と食い違う。",
+  },
+  {
+    id: 2991,
+    label: "全員休憩の判定を外す（全員が ☕ でも全員出そろいになる）",
+    patch: "m2991-effect-break-dropped.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。全員が休憩を選んだ回で休もうの合図が出ない。",
+  },
+  {
+    id: 2992,
+    label: "大きく割れたの判定を外す",
+    patch: "m2992-effect-split-dropped.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。3 段以上割れた回に割れの場面が出ない。",
+  },
+  {
+    id: 2993,
+    label: "ほぼ同じの判定を外す",
+    patch: "m2993-effect-near-dropped.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。2 人がそろい 1 人だけ隣の札の回が全員出そろいに落ちる。",
+  },
+  {
+    id: 2994,
+    label: "連続の添え書きが、記録しない設定を見ない",
+    patch: "m2994-streak-ignores-recording-off.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/streak-sub.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。記録しない間も連続を出し、途中入室の人と数がずれる。",
+  },
+  {
+    id: 2995,
+    label: "連続の添え書きの下限を 2 から 1 へ下げる",
+    patch: "m2995-streak-shown-for-single.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/streak-sub.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。今回だけ（1 回）でも「1 回続けて」が出る。",
+  },
+  {
+    id: 2996,
+    label: "連続の添え書きを全員同じ以外の場面にも添える",
+    patch: "m2996-streak-on-other-effects.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/streak-sub.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。割れた回などに「N 回続けて」が出る。",
+  },
+  {
+    id: 2997,
+    label: "添え書きを開票の瞬間でなく毎描画の記録から決める",
+    patch: "m2997-effect-sub-recomputed-after-reveal.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。RoomPage.tsx。開票の後の記録の変化（次の人の記録・取り消し）で、出している最中の添え書きが変わる。",
+  },
+  {
+    id: 2998,
+    label: "カットインの id を描画のたびに作り直す",
+    patch: "m2998-cutin-id-changes-every-render.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。RoomPage.tsx。同じ開票の状態が届くたびに、出している層が消えて出し直され、1 回で終わらない。",
+  },
+  {
+    id: 2999,
+    label: "カットインの待ちを 0 にする（札のめくりを待たない）",
+    patch: "m2999-cutin-no-flip-wait.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。RoomPage.tsx。札がめくれる前に結果を大きく見せ、ネタばらしになる。",
+  },
+  {
+    id: 3000,
+    label: "大きく割れたの色を gold にする（rose の取り違え）",
+    patch: "m3000-effect-split-tone-gold.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。effect-copy.ts。割れたのに祝いの色で出る。",
+  },
+  {
+    id: 3001,
+    label: "読み上げが添え書きを読まない",
+    patch: "m3001-effect-announcement-drops-sub.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results.test.tsx", "tests/room-page-effect.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。effect-copy.ts。見える人だけが「N 回続けて」「ひと休みしよう」を知る。",
+  },
+  {
+    id: 3002,
+    label: "静かな帯が添え書きを描かない",
+    patch: "m3002-effect-band-drops-sub.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。Results.tsx。カットインが終わった後に添え書きが残らない。",
+  },
+  {
+    id: 3003,
+    label: "カットインへ添え書きを渡さない",
+    patch: "m3003-cutin-drops-sub.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2990_3019 + " " + "#670。RoomPage.tsx。連続・休憩・割れの添え書きがカットインに出ない。",
   },
 ];

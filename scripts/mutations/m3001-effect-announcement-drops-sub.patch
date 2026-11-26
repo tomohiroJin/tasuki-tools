@@ -1,0 +1,11 @@
+diff --git a/apps/poker-web/src/effect-copy.ts b/apps/poker-web/src/effect-copy.ts
+--- a/apps/poker-web/src/effect-copy.ts
++++ b/apps/poker-web/src/effect-copy.ts
+@@ -41,6 +41,6 @@
+ 
+ /** 読み上げの文言。添え書きがあれば題と続けて読む */
+ export function announcementOf(effect: ResultsEffect, sub: string | null): string {
+-  return sub === null ? EFFECT_COPY[effect] : `${EFFECT_COPY[effect]}。${sub}`;
++  return EFFECT_COPY[effect];
+ }
+ 

@@ -1,9 +1,8 @@
 diff --git a/apps/poker-web/src/components/Results.tsx b/apps/poker-web/src/components/Results.tsx
-index 568db882..e3c6e7bb 100644
 --- a/apps/poker-web/src/components/Results.tsx
 +++ b/apps/poker-web/src/components/Results.tsx
-@@ -101,7 +101,7 @@ export function Results({ stats, seatCount, afterFlip, spread, effect = null }:
-           {EFFECT_COPY[effect]}
+@@ -104,7 +104,7 @@
+           {effectSub !== null && <span className="results-effect-sub">{effectSub}</span>}
          </p>
        )}
 -      <p className="ui-visually-hidden results-effect-live" role="status">

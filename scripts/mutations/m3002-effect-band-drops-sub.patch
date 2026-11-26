@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/Results.tsx b/apps/poker-web/src/components/Results.tsx
+--- a/apps/poker-web/src/components/Results.tsx
++++ b/apps/poker-web/src/components/Results.tsx
+@@ -101,7 +101,7 @@
+       {effect && (
+         <p className="results-effect" data-effect={effect} aria-hidden="true">
+           <span className="results-effect-title">{EFFECT_COPY[effect]}</span>
+-          {effectSub !== null && <span className="results-effect-sub">{effectSub}</span>}
++          {null}
+         </p>
+       )}
+       <p className="ui-visually-hidden results-effect-live" role="status">

@@ -1,13 +1,12 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 7984d1e4..9bba994b 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -91,7 +91,7 @@ export function RoomPage({ roomId, sync }: Props) {
+@@ -113,7 +113,7 @@
    } else if (band !== null && !(round !== undefined && sameRevealRound(band.votes, round))) {
      setBand(null);
    }
 -  const effect = band?.effect ?? null;
 +  const effect = band !== null && sync.snapshot ? resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) : null;
+   const effectSub = band?.sub ?? null;
    // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
    const { retryNotice } = useRoomEntry(sync, roomId);
- 
