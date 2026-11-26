@@ -162,6 +162,8 @@ export const AWAY_BREAK_BUTTON = 'その間を休憩にする';
 // 通知（既定は切。押したときにだけ許可を求める。通知の文に作業名を出さない）
 export const NOTIFY_BUTTON = '長く続いたら通知する';
 export const NOTIFY_DENIED_TEXT = '通知が許可されませんでした。ブラウザの設定で許可すると使えます。';
+export const NOTIFY_UNAVAILABLE_TEXT = 'この端末では通知を使えません。';
+export const longRunningBreakNotifyTitle = (minutes: number): string => `休憩が ${minutes} 分続いています`;
 export const longRunningNotifyTitle = (minutes: number): string => `同じ作業が ${minutes} 分続いています`;
 export const LONG_RUNNING_NOTIFY_BODY = '切り替え忘れではありませんか';
 

@@ -126,12 +126,12 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
     clearReturned();
     if (prompt !== null) setShownAwayPrompt(prompt);
   }, [returned, sync.receivedAt, view, nowMs, clearReturned]);
-  const awayPrompt = shownAwayPrompt !== null && isAwayPromptStillValid(view, shownAwayPrompt) ? shownAwayPrompt : null;
+  const awayPrompt = shownAwayPrompt !== null && isAwayPromptStillValid(view, nowMs, shownAwayPrompt) ? shownAwayPrompt : null;
   const answerAway = (send: (fromMs: number) => void): void => {
     if (awayPrompt !== null) send(awayPrompt.fromMs);
     setShownAwayPrompt(null);
   };
-  useLongRunningNotify(longRunning?.id ?? null, notify.enabled);
+  useLongRunningNotify(longRunning?.id ?? null, longRunning?.kind ?? null, notify.enabled, notify.markUnavailable);
   const announcement = useAnnouncement(view, longText);
   useTabTitle(tabTitleOf(view, nowMs));
 

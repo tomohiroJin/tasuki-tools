@@ -264,12 +264,36 @@ describe('離れていたときの問いかけ', () => {
 });
 
 describe('出している問いかけを下ろす条件', () => {
-  const prompt = { fromMs: 100, runningId: 'g-3', awayMin: 12 };
-  it('Given 対象の区切りが計測中 / When 判定する / Then まだ出してよい', () => {
-    expect(isAwayPromptStillValid(runningTrack(), prompt)).toBe(true);
+  // Build（g-3）は 45 分から計測中。NOW で 90 分続いている。問いかけは NOW - 10 分の位置から
+  const NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
+  const prompt = { fromMs: NOW - 10 * MIN, runningId: 'g-3', awayMin: 12 };
+  const valid = (view = runningTrack(NOW), nowMs = NOW, p = prompt): boolean => isAwayPromptStillValid(view, nowMs, p);
+
+  it('Given 対象の区切りが計測中のまま / When 見直す / Then まだ出してよい', () => {
+    expect(valid()).toBe(true);
   });
-  it('Given 他の人が止めた・別の区切りに切り替えた / When 判定する / Then 下ろす', () => {
-    expect(isAwayPromptStillValid(stoppedTrack(), prompt)).toBe(false);
-    expect(isAwayPromptStillValid(runningTrack(), { ...prompt, runningId: 'g-2' })).toBe(false);
+  it('Given 他の人が止めた・別の区切りに切り替えた / When 見直す / Then 下ろす', () => {
+    expect(valid(stoppedTrack(NOW))).toBe(false);
+    expect(valid(runningTrack(NOW), NOW, { ...prompt, runningId: 'g-2' })).toBe(false);
+  });
+  it('Given 区切りの始まりが問いかけの位置以後に動いた / When 見直す / Then 下ろす', () => {
+    const moved = trackView({ nowMs: NOW, segments: [seg('g-3', 'work', 'Build', prompt.fromMs, null)] });
+    expect(valid(moved)).toBe(false);
+  });
+  it('Given 区切りが休憩へ付け替えられた / When 見直す / Then 下ろす', () => {
+    const resting = trackView({ nowMs: NOW, segments: [seg('g-3', 'break', '', 45 * MIN, null)] });
+    expect(valid(resting)).toBe(false);
+  });
+  it('Given 区切りが 90 分に満たなくなった（始まりが後ろへ動いた） / When 見直す / Then 下ろす', () => {
+    const shorter = trackView({ nowMs: NOW, segments: [seg('g-3', 'work', 'Build', 50 * MIN, null)] });
+    expect(valid(shorter)).toBe(false);
+  });
+  it('Given 位置が 24 時間より前になった / When 見直す / Then 下ろす（ちょうど 24 時間ならまだ）', () => {
+    const later = NOW + MAX_LOOKBACK_MS;
+    expect(valid(runningTrack(later), later, { ...prompt, fromMs: later - MAX_LOOKBACK_MS })).toBe(true);
+    expect(valid(runningTrack(later), later, { ...prompt, fromMs: later - MAX_LOOKBACK_MS - 1 })).toBe(false);
+  });
+  it('Given 位置がいまに近すぎる（10 分に満たない） / When 見直す / Then 下ろす', () => {
+    expect(valid(runningTrack(NOW), NOW, { ...prompt, fromMs: NOW - MIN })).toBe(false);
   });
 });

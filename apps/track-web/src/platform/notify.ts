@@ -12,9 +12,20 @@
 /** 「長く続いたら通知する」の設定の鍵。値は "1"（入）だけを書き、切は鍵ごと消す */
 export const NOTIFY_PREFERENCE_KEY = 'tasuki:track:notify-long-running:v1';
 
+/**
+ * この端末では通知を作れないと分かったか（Android の Chrome は `new Notification()` が TypeError を投げる）。
+ * **端末のメモリだけ**で覚える（このページを開いている間。判定の結果を保存しない）。
+ */
+let constructorFailed = false;
+
+/** 通知を作れないと分かった端末か。 */
+export function notificationUnavailable(): boolean {
+  return constructorFailed;
+}
+
 /** 通知を出せるブラウザか。 */
 export function notificationSupported(): boolean {
-  return typeof Notification !== 'undefined';
+  return typeof Notification !== 'undefined' && !constructorFailed;
 }
 
 /** 通知の許可が下りているか。 */
@@ -61,13 +72,23 @@ export function pageHidden(): boolean {
   return typeof document !== 'undefined' && document.visibilityState === 'hidden';
 }
 
-/** 非表示のときだけ通知を出す。許可が無い・前面・未対応では何もしない。 */
-export function notifyWhenHidden(title: string, body: string): void {
-  if (!notificationGranted() || !pageHidden()) return;
+/**
+ * 非表示のときだけ通知を出す。許可が無い・前面・未対応では何もしない（`skipped`）。
+ * **`new Notification()` が投げたら `failed` を返し、以後この端末では出さない**（黙って握りつぶさない。呼ぶ側が設定を切に戻して知らせる）。
+ */
+export function notifyWhenHidden(title: string, body: string): 'sent' | 'skipped' | 'failed' {
+  if (!notificationGranted() || !pageHidden()) return 'skipped';
   try {
     // 同じ知らせが重ならないよう tag を付ける
     new Notification(title, { body, tag: 'tasuki-track-long-running' });
+    return 'sent';
   } catch {
-    /* 通知を作れない環境では、画面の知らせだけにする */
+    constructorFailed = true;
+    return 'failed';
   }
+}
+
+/** 試験のため、通知を作れない端末の記憶を戻す。 */
+export function resetNotificationAvailability(): void {
+  constructorFailed = false;
 }

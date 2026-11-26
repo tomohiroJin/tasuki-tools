@@ -5,7 +5,7 @@
  * （名前・経過の h:mm:ss・時刻・描き直す秒・取り消しの残り・± の行き先・読み上げの文・タブの題）を持つ。
  * **端末（`document`・時計・時間帯）は読まない。** 要る値は引数で受ける。
  */
-import { MAX_LOOKBACK_MS, durationOf, formatClock, formatDuration, longRunningOf, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { MAX_LOOKBACK_MS, MIN_SEGMENT_MS, durationOf, formatClock, formatDuration, longRunningOf, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
 import { AWAY_PROMPT_MIN_HIDDEN_MS } from './limits';
 import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from './copy';
 
@@ -130,28 +130,40 @@ export interface AwayPrompt {
 }
 
 /**
- * 離れていたときの問いかけを出すか（FR-27・設計 §4 C1・C1b）。**表に戻った後に届いた写しで**、次をすべて満たすときだけ出す。
+ * 問いかけの対象になる計測中の区切り（作業の条件）。**出すかの判定（`awayPromptOf`）と、出している間の見直し
+ * （`isAwayPromptStillValid`）が、この 1 つの関数を通す**（条件を二重に持たない）。次をすべて満たす区切りを返す。
  *
- * - 写しが、表に戻った後に届いたもの（`receivedAt` ≧ `away.returnedAt`。戻る前の古い写しでは決めない）
- * - 非表示だった長さ（写しの位置 − 非表示になった位置）が `AWAY_PROMPT_MIN_HIDDEN_MS`（10 分）以上
  * - 計測中の区切りが作業（`kind: "work"`。休憩が長く続いても尋ねない）で、`LONG_RUNNING_NOTICE_MS`（90 分）以上続いている
  * - その区切りが、非表示になった時に計測中だった区切りと同じ（離れている間に切り替え・停止されていない）
- * - 非表示になった位置が、その区切りの始まりより後で、いまから `MAX_LOOKBACK_MS` 以内（外ならサーバーが拒む）
+ * - 非表示になった位置が、その区切りの始まりより後
+ * - 非表示になった位置が、いまから `AWAY_PROMPT_MIN_HIDDEN_MS`（10 分）以上前、`MAX_LOOKBACK_MS` 以内（外ならサーバーが拒む。
+ *   10 分以上は、サーバーが要る最短の長さ `MIN_SEGMENT_MS` も満たす）
+ */
+function awayTargetOf(view: TrackView, nowMs: number, fromMs: number, runningId: string | null): SegmentView | null {
+  const hiddenMs = nowMs - fromMs;
+  if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
+  const running = longRunningOf(view, nowMs);
+  if (running === null || running.kind !== 'work' || running.id !== runningId || running.startMs >= fromMs) return null;
+  return running;
+}
+
+/**
+ * 離れていたときの問いかけを出すか（FR-27・設計 §4 C1・C1b）。**表に戻った後に届いた写しで**、
+ * 写しが表に戻った後のもの（`receivedAt` ≧ `away.returnedAt`。戻る前の古い写しでは決めない）で、かつ `awayTargetOf` が区切りを返すときだけ出す。
  *
  * 長さは端末の単調時計ではなく写しの位置で測る（スリープで端末の時計が進まない環境があるため）。
- * `isAwayPromptStillValid` が、問いかけを出している間の取り消し条件を持つ。
  */
 export function awayPromptOf(view: TrackView, nowMs: number, receivedAt: number, away: AwayReturn | null): AwayPrompt | null {
   if (away === null || receivedAt < away.returnedAt) return null;
-  const hiddenMs = nowMs - away.fromMs;
-  if (hiddenMs < AWAY_PROMPT_MIN_HIDDEN_MS) return null;
-  const running = longRunningOf(view, nowMs);
-  if (running === null || running.kind !== 'work' || running.id !== away.runningId || running.startMs >= away.fromMs) return null;
-  if (hiddenMs > MAX_LOOKBACK_MS) return null;
-  return { fromMs: away.fromMs, runningId: running.id, awayMin: Math.floor(hiddenMs / 60_000) };
+  const running = awayTargetOf(view, nowMs, away.fromMs, away.runningId);
+  if (running === null) return null;
+  return { fromMs: away.fromMs, runningId: running.id, awayMin: Math.floor((nowMs - away.fromMs) / 60_000) };
 }
 
-/** 出している問いかけを、まだ出してよいか。対象の区切りが計測中でなくなれば（誰かが止めた・切り替えた）下ろす。 */
-export function isAwayPromptStillValid(view: TrackView, prompt: AwayPrompt): boolean {
-  return runningSegmentOf(view)?.id === prompt.runningId;
+/**
+ * 出している問いかけを、まだ出してよいか。写しが変わるたびに `awayPromptOf` と同じ条件（`awayTargetOf`）で見直し、
+ * 外れたら（誰かが止めた・切り替えた・始まりが動いた・24 時間を越えた）下ろす。
+ */
+export function isAwayPromptStillValid(view: TrackView, nowMs: number, prompt: AwayPrompt): boolean {
+  return awayTargetOf(view, nowMs, prompt.fromMs, prompt.runningId) !== null;
 }

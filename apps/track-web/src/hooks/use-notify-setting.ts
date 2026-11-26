@@ -8,6 +8,7 @@ import { useCallback, useState } from 'react';
 import {
   loadNotifyPreference,
   notificationGranted,
+  notificationUnavailable,
   notificationSupported,
   requestNotificationPermission,
   saveNotifyPreference,
@@ -18,12 +19,22 @@ export interface NotifySetting {
   readonly enabled: boolean;
   /** 許可を求めたが下りなかった（ブラウザの設定で拒まれている） */
   readonly denied: boolean;
+  /** この端末では通知を作れないと分かった（以後トグルを出さず、文だけを出す） */
+  readonly unavailable: boolean;
+  /** 通知を作れなかった: 設定を切に戻し、トグルを下げる */
+  markUnavailable(): void;
   toggle(): void;
 }
 
 export function useNotifySetting(): NotifySetting {
   const [enabled, setEnabled] = useState(() => loadNotifyPreference() && notificationGranted());
   const [denied, setDenied] = useState(false);
+  const [unavailable, setUnavailable] = useState(() => notificationUnavailable());
+  const markUnavailable = useCallback(() => {
+    saveNotifyPreference(false);
+    setEnabled(false);
+    setUnavailable(true);
+  }, []);
 
   const toggle = useCallback(() => {
     if (enabled) {
@@ -39,5 +50,5 @@ export function useNotifySetting(): NotifySetting {
     });
   }, [enabled]);
 
-  return { supported: notificationSupported(), enabled, denied, toggle };
+  return { supported: notificationSupported() || unavailable, enabled, denied, unavailable, markUnavailable, toggle };
 }

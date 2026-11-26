@@ -64,12 +64,14 @@ import {
   TOTALS_HEADING,
   NOTIFY_BUTTON,
   NOTIFY_DENIED_TEXT,
+  NOTIFY_UNAVAILABLE_TEXT,
   UNDO_BUTTON,
   UNDO_NOTE_AWAY,
   UNNAMED_NAME,
   LONG_RUNNING_NOTIFY_BODY,
   announceStarted,
   awayPromptText,
+  longRunningBreakNotifyTitle,
   longRunningNotifyTitle,
   backOption,
   editLabel,
@@ -83,7 +85,7 @@ import {
   tabTitle,
   undoRemaining,
 } from '../src/copy';
-import { NOTIFY_PREFERENCE_KEY } from '../src/platform/notify';
+import { NOTIFY_PREFERENCE_KEY, resetNotificationAvailability } from '../src/platform/notify';
 import { localTzOffsetMin } from '../src/platform/timezone';
 import { clockOf } from '../src/track-view';
 import { EMPTY_TRACK, JOINED, MIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningTrack, seg, stoppedTrack, trackFrame, trackView } from './support/track-states';
@@ -1138,6 +1140,13 @@ describe('離れていたとき', () => {
     expect(screen.queryByText(/離れていました/)).toBeNull();
   });
 
+  it('Given 問いかけが出ている / When 区切りの始まりが問いかけの位置以後へ動いた写しが届く / Then 問いかけを下ろす', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    deliver(trackView({ nowMs: LONG_NOW + 13 * MIN, rev: 9, segments: [seg('g-3', 'work', 'Build', LONG_NOW, null)] }));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
   it('Given 短く離れて問いかけが出なかった / When 後で長く使い続ける / Then 古い記録で問いかけを出さない', () => {
     renderRoom(runningTrack(LONG_NOW));
     leaveReturnAndSync(MIN, runningTrack(LONG_NOW + MIN));
@@ -1196,6 +1205,7 @@ describe('止め忘れの通知', () => {
   let nextAnswer: NotificationPermission = 'granted';
 
   beforeEach(() => {
+    resetNotificationAvailability();
     created.length = 0;
     permission = 'default';
     nextAnswer = 'granted';
@@ -1274,6 +1284,34 @@ describe('止め忘れの通知', () => {
     deliver(trackView({ ...next, segments: [seg('g-9', 'work', 'Next', LONG_NOW + MIN, null)], nowMs: LONG_NOW + 2 * MIN }));
     deliver(next);
     expect(created).toHaveLength(2);
+  });
+
+  it('Given 入・計測中が休憩 / When ページが裏のまま知らせが出る / Then 題は「休憩が…」で、作業名は出さない', async () => {
+    renderRoom(trackView({ nowMs: LONG_NOW - 1000, segments: [seg('g-1', 'break', '', 45 * MIN, null)] }));
+    await act(async () => {
+      fireEvent.click(button(NOTIFY_BUTTON));
+      await Promise.resolve();
+    });
+    setVisibility('hidden');
+    deliver(trackView({ nowMs: LONG_NOW, rev: 4, segments: [seg('g-1', 'break', '', 45 * MIN, null)] }));
+    expect(created).toHaveLength(1);
+    expect(created[0]!.title).toBe(longRunningBreakNotifyTitle(LONG_RUNNING_NOTICE_MS / MIN));
+  });
+
+  it('Given 通知を作ると例外になる端末（Android の Chrome） / When 知らせが出る / Then 設定を切に戻して知らせ、以後トグルを出さない', async () => {
+    await enable();
+    class ThrowingNotification extends FakeNotification {
+      constructor() {
+        super('x');
+        throw new TypeError('Illegal constructor');
+      }
+    }
+    vi.stubGlobal('Notification', ThrowingNotification);
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(screen.getByText(NOTIFY_UNAVAILABLE_TEXT)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: NOTIFY_BUTTON })).toBeNull();
+    expect(localStorage.getItem(NOTIFY_PREFERENCE_KEY)).toBeNull();
   });
 
   it('Given 入 / When ページが前面のまま知らせが出る / Then 通知しない', async () => {
