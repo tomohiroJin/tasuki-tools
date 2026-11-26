@@ -253,6 +253,20 @@ describe("away（離れていた間を休憩にする・FR-27）", () => {
     expect(shape(s).slice(3)).toEqual(["実装:50-52", "休憩:52-60", "実装:60-"]);
     expect(s.segments.at(-1)).toMatchObject({ kind: "work", label: "実装", endMs: null });
   });
+  it("計測中の続きは元の区切りの番号を保ち、前の残りと休憩が新しい番号を取る（番号は使い回さない）", () => {
+    const base = sample();
+    const s = must(away(base, { fromMs: 52 * MIN, now: NOW }));
+    expect(s.segments.slice(3).map((g) => [g.kind, g.id])).toEqual([["work", "g-6"], ["break", "g-5"], ["work", "g-4"]]);
+    expect(s.nextSeq).toBe(base.nextSeq + 2);
+  });
+  it("前の端切れを含めたときも、計測中の続きは元の番号を保つ", () => {
+    const s = must(away(sample(), { fromMs: 50 * MIN + 500, now: NOW }));
+    expect(s.segments.slice(3).map((g) => [g.kind, g.id])).toEqual([["break", "g-5"], ["work", "g-4"]]);
+  });
+  it("計測中の区切りが休憩なら何もしない（同じ参照）", () => {
+    const resting = must(start(must(start(empty(), { label: "設計", kind: "work", now: at(0) })), { label: "", kind: "break", now: at(10) }));
+    expect(must(away(resting, { fromMs: 20 * MIN, now: at(30) }))).toBe(resting);
+  });
   it("取り消しの対象（kind は away）で、取り消すと直前の区切りの列へ戻る", () => {
     const base = sample();
     const s = must(away(base, { fromMs: 52 * MIN, now: NOW }));

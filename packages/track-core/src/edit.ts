@@ -177,20 +177,29 @@ export function insertSegment(
  * 離れていた間を休憩にする（FR-27・設計 §4 C3）。`fromMs` からいままでを休憩で上書きし、
  * 計測中の区切りは後ろで同じ名前・種類のまま続く。上書きの規則（端切れ・最短・上限）は {@link insertSegment} と同じ。
  *
- * - 計測していなければ何もしない（同じ参照）。`stop` と同じ
+ * - 計測していなければ何もしない（同じ参照）。`stop` と同じ。**計測中の区切りが休憩のときも何もしない**
+ *   （休憩を休憩で上書きする意味が無い。画面で出さないだけでなく、ドメインでも弾く）
+ * - **計測中の続きは、元の区切りの番号を保つ。** 前の残りは新しい番号を取る
+ *   （読み上げが「切り替え」と読まず、問いかけが覚えた区切りの番号と比べられるように。番号は使い回さない）
  * - `fromMs` が {@link isBackdatePosition}（`stop` の `backMin`・`atMs` と同じ判定。区切りの始まりより後・
  *   いまから最短の長さ以上前・`MAX_LOOKBACK_MS` 以内）を外れたら `TRACK_BACKDATE_TOO_FAR`
  * - **手直しと違い、取り消しの対象にする**（`undo.kind` は `"away"`。直前の区切りの列を写しに残す）
  */
 export function away(s: TrackState, input: { fromMs: number; now: number }): R<"TRACK_BACKDATE_TOO_FAR" | "TRACK_FULL"> {
   const running = runningOf(s.segments);
-  if (running === undefined) return ok(s);
+  if (running === undefined || running.kind === "break") return ok(s);
   const nowMs = input.now - s.epochMono;
   if (!isBackdatePosition(running, input.fromMs, nowMs)) return fail("TRACK_BACKDATE_TOO_FAR");
   const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "break", now: input.now });
   // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限だけ
   if (inserted.isErr()) return fail(inserted.error.code === "TRACK_FULL" ? "TRACK_FULL" : "TRACK_BACKDATE_TOO_FAR");
-  return ok(timed(s, "away", input.now, { segments: inserted.value.segments, nextSeq: inserted.value.nextSeq }));
+  // 上書きは後ろの残りに新しい番号を振るので、計測中の続きが元の番号を保つよう、前の残りと入れ替える
+  const tail = inserted.value.segments.at(-1);
+  const segments =
+    tail === undefined || tail.id === running.id
+      ? inserted.value.segments
+      : inserted.value.segments.map((g) => (g.id === running.id ? { ...g, id: tail.id } : g === tail ? { ...g, id: running.id } : g));
+  return ok(timed(s, "away", input.now, { segments, nextSeq: inserted.value.nextSeq }));
 }
 
 /** 閉じた区切りを消す。その時間は隙間になる。 */
