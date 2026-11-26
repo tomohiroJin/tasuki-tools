@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/cut-in-view.ts b/apps/checkin-web/src/cut-in-view.ts
+index 08063c49..912ac425 100644
+--- a/apps/checkin-web/src/cut-in-view.ts
++++ b/apps/checkin-web/src/cut-in-view.ts
+@@ -27,7 +27,7 @@ export type CheckinCutIn = Required<Pick<CutInCue, 'title' | 'sub' | 'tone' | 'k
+  */
+ export function cutInOf(method: MethodId, piles: readonly PileView[]): CheckinCutIn {
+   const side = METHODS[method].side;
+-  const kicker = SIDE_KICKER[side];
++  const kicker = SIDE_KICKER.checkin;
+   const total = piles.reduce((n, p) => n + p.count, 0);
+   const same = total >= ALL_SAME_MIN_PLAYERS ? piles.find((p) => p.count === total) : undefined;
+   if (same !== undefined) {

@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/cut-in-view.ts b/apps/checkin-web/src/cut-in-view.ts
+index 08063c49..e6004b2f 100644
+--- a/apps/checkin-web/src/cut-in-view.ts
++++ b/apps/checkin-web/src/cut-in-view.ts
+@@ -49,7 +49,7 @@ export function cutInDelayMs(piles: readonly PileView[]): number {
+   const total = piles.reduce((n, p) => n + p.count, 0);
+   if (total <= 0) return 0;
+   const { delaysMs } = revealSchedule(total, false);
+-  return (delaysMs[total - 1] ?? 0) + REVEAL_FLIP_MS;
++  return delaysMs[total - 1] ?? 0;
+ }
+ 
+ /** この画面が見た回の印（番号と状態） */

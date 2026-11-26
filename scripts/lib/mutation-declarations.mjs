@@ -295,6 +295,9 @@ const RESERVED_2930_2949 =
 const RESERVED_2970_2989 =
   "**対応表より後に足した変異。** 2970〜2989 は #670（開票の演出の第 2 段の判定）に割り当てた範囲。";
 
+const RESERVED_3020_3039 =
+  "**対応表より後に足した変異。** 3020〜3039 は #670（Check-in Cards の札が開いたときのカットイン）に割り当てた範囲。";
+
 const RESERVED_2950_2969 = "**対応表より後に足した変異。** 2950〜2969 は #670（カットインの共通部品）に割り当てた範囲。";
 
 const RESERVED_2990_3019 =
@@ -14241,5 +14244,93 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/room-view.test.ts"],
     note: RESERVED_2990_3019 + " " + "#670 のまとめ役の確認。全員が違う数字の札は必ず割れにも当たるので、#639 の「全員バラバラ」が数字だけの回で一度も出なくなる。",
+  },
+  {
+    id: 3020,
+    label: "Check-in Cards のカットインの題で、チェックインとチェックアウトの側を取り違える",
+    patch: "m3020-checkin-cutin-sides-swapped.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。チェックインの回に「おつかれさまでした」が出る。",
+  },
+  {
+    id: 3021,
+    label: "Check-in Cards のカットインの色で、側の jade と rose を取り違える",
+    patch: "m3021-checkin-cutin-tones-swapped.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。始まりと終わりの色が入れ替わる。",
+  },
+  {
+    id: 3022,
+    label: "Check-in Cards の「全員同じ」の人数の下限を 2 から 1 にする",
+    patch: "m3022-checkin-cutin-all-same-from-one.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。1 人だけが出した回に「全員同じ」と出る。",
+  },
+  {
+    id: 3023,
+    label: "Check-in Cards のカットインの見出し（kicker）を側に依らず CHECK-IN に固定する",
+    patch: "m3023-checkin-cutin-kicker-fixed.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。チェックアウトの回に CHECK-IN の見出しが出る。",
+  },
+  {
+    id: 3024,
+    label: "Check-in Cards のカットインの待ちから、最後の札の裏返る時間を外す",
+    patch: "m3024-checkin-cutin-no-flip-wait.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。最後の札が裏返る前に結果の題が出て、ネタばらしになる。",
+  },
+  {
+    id: 3025,
+    label: "Check-in Cards の見届けの判定で、前の描画が無くても開いたと数える",
+    patch: "m3025-checkin-cutin-live-from-nothing.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。再読み込み・途中入室で、開いた後の画面にカットインが出る。",
+  },
+  {
+    id: 3026,
+    label: "Check-in Cards の見届けの判定で、前と今の回の番号を比べない",
+    patch: "m3026-checkin-cutin-live-across-rounds.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。別の回の投票中から、別の回の開いた状態が届いたときにもカットインが出る。",
+  },
+  {
+    id: 3027,
+    label: "Check-in Cards の見届けの判定で、再接続の直後に残った古い状態も見たことにする",
+    patch: "m3027-checkin-cutin-stale-view-counts.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。再接続の後、切れている間に開いた回でカットインが出る。",
+  },
+  {
+    id: 3028,
+    label: "Check-in Cards の見届けの判定で、前の描画が投票中かを見ない",
+    patch: "m3028-checkin-cutin-live-again-when-revealed.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/cut-in-view.test.ts"],
+    note: RESERVED_3020_3039 + " " + "#670。開いた後の状態の届き直しでカットインが出る。",
+  },
+  {
+    id: 3029,
+    label: "Check-in Cards で、見届けた回が終わってもカットインの cue を捨てない",
+    patch: "m3029-checkin-cutin-keeps-cue-after-round-ends.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/checkin-room.test.tsx"],
+    note: RESERVED_3020_3039 + " " + "#670。次の回へ移った後も、前の回のカットインが残る。",
+  },
+  {
+    id: 3030,
+    label: "Check-in Cards のカットインを、札の裏返りを待たずに出す",
+    patch: "m3030-checkin-cutin-no-delay.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/checkin-room.test.tsx"],
+    note: RESERVED_3020_3039 + " " + "#670。札が開く瞬間に結果の題が出て、ネタばらしになる。",
   },
 ];
