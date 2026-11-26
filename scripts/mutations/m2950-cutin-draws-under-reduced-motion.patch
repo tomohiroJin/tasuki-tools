@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/cut-in.tsx b/packages/web-kit/src/room/cut-in.tsx
+index a36f1447..df9ec3f9 100644
+--- a/packages/web-kit/src/room/cut-in.tsx
++++ b/packages/web-kit/src/room/cut-in.tsx
+@@ -50,7 +50,7 @@ const SPARKS: readonly { angle: number; dist: number; size: number }[] = [
+  * - **動きを減らす設定では何も描かない**（CSS の `@media` でも念のため隠す）
+  */
+ export function CutIn({ cue }: { cue: CutInCue | null }): ReactNode {
+-  const reduced = usePrefersReducedMotion();
++  const reduced = usePrefersReducedMotion() && false;
+   /** いま出している cue の id。描画は「いまの cue の id と一致するときだけ」なので、id が替わった描画から即座に消える */
+   const [shownId, setShownId] = useState<string | number | null>(null);
+   // 待ちは id が替わったときだけ読む（待ちの数値の描き直しでタイマーを張り直さない）

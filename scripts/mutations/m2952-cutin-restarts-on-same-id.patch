@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/cut-in.tsx b/packages/web-kit/src/room/cut-in.tsx
+index a36f1447..b36a3acd 100644
+--- a/packages/web-kit/src/room/cut-in.tsx
++++ b/packages/web-kit/src/room/cut-in.tsx
+@@ -72,7 +72,7 @@ export function CutIn({ cue }: { cue: CutInCue | null }): ReactNode {
+       clearTimeout(showTimer);
+       clearTimeout(hideTimer);
+     };
+-  }, [id, reduced]);
++  }, [cue, reduced]);
+ 
+   if (cue === null || reduced || shownId !== cue.id) return null;
+ 

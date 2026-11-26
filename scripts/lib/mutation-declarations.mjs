@@ -295,6 +295,8 @@ const RESERVED_2930_2949 =
 const RESERVED_2970_2989 =
   "**対応表より後に足した変異。** 2970〜2989 は #670（開票の演出の第 2 段の判定）に割り当てた範囲。";
 
+const RESERVED_2950_2969 = "**対応表より後に足した変異。** 2950〜2969 は #670（カットインの共通部品）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -14036,5 +14038,85 @@ export const MUTATIONS = [
     pkg: "packages/poker-core",
     tests: ["tests/unanimous-streak.test.ts"],
     note: RESERVED_2970_2989 + " " + "#670。アイテムが変わって束がまたがると、連続が 1 から数え直しになる。",
+  },
+  {
+    id: 2950,
+    label: "CutIn が動きを減らす設定を無視して層を描く",
+    patch: "m2950-cutin-draws-under-reduced-motion.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/cut-in.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#670。動きを減らす設定の人にも画面いっぱいの演出が出て、酔い・不快の原因になる。",
+  },
+  {
+    id: 2951,
+    label: "CutIn が CUTIN_DURATION_MS を過ぎても層を外さない",
+    patch: "m2951-cutin-never-hides.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/cut-in.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#670。演出の終わった層が画面に残り、暗い幕と帯が居座る（操作は奪わないが見えなくなる）。",
+  },
+  {
+    id: 2952,
+    label: "CutIn の効果が id でなく cue の同一性に依る（同じ id の描き直しで出し直す）",
+    patch: "m2952-cutin-restarts-on-same-id.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/cut-in.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#670。再描画のたびに時間と待ちがやり直され、同じ開票でカットインが何度も出る・終わらない。",
+  },
+  {
+    id: 2953,
+    label: "CutIn が id の替わった描画で前の層をすぐ外さない",
+    patch: "m2953-cutin-keeps-stale-id.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/cut-in.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#670。次の開票へ進んでも前の題が出たままになり、待ちの間に古い結果を見せてしまう。",
+  },
+  {
+    id: 2954,
+    label: "CutIn の層から aria-hidden を外す",
+    patch: "m2954-cutin-drops-aria-hidden.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/cut-in.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#670。飾りの題が読み上げに重複して届き、使う側の role=status の読み上げと二重になる。",
+  },
+  {
+    id: 2955,
+    label: "CutIn が delayMs を無視してすぐ出す",
+    patch: "m2955-cutin-ignores-delay.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/cut-in.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#670。札がめくれ終わる前に結果の演出が出て、ネタばらしになる。",
+  },
+  {
+    id: 2956,
+    label: "`.ui-cutin` の pointer-events: none を外す",
+    patch: "m2956-cutin-layer-takes-pointer.patch",
+    pkg: "packages/ui",
+    tests: ["tests/cut-in.test.mjs"],
+    note: RESERVED_2950_2969 + " " + "#670。画面全体を覆う層が操作を奪い、演出の間（約 2 秒）は何も押せなくなる。",
+  },
+  {
+    id: 2957,
+    label: "動きを減らす設定の @media が `.ui-cutin` を隠さない",
+    patch: "m2957-cutin-shown-under-reduced-motion-css.patch",
+    pkg: "packages/ui",
+    tests: ["tests/cut-in.test.mjs"],
+    note: RESERVED_2950_2969 + " " + "#670。CutIn 以外の経路で層が描かれたとき、動きを減らす設定でも画面いっぱいの演出が出る（念のための二重の歯止め）。",
+  },
+  {
+    id: 2958,
+    label: "`.ui-cutin__title` の white-space: nowrap を外す",
+    patch: "m2958-cutin-title-wraps.patch",
+    pkg: "packages/ui",
+    tests: ["tests/cut-in.test.mjs"],
+    note: RESERVED_2950_2969 + " " + "#670。狭い幅（320px）で 9 字の題が折り返し、帯からはみ出す。",
+  },
+  {
+    id: 2959,
+    label: "`.ui-cutin` の overflow: hidden を外す",
+    patch: "m2959-cutin-overflows.patch",
+    pkg: "packages/ui",
+    tests: ["tests/cut-in.test.mjs"],
+    note: RESERVED_2950_2969 + " " + "#670。画面外から滑り込む帯と字が横の scroll を出す。",
   },
 ];

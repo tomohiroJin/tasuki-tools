@@ -1,0 +1,13 @@
+diff --git a/packages/ui/src/components/cut-in.css b/packages/ui/src/components/cut-in.css
+index a13b3251..e1954cd6 100644
+--- a/packages/ui/src/components/cut-in.css
++++ b/packages/ui/src/components/cut-in.css
+@@ -176,7 +176,7 @@
+   font-weight: 700;
+   line-height: 1;
+   letter-spacing: 0.04em;
+-  white-space: nowrap;
++  white-space: normal;
+   color: currentColor;
+   -webkit-text-stroke: 0.05em var(--felt-950);
+   paint-order: stroke fill;
