@@ -24,7 +24,8 @@ TASUKI_E2E_BASE_URL=https://<公開ドメイン> pnpm e2e:prod
 `pnpm e2e:webkit` は `TASUKI_E2E_BROWSER=webkit` を付けて、同じ設定を WebKit の project だけで流します
 （`harness/browser.ts`。1 回の実行で流すのはどちらか一方のブラウザ）。決めごとは `docs/adr/0031` の追記（#674）。
 
-- 流すのは `@core` と `@webkit` のタグ。iOS で確かめたい spec を足すときは `{ tag: '@webkit' }` を付けます
+- 流すのは `@core` と `@webkit` のタグ。iOS で確かめたい spec を足すときは、test の題の頭に `@webkit` を書きます
+  （例: `test('@webkit Given …', …)`。ネイティブの `{ tag: '@webkit' }` は `tests/spec-tags.test.ts` が禁じています）
 - 1 ワーカーで流します（描画が重なると Check-in Cards とルーレットが時間切れになった）
 - WebKit は OS の依存が要ります: `pnpm --filter @tasuki/e2e exec playwright install --with-deps webkit`（sudo が要る）。
   揃わない手元では CI（`e2e-webkit` ジョブ）に任せてかまいません。`pnpm e2e` は WebKit が無くても流れます

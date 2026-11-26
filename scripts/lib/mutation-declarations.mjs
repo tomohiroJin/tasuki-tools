@@ -13914,11 +13914,13 @@ export const MUTATIONS = [
   },
   {
     id: 2934,
-    label: "WebKit で流すときも、ハーネスが版の確認を e2e の段（Chromium）で呼ぶ",
+    label: "toolchainStageOf が WebKit にも e2e の段（Chromium）を返す",
     patch: "m2934-e2e-webkit-stage-checks-chromium.patch",
     pkg: "e2e",
     tests: ["tests/browser.test.ts"],
-    note: RESERVED_2930_2949 + " " + "#674。playwright test を直に叩いたとき、WebKit が無くても止まらず、ブラウザの起動で初めて落ちる。",
+    note:
+      RESERVED_2930_2949 + " " + "#674。playwright test を直に叩いたとき、WebKit が無くても止まらず、ブラウザの起動で初めて落ちる。" +
+      "#674 のレビュー: global-setup.ts がこの関数へ渡す値（resolveBrowser(process.env)）の配線は、どの試験も守っていない（ルートの pnpm e2e:webkit が先に e2e-webkit の段を流し、直の実行でも Playwright が起動で落とすので、記録に留めた）。",
   },
   {
     id: 2935,
@@ -13927,5 +13929,29 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/spec-tags.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674。iOS で崩れやすい所（玄関・狭い幅の配置とボタン・手動コピー）が WebKit で流れなくなっても、件数が減るだけで緑のまま。",
+  },
+  {
+    id: 2936,
+    label: "WebKit の project の端末の記述を Desktop Chrome に替える（名前は webkit-iphone のまま Chromium で流れる）",
+    patch: "m2936-webkit-project-runs-on-desktop-chrome.patch",
+    pkg: "e2e",
+    tests: ["tests/spec-tags.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674 のレビュー。CI では Chromium が無いので起動で落ちるが、両方が入った手元の check:full では Chromium で流れて緑になる。",
+  },
+  {
+    id: 2937,
+    label: "e2e:webkit のスクリプトが TASUKI_E2E_BROWSER=webkit を付けない",
+    patch: "m2937-e2e-webkit-script-drops-browser.patch",
+    pkg: "e2e",
+    tests: ["tests/spec-tags.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674 のレビュー。pnpm e2e:webkit が Chromium の全件を流し、WebKit の E2E を流したつもりになる。",
+  },
+  {
+    id: 2938,
+    label: "turbo の e2e:webkit タスクが TASUKI_E2E_BASE_URL を渡さない",
+    patch: "m2938-turbo-e2e-webkit-drops-base-url.patch",
+    pkg: "e2e",
+    tests: ["tests/turbo-env.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
   },
 ];

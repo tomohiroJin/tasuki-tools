@@ -189,10 +189,26 @@ describe('WebKit の絞り込み（#674）', () => {
       expect(re.test('@smoke 各系統が並存する')).toBe(false);
       expect(re.test('poker は見積もりを記録に残す Given 幅 390')).toBe(false);
       expect(projects[0]?.workers).toBe(1);
+      // 名前だけでなく、実際に WebKit の iPhone として動く（端末の記述を替えると Chromium で流れ、両方が入った手元で緑になる。#674 のレビュー）
+      const use = projects[0]?.use ?? {};
+      expect(use.browserName ?? use.defaultBrowserType).toBe('webkit');
+      expect(use.isMobile).toBe(true);
+      expect(use.hasTouch).toBe(true);
     } finally {
       restoreEnv('TASUKI_E2E_TARGET', saved.target);
       restoreEnv('TASUKI_E2E_BROWSER', saved.browser);
     }
+  });
+});
+
+describe('pnpm e2e:webkit の入口（#674）', () => {
+  it('Given e2e/package.json / When e2e:webkit を見る / Then ローカルの対象で WebKit を選んで流す', () => {
+    // Given / When
+    const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, 'e2e/package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    // Then: TASUKI_E2E_BROWSER が落ちると Chromium で流れ、WebKit の E2E を流したつもりになる（#674 のレビュー）
+    expect(pkg.scripts?.['e2e:webkit']).toBe('TASUKI_E2E_TARGET=local TASUKI_E2E_BROWSER=webkit playwright test');
   });
 });
 

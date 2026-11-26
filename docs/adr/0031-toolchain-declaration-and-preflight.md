@@ -102,7 +102,7 @@ Caddy の版を知る手段は、CI の YAML を読むことだけだった。
 ## 追記（2026-11-26・#674・Proposed）
 
 E2E の一部を WebKit（iPhone の端末）でも流す。招待は QR を読んで iOS の Safari で開くことが多いが、Chromium だけでは
-iOS での崩れを配る前に拾えない（#674）。決めることの 1〜5 は、利用者が推奨どおりと決めた（2026-11-26・ISSUE #674 の会話）。
+iOS での崩れを配る前に拾えない（#674）。決めることの 1〜5 は、利用者が推奨どおりと決めた（2026-11-26・ISSUE #674 のコメント issuecomment-7195264125 に記録）。
 
 - **段を足す**: `scripts/check-toolchain.mjs` に `e2e-webkit` の段（Node・pnpm・Bun・WebKit・ffmpeg・Caddy）を足す。
   WebKit の正本は Chromium と同じ `e2e/package.json` の `@playwright/test`（revision は playwright-core の `browsers.json`。

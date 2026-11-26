@@ -1,0 +1,12 @@
+diff --git a/turbo.json b/turbo.json
+--- a/turbo.json
++++ b/turbo.json
+@@ -71,7 +71,7 @@
+     "e2e:webkit": {
+       "dependsOn": ["^build"],
+       "cache": false,
+-      "passThroughEnv": ["TASUKI_E2E_CADDY_PORT", "TASUKI_E2E_SYNC_PORT", "TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY", "npm_config_playwright_browsers_path", "npm_package_config_playwright_browsers_path", "XDG_CACHE_HOME", "LOCALAPPDATA"]
++      "passThroughEnv": ["TASUKI_E2E_CADDY_PORT", "TASUKI_E2E_SYNC_PORT", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY", "npm_config_playwright_browsers_path", "npm_package_config_playwright_browsers_path", "XDG_CACHE_HOME", "LOCALAPPDATA"]
+     },
+     "@tasuki/e2e#test": {
+       "dependsOn": []
