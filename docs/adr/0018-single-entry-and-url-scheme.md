@@ -81,3 +81,16 @@
   - **復帰の組が無いとき**: 6 つの道具（timer・poker・topic・roulette・agenda・checkin）すべて
   - **合言葉の失敗（`PASSPHRASE_REQUIRED`・`PASSPHRASE_MISMATCH`）**: topic・roulette・agenda・checkin だけ。
     timer と poker は、復帰の組で入り直して合言葉を求められても玄関へは送らず、帯にエラーを出すだけである（timer は `error-action.ts` で一時的なエラーとして、poker は `useSync.ts` で帯に）
+
+## 追記（2026-11-26・#476） — 端末の記録を見るだけの画面は、ルームコードが無くても開く（Proposed）
+
+> 冒頭のステータスは、この追記より前の決定を指す。この追記は Proposed で、採択は利用者が行う。
+
+決定 1 の「ルームコードを伴わずにツールの URL が開かれた場合は LP へ送る」には、記録の無いまま例外が 1 つあった。
+timer の `?view=history`（端末の完成記録を見る画面）は `?room=` の有無を問わず開き、接続しない（`apps/timer-web/src/sync/use-timer-entry.ts`）。
+#476 で、うちわけの `?view=saved`（端末に残した記録を見る画面）が 2 つ目の例外になるので、例外の条件を書いておく。
+
+- **例外にしてよいのは、端末に残した記録を見るだけの画面である。** ルームに接続しない（`room.join` を送らない。見ているだけの人を名簿に載せない）・名乗りの画面を持たない（決定 1 の MUST NOT は変わらない）・サーバーへ何も送らない
+- **該当する画面**: timer の `?view=history`・うちわけの `?view=saved`
+- 経路の判定は、ルームの経路（`packages/room-core/src/room-route.ts` の `parseRoomRoute`）より前で、その画面の `view=` を見る
+- ルームに接続する画面（映す画面〈うちわけの `?view=display`〉を含む）は、今までどおりルームコードが無ければ LP へ送る
