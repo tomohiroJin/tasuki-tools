@@ -14111,7 +14111,7 @@ export const MUTATIONS = [
   },
   {
     id: 2958,
-    label: "`.ui-cutin__title` の white-space: nowrap を外す",
+    label: "`.ui-cutin-title` の white-space: nowrap を外す",
     patch: "m2958-cutin-title-wraps.patch",
     pkg: "packages/ui",
     tests: ["tests/cut-in.test.mjs"],

@@ -73,8 +73,8 @@ describe('CutIn', () => {
   it('Given kicker・sub が無い cue / Then 題だけが出る', () => {
     render(<CutIn cue={{ id: 1, title: '全員同じ', tone: 'gold' }} />);
     act(() => void vi.advanceTimersByTime(0));
-    expect(layer()?.querySelector('.ui-cutin__kicker')).toBeNull();
-    expect(layer()?.querySelector('.ui-cutin__sub')).toBeNull();
+    expect(layer()?.querySelector('.ui-cutin-kicker')).toBeNull();
+    expect(layer()?.querySelector('.ui-cutin-sub')).toBeNull();
     expect(layer()?.textContent).toContain('全員同じ');
   });
 

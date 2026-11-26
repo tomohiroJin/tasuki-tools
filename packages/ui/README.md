@@ -53,7 +53,7 @@ src/
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
 | `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（64rem 以上だけ・札の中でスクロール）を載せる。64rem 未満は本文の代わりに 3 行の写し `.ui-reader-preview`（`inert`）を見せ、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
 | `.ui-drawer` | 下からせり上がるシート（`<dialog>`）。`.ui-drawer-head`（見出しと閉じる）・`.ui-drawer-body`（スクロールする本文）を持つ。地と字は `.ui-reader` と同じ | なし |
-| `.ui-cutin` | 画面の全体に重なるカットインの層（格闘ゲームの必殺技の見せ方。斜めの帯・集中線・大きな字・火花）。描くのは `CutIn`（`@tasuki/web-kit/room`）。色は `data-tone`（`gold`・`rose`・`jade`・`ivory`）が `color` だけを決める。中の `.ui-cutin__*` は `CutIn` が組む | なし |
+| `.ui-cutin` | 画面の全体に重なるカットインの層（格闘ゲームの必殺技の見せ方。斜めの帯・集中線・大きな字・火花）。描くのは `CutIn`（`@tasuki/web-kit/room`）。色は `data-tone`（`gold`・`rose`・`jade`・`ivory`）が `color` だけを決める。中の `.ui-cutin-*` は `CutIn` が組む | なし |
 | `.ui-visually-hidden` | 目に出さず、支援技術には残す文字（読み上げだけに渡す見出し・状態の言葉・ライブリージョン）。#371 で 3 つのアプリの写しを 1 つにした | なし |
 
 **使い方**

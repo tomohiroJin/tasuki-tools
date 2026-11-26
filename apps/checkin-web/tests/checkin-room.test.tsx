@@ -335,7 +335,7 @@ describe('開いたときのカットイン（#670）', () => {
   /** 3 枚（晴れ 2・雨 1）の山が裏返り終わるまで（最後の札の遅れ 180 ＋ 配って裏返る 850） */
   const FLIP_DONE_MS = 1030;
   const cutIn = () => document.body.querySelector<HTMLElement>('.ui-cutin');
-  const cutInText = () => cutIn()?.querySelector('.ui-cutin__title')?.textContent;
+  const cutInText = () => cutIn()?.querySelector('.ui-cutin-title')?.textContent;
 
   afterEach(() => {
     vi.useRealTimers();

@@ -42,8 +42,8 @@
 
 /* ---- 一瞬の暗転と閃光 ---- */
 
-.ui-cutin__veil,
-.ui-cutin__flash {
+.ui-cutin-veil,
+.ui-cutin-flash {
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -52,19 +52,19 @@
   animation-timing-function: linear;
 }
 
-.ui-cutin__veil {
+.ui-cutin-veil {
   background: var(--felt-scrim);
   animation-name: ui-cutin-veil;
 }
 
-.ui-cutin__flash {
+.ui-cutin-flash {
   background: var(--ivory);
   animation-name: ui-cutin-flash;
 }
 
 /* ---- 斜めの帯（左から突っ込んで止まり、右へ抜ける） ---- */
 
-.ui-cutin__stage {
+.ui-cutin-stage {
   position: absolute;
   inset-inline: -10%;
   inset-block: 0;
@@ -80,7 +80,7 @@
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-.ui-cutin__band {
+.ui-cutin-band {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -104,7 +104,7 @@
 }
 
 /* 集中線と光の筋。幅を 2 倍に取った縞を、横へ流す */
-.ui-cutin__streaks {
+.ui-cutin-streaks {
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
@@ -122,7 +122,7 @@
 }
 
 /* 奥の筋: 細く、逆向きに、ゆっくり。奥行きを出す */
-.ui-cutin__streaks--far {
+.ui-cutin-streaks--far {
   opacity: 0.6;
   background: repeating-linear-gradient(
     82deg,
@@ -135,8 +135,8 @@
 
 /* ---- 字 ---- */
 
-.ui-cutin__kicker,
-.ui-cutin__sub {
+.ui-cutin-kicker,
+.ui-cutin-sub {
   position: absolute;
   inset-inline: 0;
   margin: 0;
@@ -149,7 +149,7 @@
   animation-timing-function: ease-out;
 }
 
-.ui-cutin__kicker {
+.ui-cutin-kicker {
   inset-block-end: 100%;
   padding-block-end: 0.6em;
   font-size: var(--font-size-sm);
@@ -158,7 +158,7 @@
   animation-name: ui-cutin-kicker;
 }
 
-.ui-cutin__sub {
+.ui-cutin-sub {
   inset-block-start: 100%;
   padding-block-start: 0.6em;
   font-size: var(--font-size-base);
@@ -167,7 +167,7 @@
   animation-name: ui-cutin-sub;
 }
 
-.ui-cutin__title {
+.ui-cutin-title {
   position: relative;
   margin: 0;
   font-family: var(--font-display);
@@ -192,7 +192,7 @@
 
 /* ---- 火花 ---- */
 
-.ui-cutin__sparks {
+.ui-cutin-sparks {
   position: absolute;
   inset-block-start: 50%;
   inset-inline-start: 50%;
@@ -201,7 +201,7 @@
   pointer-events: none;
 }
 
-.ui-cutin__spark {
+.ui-cutin-spark {
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: 0;
@@ -413,23 +413,23 @@
   border: 1px solid currentColor;
 }
 
-.ui-cutin[data-still] .ui-cutin__veil,
-.ui-cutin[data-still] .ui-cutin__flash,
-.ui-cutin[data-still] .ui-cutin__spark {
+.ui-cutin[data-still] .ui-cutin-veil,
+.ui-cutin[data-still] .ui-cutin-flash,
+.ui-cutin[data-still] .ui-cutin-spark {
   display: none;
 }
 
-.ui-cutin[data-still] .ui-cutin__stage {
+.ui-cutin[data-still] .ui-cutin-stage {
   height: 6rem;
   inset-inline: 0;
 }
 
-.ui-cutin[data-still] .ui-cutin__stage,
-.ui-cutin[data-still] .ui-cutin__band,
-.ui-cutin[data-still] .ui-cutin__streaks,
-.ui-cutin[data-still] .ui-cutin__kicker,
-.ui-cutin[data-still] .ui-cutin__sub,
-.ui-cutin[data-still] .ui-cutin__title {
+.ui-cutin[data-still] .ui-cutin-stage,
+.ui-cutin[data-still] .ui-cutin-band,
+.ui-cutin[data-still] .ui-cutin-streaks,
+.ui-cutin[data-still] .ui-cutin-kicker,
+.ui-cutin[data-still] .ui-cutin-sub,
+.ui-cutin[data-still] .ui-cutin-title {
   animation: none;
 }
 

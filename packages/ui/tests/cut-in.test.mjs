@@ -61,12 +61,12 @@ test('.ui-cutin は既存のダイアログ・帯より上に重なる', () => {
 });
 
 test('子の層も操作を奪わない（pointer-events は継承されるが、明示して守る）', () => {
-  const d = declarationsOf('.ui-cutin__stage');
+  const d = declarationsOf('.ui-cutin-stage');
   assert.match(d, /pointer-events:\s*none/);
 });
 
 test('題は 1 行に収める（nowrap）', () => {
-  const d = declarationsOf('.ui-cutin__title');
+  const d = declarationsOf('.ui-cutin-title');
   assert.match(d, /white-space:\s*nowrap/);
 });
 

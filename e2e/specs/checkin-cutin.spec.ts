@@ -21,7 +21,7 @@ const NAME_A = 'cutin-a';
 const NAME_B = 'cutin-b';
 
 /** 画面全体のカットインの層（body 直下）。題の字で絞る */
-const cutIn = (page: Page, title: string): Locator => page.locator('body > .ui-cutin').filter({ has: page.locator('.ui-cutin__title', { hasText: title }) });
+const cutIn = (page: Page, title: string): Locator => page.locator('body > .ui-cutin').filter({ has: page.locator('.ui-cutin-title', { hasText: title }) });
 const anyCutIn = (page: Page): Locator => page.locator('body > .ui-cutin');
 /** 2 枚の山の裏返りが終わるまで（(2 − 1) × 90 ＋ 350 ＋ 500）＋ 余裕。層の長さは 1800ms（`CUTIN_DURATION_MS`） */
 const SHOWN_WITHIN_MS = 940 + 3000;
@@ -53,7 +53,7 @@ test.describe('札が開いたときのカットイン', () => {
     await handCard(b, '晴れ').click();
     for (const p of [a, b]) {
       await expect(cutIn(p, '全員同じ')).toBeVisible({ timeout: SHOWN_WITHIN_MS });
-      await expect(cutIn(p, '全員同じ').locator('.ui-cutin__sub')).toHaveText('晴れ');
+      await expect(cutIn(p, '全員同じ').locator('.ui-cutin-sub')).toHaveText('晴れ');
     }
     // 出ている最中でも操作が通る（層はポインタを受けない）
     await a.getByRole('button', { name: 'もう一回', exact: true }).click();

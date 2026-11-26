@@ -79,21 +79,21 @@ export function CutIn({ cue }: { cue: CutInCue | null }): ReactNode {
   const style = { '--cutin-duration': `${CUTIN_DURATION_MS}ms` } as CSSProperties;
   return createPortal(
     <div className="ui-cutin" data-tone={cue.tone} aria-hidden="true" style={style}>
-      <div className="ui-cutin__veil" />
-      <div className="ui-cutin__flash" />
-      <div className="ui-cutin__stage">
-        <div className="ui-cutin__band">
-          <div className="ui-cutin__streaks" />
-          <div className="ui-cutin__streaks ui-cutin__streaks--far" />
+      <div className="ui-cutin-veil" />
+      <div className="ui-cutin-flash" />
+      <div className="ui-cutin-stage">
+        <div className="ui-cutin-band">
+          <div className="ui-cutin-streaks" />
+          <div className="ui-cutin-streaks ui-cutin-streaks--far" />
         </div>
-        {cue.kicker !== undefined && <p className="ui-cutin__kicker">{cue.kicker}</p>}
-        <p className="ui-cutin__title">{cue.title}</p>
-        {cue.sub !== undefined && <p className="ui-cutin__sub">{cue.sub}</p>}
-        <div className="ui-cutin__sparks">
+        {cue.kicker !== undefined && <p className="ui-cutin-kicker">{cue.kicker}</p>}
+        <p className="ui-cutin-title">{cue.title}</p>
+        {cue.sub !== undefined && <p className="ui-cutin-sub">{cue.sub}</p>}
+        <div className="ui-cutin-sparks">
           {SPARKS.map((s) => (
             <span
               key={s.angle}
-              className="ui-cutin__spark"
+              className="ui-cutin-spark"
               style={
                 {
                   '--spark-angle': `${s.angle}deg`,

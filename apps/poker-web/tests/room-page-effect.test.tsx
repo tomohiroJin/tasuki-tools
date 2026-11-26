@@ -294,8 +294,8 @@ describe('RoomPage のカットイン（#670）', () => {
     act(() => void vi.advanceTimersByTime(FLIP_WAIT_MS - 1));
     expect(cutin()).toBeNull();
     act(() => void vi.advanceTimersByTime(1));
-    expect(cutin()?.querySelector('.ui-cutin__title')?.textContent).toBe('全員同じ');
-    expect(cutin()?.querySelector('.ui-cutin__kicker')?.textContent).toBe('PLANNING POKER');
+    expect(cutin()?.querySelector('.ui-cutin-title')?.textContent).toBe('全員同じ');
+    expect(cutin()?.querySelector('.ui-cutin-kicker')?.textContent).toBe('PLANNING POKER');
     expect(cutin()?.getAttribute('data-tone')).toBe('gold');
     act(() => void vi.advanceTimersByTime(CUTIN_DURATION_MS));
     expect(cutin()).toBeNull();
@@ -312,9 +312,9 @@ describe('RoomPage のカットイン（#670）', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealOf([...cards]))} />);
     act(() => void vi.advanceTimersByTime(FLIP_WAIT_MS));
-    expect(cutin()?.querySelector('.ui-cutin__title')?.textContent).toBe(title);
+    expect(cutin()?.querySelector('.ui-cutin-title')?.textContent).toBe(title);
     expect(cutin()?.getAttribute('data-tone')).toBe(tone);
-    expect(cutin()?.querySelector('.ui-cutin__sub')?.textContent).toBe(sub);
+    expect(cutin()?.querySelector('.ui-cutin-sub')?.textContent).toBe(sub);
   });
 
   it('Given 最初から開票済みで描いた（再読み込み・途中入室） / When 待つ / Then カットインは出ない', () => {
@@ -372,7 +372,7 @@ describe('RoomPage のカットイン（#670）', () => {
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealOf([n(5), n(5), n(5)]))} />);
     expect(cutin()).toBeNull();
     act(() => void vi.advanceTimersByTime(FLIP_WAIT_MS));
-    expect(cutin()?.querySelector('.ui-cutin__title')?.textContent).toBe('全員同じ');
+    expect(cutin()?.querySelector('.ui-cutin-title')?.textContent).toBe('全員同じ');
     // 終わってからの再投票でも、もう一度出る
     act(() => void vi.advanceTimersByTime(CUTIN_DURATION_MS));
     expect(cutin()).toBeNull();
@@ -406,18 +406,18 @@ describe('RoomPage のカットイン（#670）', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealOf([n(5), n(5), n(5)], { item: '', log: logOf(3), recording: true }))} />);
     act(() => void vi.advanceTimersByTime(FLIP_WAIT_MS));
-    expect(cutin()?.querySelector('.ui-cutin__sub')?.textContent).toBe('3 回続けて');
+    expect(cutin()?.querySelector('.ui-cutin-sub')?.textContent).toBe('3 回続けて');
     expect(document.querySelector('.results-effect-live')?.textContent).toBe('全員同じ。3 回続けて');
     // 開票の後の記録の変化（ここでは記録が伸びる）で添え書きは変えない
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealOf([n(5), n(5), n(5)], { item: '', log: logOf(4), recording: true }))} />);
-    expect(cutin()?.querySelector('.ui-cutin__sub')?.textContent).toBe('3 回続けて');
+    expect(cutin()?.querySelector('.ui-cutin-sub')?.textContent).toBe('3 回続けて');
   });
 
   it('Given 記録しない・または今回だけ / When 全員同じを見届ける / Then 添え書きは出ない', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealOf([n(5), n(5), n(5)], { item: '', log: logOf(3), recording: false }))} />);
     act(() => void vi.advanceTimersByTime(FLIP_WAIT_MS));
-    expect(cutin()?.querySelector('.ui-cutin__sub')).toBeNull();
+    expect(cutin()?.querySelector('.ui-cutin-sub')).toBeNull();
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealOf([n(5), n(5), n(5)], { item: '', log: logOf(1), recording: true }))} />);
     act(() => void vi.advanceTimersByTime(FLIP_WAIT_MS + CUTIN_DURATION_MS));

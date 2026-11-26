@@ -38,7 +38,7 @@ const band = (page: Page, text: string): Locator => resultsSection(page).locator
 const announced = (page: Page, text: string): Locator => resultsSection(page).getByRole('status').filter({ hasText: text });
 
 /** 画面全体のカットイン（題の字で見分ける。層は body 直下に重なり、読み上げからは隠してある）。 */
-const cutIn = (page: Page, title: string): Locator => page.locator('.ui-cutin').filter({ has: page.locator('.ui-cutin__title', { hasText: title }) });
+const cutIn = (page: Page, title: string): Locator => page.locator('.ui-cutin').filter({ has: page.locator('.ui-cutin-title', { hasText: title }) });
 
 /** 横のスクロールが出ていないか（画面の幅を、中身が広げていない）。 */
 const hasNoHorizontalScroll = (page: Page): Promise<boolean> =>
@@ -75,7 +75,7 @@ test.describe('poker の開票の演出（#639・#670）', () => {
     await everyoneVotes(pages, ['5', '5']);
     for (const p of pages) {
       await expect(cutIn(p, UNANIMOUS)).toBeVisible();
-      await expect(cutIn(p, UNANIMOUS).locator('.ui-cutin__kicker')).toHaveText('PLANNING POKER');
+      await expect(cutIn(p, UNANIMOUS).locator('.ui-cutin-kicker')).toHaveText('PLANNING POKER');
       await expect(cutIn(p, UNANIMOUS)).toHaveAttribute('aria-hidden', 'true');
       await expect(band(p, UNANIMOUS)).toBeVisible();
       await expect(band(p, SPLIT)).toHaveCount(0);
@@ -100,7 +100,7 @@ test.describe('poker の開票の演出（#639・#670）', () => {
       const pages = await openRoom(page, openPeer, `fx-w${width}`, 2);
       for (const p of pages) await p.setViewportSize({ width, height: 800 });
       await everyoneVotes(pages, ['5', '5']);
-      const title = cutIn(page, UNANIMOUS).locator('.ui-cutin__title');
+      const title = cutIn(page, UNANIMOUS).locator('.ui-cutin-title');
       await expect(title).toBeVisible();
       // 出ている間（動きの途中）に測る。層は画面の全体に重なるが、文書の幅を広げない
       expect(await hasNoHorizontalScroll(page), '横スクロールが出ない').toBe(true);
@@ -157,7 +157,7 @@ test.describe('poker の開票の演出（#639・#670）', () => {
     await everyoneVotes(pages, ['☕', '☕']);
     for (const p of pages) {
       await expect(cutIn(p, BREAK)).toBeVisible();
-      await expect(cutIn(p, BREAK).locator('.ui-cutin__sub')).toHaveText('ひと休みしよう');
+      await expect(cutIn(p, BREAK).locator('.ui-cutin-sub')).toHaveText('ひと休みしよう');
       await expect(band(p, BREAK)).toBeVisible();
       await expect(band(p, UNANIMOUS)).toHaveCount(0);
     }
@@ -168,7 +168,7 @@ test.describe('poker の開票の演出（#639・#670）', () => {
     await everyoneVotes(pages, ['1', '13']);
     for (const p of pages) {
       await expect(cutIn(p, SPLIT)).toBeVisible();
-      await expect(cutIn(p, SPLIT).locator('.ui-cutin__sub')).toHaveText('上と下の見方を話そう');
+      await expect(cutIn(p, SPLIT).locator('.ui-cutin-sub')).toHaveText('上と下の見方を話そう');
       await expect(band(p, SPLIT)).toBeVisible();
     }
   });
@@ -188,7 +188,7 @@ test.describe('poker の開票の演出（#639・#670）', () => {
     await everyoneVotes(pages, ['5', '5', '8']);
     for (const p of pages) {
       await expect(cutIn(p, NEAR)).toBeVisible();
-      await expect(cutIn(p, NEAR).locator('.ui-cutin__sub')).toHaveCount(0);
+      await expect(cutIn(p, NEAR).locator('.ui-cutin-sub')).toHaveCount(0);
       await expect(band(p, NEAR)).toBeVisible();
       await expect(band(p, UNANIMOUS)).toHaveCount(0);
     }
@@ -224,7 +224,7 @@ test.describe('poker の開票の演出（#639・#670）', () => {
     for (const p of pages) await expect(p.getByRole('heading', { name: 'あなたのカード' })).toBeVisible();
     await everyoneVotes(pages, ['3', '3']);
     for (const p of pages) {
-      await expect(cutIn(p, UNANIMOUS).locator('.ui-cutin__sub')).toHaveText('2 回続けて');
+      await expect(cutIn(p, UNANIMOUS).locator('.ui-cutin-sub')).toHaveText('2 回続けて');
       await expect(announced(p, '2 回続けて')).toHaveCount(1);
     }
   });
