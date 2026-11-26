@@ -1,0 +1,22 @@
+# 変異 3156: track-away-not-undoable
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 離れていた間を休憩にする操作が取り消しの対象にならない（手直しと同じく写しを捨てる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3156-*.patch
+# 復元: git apply -R scripts/mutations/m3156-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -190,7 +190,7 @@
+   const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "break", now: input.now });
+   // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限だけ
+   if (inserted.isErr()) return fail(inserted.error.code === "TRACK_FULL" ? "TRACK_FULL" : "TRACK_BACKDATE_TOO_FAR");
+-  return ok(timed(s, "away", input.now, { segments: inserted.value.segments, nextSeq: inserted.value.nextSeq }));
++  return ok(inserted.value);
+ }
+ 
+ /** 閉じた区切りを消す。その時間は隙間になる。 */

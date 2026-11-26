@@ -1,0 +1,22 @@
+# 変異 3162: web-away-prompt-threshold-off-by-one
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#
+# #476 離れていたときの問いかけが、ちょうど 10 分では出ない（境界が 1 つずれる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3162-*.patch
+# 復元: git apply -R scripts/mutations/m3162-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -141,7 +141,7 @@
+ export function awayPromptOf(view: TrackView, nowMs: number, receivedAt: number, away: AwayReturn | null): AwayPrompt | null {
+   if (away === null || receivedAt < away.returnedAt) return null;
+   const hiddenMs = nowMs - away.fromMs;
+-  if (hiddenMs < AWAY_PROMPT_MIN_HIDDEN_MS) return null;
++  if (hiddenMs <= AWAY_PROMPT_MIN_HIDDEN_MS) return null;
+   const running = longRunningOf(view, nowMs);
+   if (running === null || running.kind !== 'work' || running.id !== away.runningId || running.startMs >= away.fromMs) return null;
+   if (hiddenMs > MAX_LOOKBACK_MS) return null;

@@ -1,0 +1,21 @@
+# 変異 3176: web-notify-permission-asked-on-mount
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 画面を開いただけで通知の許可を求める（押したときにだけ求める約束を破る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3176-*.patch
+# 復元: git apply -R scripts/mutations/m3176-*.patch
+diff --git a/apps/track-web/src/hooks/use-notify-setting.ts b/apps/track-web/src/hooks/use-notify-setting.ts
+--- a/apps/track-web/src/hooks/use-notify-setting.ts
++++ b/apps/track-web/src/hooks/use-notify-setting.ts
+@@ -24,6 +24,7 @@
+ export function useNotifySetting(): NotifySetting {
+   const [enabled, setEnabled] = useState(() => loadNotifyPreference() && notificationGranted());
+   const [denied, setDenied] = useState(false);
++  void requestNotificationPermission();
+ 
+   const toggle = useCallback(() => {
+     if (enabled) {

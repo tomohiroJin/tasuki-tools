@@ -1,0 +1,34 @@
+# 変異 3173: web-notify-while-visible
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 ページが前面のままでも通知を出す（画面で見えている知らせと二重になる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3173-*.patch
+# 復元: git apply -R scripts/mutations/m3173-*.patch
+diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
+--- a/apps/track-web/src/hooks/use-long-running-notify.ts
++++ b/apps/track-web/src/hooks/use-long-running-notify.ts
+@@ -32,7 +32,7 @@
+       return;
+     }
+     if (longRunningId === null || longRunningId === previous || notifiedRef.current.has(longRunningId)) return;
+-    if (enabledRef.current && pageHidden()) {
++    if (enabledRef.current) {
+       notifiedRef.current.add(longRunningId);
+       notifyWhenHidden(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MS_PER_MIN), LONG_RUNNING_NOTIFY_BODY);
+     }
+diff --git a/apps/track-web/src/platform/notify.ts b/apps/track-web/src/platform/notify.ts
+--- a/apps/track-web/src/platform/notify.ts
++++ b/apps/track-web/src/platform/notify.ts
+@@ -63,7 +63,7 @@
+ 
+ /** 非表示のときだけ通知を出す。許可が無い・前面・未対応では何もしない。 */
+ export function notifyWhenHidden(title: string, body: string): void {
+-  if (!notificationGranted() || !pageHidden()) return;
++  if (!notificationGranted()) return;
+   try {
+     // 同じ知らせが重ならないよう tag を付ける
+     new Notification(title, { body, tag: 'tasuki-track-long-running' });
