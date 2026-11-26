@@ -29,7 +29,7 @@ export type { SegmentEdge } from "./edit.js";
 export { advanceNow, runningSegmentOf, durationOf, totalsOf, candidatesOf, previousLabelOf, longRunningOf } from "./projection.js";
 export type { TotalRow, Totals, Candidate } from "./projection.js";
 
-export { MARKDOWN_TEXT, formatDuration, formatClock, escapeLabel, toMarkdown } from "./markdown.js";
+export { MARKDOWN_TEXT, formatDuration, formatClock, formatDate, escapeLabel, toMarkdown } from "./markdown.js";
 
 export { CSV_COLUMNS, csvField, toCsv, csvFileName } from "./csv.js";
 

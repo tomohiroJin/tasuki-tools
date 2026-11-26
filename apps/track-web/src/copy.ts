@@ -114,6 +114,33 @@ export const CLEAR_CONFIRM_TEXT = '全員の画面から記録を消しますか
 export const CLEAR_CONFIRM_YES = '消す';
 export const CLEAR_CONFIRM_NO = 'やめる';
 
+// 端末に残す・CSV（第 2 段 B）
+export const SAVE_BUTTON = 'この端末に残す';
+export const CSV_BUTTON = 'CSV で保存';
+export const SAVE_NOTE = 'この端末のブラウザにだけ残ります。ブラウザのデータを消すと消えます。ほかの人には見えません。';
+export const saveFullNote = (max: number): string => `残せるのは ${max} 件までです。残すと、最初に残した 1 件が消えます。`;
+export const SAVE_DONE = 'この端末に残しました';
+export const SAVE_FAILED = 'この端末に残せませんでした';
+export const SAVED_LINK = 'この端末の記録';
+
+// この端末の記録（第 2 段 B5）
+export const SAVED_HEADING = 'この端末の記録';
+export const SAVED_BACK_ROOM = 'うちわけへ戻る';
+export const SAVED_BACK_HOME = '最初の画面へ戻る';
+export const SAVED_LOADING = '読み込んでいます';
+export const SAVED_LOAD_FAILED = 'この端末の記録を読めませんでした';
+export const SAVED_EMPTY = 'まだ残した記録はありません。ルームの画面の「この端末に残す」で残せます。';
+export const savedCountNote = (count: number, max: number): string => `${count} 件（残せるのは ${max} 件まで）`;
+export const savedItemText = (when: string, total: string, count: number): string => `${when} 全体 ${total} 作業 ${count} 件`;
+export const SAVED_OPEN_BUTTON = '開く';
+export const SAVED_CLOSE_BUTTON = '閉じる';
+export const savedOpenLabel = (when: string): string => `${when} の記録を開く`;
+export const SAVED_DELETE_BUTTON = 'この記録を消す';
+export const SAVED_DELETE_ALL_BUTTON = '全部消す';
+export const SAVED_DELETE_ALL_CONFIRM = 'この端末に残した記録をすべて消しますか。元には戻せません';
+export const SAVED_DELETE_ALL_YES = '全部消す';
+export const SAVED_DELETE_ALL_NO = 'やめる';
+
 // 知らせ
 export const resumeOfferText = (name: string, clock: string): string => `全員が離れたので「${name}」を ${clock} で止めました。`;
 export const RESUME_BUTTON = '再開する';

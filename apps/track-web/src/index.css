@@ -441,6 +441,36 @@
   justify-content: space-between;
   gap: var(--space-3);
 }
+.track-save-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+.track-saved-link {
+  font-size: var(--font-size-sm);
+}
+
+/* ── この端末の記録（第 2 段 B） ───────────────────────────── */
+.track-saved-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.track-saved-item {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--felt-700);
+  border-radius: var(--radius-lg);
+}
+.track-saved-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
 .track-copy-status {
   min-height: 1lh;
   color: var(--ivory-dim);
