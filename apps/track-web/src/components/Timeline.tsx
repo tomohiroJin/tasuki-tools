@@ -4,7 +4,7 @@
  * 見出しの行の［抜けを足す］で、区切りを後から足す欄を開く。
  */
 import { useId, useRef, useState } from 'react';
-import type { TrackView } from '@tasuki/track-core';
+import type { Totals, TrackView } from '@tasuki/track-core';
 import {
   AUTO_CLOSED_MARK,
   EDIT_BUTTON,
@@ -20,17 +20,19 @@ import type { TrackActions } from '../hooks/use-track-sync';
 import { isUnnamed, nameOf, rangeTextOf } from '../track-view';
 import { InsertForm } from './InsertForm';
 import { SegmentEditor } from './SegmentEditor';
+import { TimeBand } from './TimeBand';
 
 interface Props {
   view: TrackView;
   nowMs: number;
+  totals: Totals;
   getNow: () => number;
   tzOffsetMin: number;
   canOperate: boolean;
   actions: TrackActions;
 }
 
-export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions }: Props) {
+export function Timeline({ view, nowMs, totals, getNow, tzOffsetMin, canOperate, actions }: Props) {
   const headingId = useId();
   const insertId = useId();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions
           />
         </div>
       )}
+      <TimeBand view={view} nowMs={nowMs} totals={totals} tzOffsetMin={tzOffsetMin} />
       {/* 名前のない区切りは時系列の順のまま目立たせ、件数で名前を付けるよう促す（FR-20） */}
       {unnamedCount > 0 && <p className="ui-note track-unnamed-prompt">{unnamedPrompt(unnamedCount)}</p>}
       {view.segments.length === 0 ? (

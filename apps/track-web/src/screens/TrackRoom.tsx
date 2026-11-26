@@ -22,14 +22,17 @@ import {
 } from '@tasuki/track-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
 import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion } from '@tasuki/web-kit/room';
+import { MiniView } from '../components/MiniView';
 import { Notices } from '../components/Notices';
 import { NowPanel } from '../components/NowPanel';
 import { SwitchPanel } from '../components/SwitchPanel';
 import { TakeHome } from '../components/TakeHome';
 import { Timeline } from '../components/Timeline';
 import { TotalsPanel } from '../components/TotalsPanel';
+import { ViewTools } from '../components/ViewTools';
 import { CLOSE_BUTTON, FOOTNOTE, PAGE_HEADING, longRunningText } from '../copy';
 import { useAnnouncement } from '../hooks/use-announcement';
+import { useMiniWindow } from '../hooks/use-mini-window';
 import { useTabTitle } from '../hooks/use-tab-title';
 import { useTrackClock } from '../hooks/use-track-clock';
 import { useTrackKeys } from '../hooks/use-track-keys';
@@ -79,7 +82,7 @@ export function TrackRoom({ roomCode }: { roomCode: string }) {
               </button>
             </p>
           )}
-          {view !== null && <RoomBody view={view} sync={sync} />}
+          {view !== null && <RoomBody roomCode={roomCode} view={view} sync={sync} />}
           <p className="track-footnote ui-note">{FOOTNOTE}</p>
         </div>
       </main>
@@ -88,7 +91,7 @@ export function TrackRoom({ roomCode }: { roomCode: string }) {
 }
 
 /** 写しが届いた後の中身。時計・キーボード・タブの題・読み上げはここで持つ（写しが要るフックをまとめる）。 */
-function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
+function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView; sync: TrackSync }) {
   const reducedMotion = usePrefersReducedMotion();
   const { nowMs, getNow } = useTrackClock(view, sync.receivedAt, reducedMotion);
   const undoSeconds = useUndoSeconds(view.undo, sync.receivedAt);
@@ -96,6 +99,7 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
   const [backMin, setBackMin] = useState<BackMinutes | null>(null);
   const tzOffsetMin = localTzOffsetMin();
   const canOperate = sync.joined;
+  const mini = useMiniWindow();
 
   const running = runningSegmentOf(view);
   const candidates = candidatesOf(view, sync.topic?.topic?.title ?? null);
@@ -113,6 +117,12 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
   const startWork = (label: string): void => sync.start(label, 'work', takeBack());
   const stop = (): void => sync.stop(takeBack());
 
+  // ミニ表示の［直前を再開］は C キーと同じ操作
+  const resumePrevious = (): void => {
+    const label = previousLabelOf(view);
+    if (label !== null) sync.start(label, 'work');
+  };
+
   useTrackKeys({
     enabled: canOperate,
     // キーは「いまから」で送る（「いつから」の選択は画面の操作のためのもの）
@@ -123,10 +133,7 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
     onStop: () => {
       if (running !== null) sync.stop();
     },
-    onResume: () => {
-      const label = previousLabelOf(view);
-      if (label !== null) sync.start(label, 'work');
-    },
+    onResume: resumePrevious,
   });
 
   const resume = (): void => {
@@ -158,13 +165,32 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
             onStart={startWork}
             onPin={sync.pin}
           />
+          <ViewTools
+            roomCode={roomCode}
+            miniSupported={mini.supported}
+            miniOpen={mini.container !== null}
+            onMiniToggle={() => (mini.container === null ? void mini.open() : mini.close())}
+          />
         </div>
         <div className="ui-workspace-main track-column">
           <TotalsPanel totals={totals} />
-          <Timeline view={view} nowMs={nowMs} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
+          <Timeline view={view} nowMs={nowMs} totals={totals} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
           <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} />
         </div>
       </div>
+      {mini.container !== null && (
+        <MiniView
+          container={mini.container}
+          view={view}
+          getNow={getNow}
+          canOperate={canOperate}
+          onStop={() => {
+            if (running !== null) sync.stop();
+          }}
+          onBreak={() => sync.start('', 'break')}
+          onResume={resumePrevious}
+        />
+      )}
       {/* 読み上げの領域は常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある） */}
       <p className="ui-visually-hidden track-live" aria-live="polite">
         {announcement}

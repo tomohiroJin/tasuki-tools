@@ -7,10 +7,7 @@
 import { useId, type CSSProperties } from 'react';
 import type { Totals } from '@tasuki/track-core';
 import { BREAK_NAME, COLUMN_NAME, COLUMN_RATIO, COLUMN_TIME, GRAND_TOTAL, TOTALS_EMPTY, TOTALS_HEADING, WORK_TOTAL, percentText } from '../copy';
-import { formatElapsed, nameOf } from '../track-view';
-
-/** 帯の色の数（CSS の `.track-tone--0`〜`3` と揃える） */
-const TONES = 4;
+import { TONE_COUNT, formatElapsed, nameOf } from '../track-view';
 
 export function TotalsPanel({ totals }: { totals: Totals }) {
   const headingId = useId();
@@ -24,7 +21,7 @@ export function TotalsPanel({ totals }: { totals: Totals }) {
           {totals.workMs > 0 && (
             <div className="track-bar" aria-hidden="true">
               {totals.rows.map((row, index) => (
-                <span key={row.label} className={`track-bar-part track-tone--${index % TONES}`} style={{ '--share': row.ms } as CSSProperties} />
+                <span key={row.label} className={`track-bar-part track-tone--${index % TONE_COUNT}`} style={{ '--share': row.ms } as CSSProperties} />
               ))}
             </div>
           )}
@@ -44,7 +41,7 @@ export function TotalsPanel({ totals }: { totals: Totals }) {
               {totals.rows.map((row, index) => (
                 <tr key={row.label}>
                   <th scope="row" className={row.label === '' ? 'track-table-name track-name--unnamed' : 'track-table-name'}>
-                    <span className={`track-swatch track-tone--${index % TONES}`} aria-hidden="true" />
+                    <span className={`track-swatch track-tone--${index % TONE_COUNT}`} aria-hidden="true" />
                     <span className="track-table-label">{nameOf({ kind: 'work', label: row.label })}</span>
                   </th>
                   <td className="track-table-number track-digits">{formatElapsed(row.ms)}</td>

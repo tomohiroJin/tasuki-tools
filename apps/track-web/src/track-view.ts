@@ -105,3 +105,15 @@ export function tabTitleOf(view: TrackView, nowMs: number): string | null {
   const running = runningSegmentOf(view);
   return running === null ? null : tabTitle(nameOf(running), formatDuration(durationOf(running, nowMs)));
 }
+
+/** 帯と表の色の数（CSS の `.track-tone--0`〜`3` と揃える） */
+export const TONE_COUNT = 4;
+
+/**
+ * 作業名の色の番号。**表の行の並び（`totalsOf` の降順）の位置**で巡るので、表の行の頭の印と帯の色が同じになる。
+ * 良し悪しを表さない（FR-19）。表に無い名前（休憩ほか）は 0。
+ */
+export function toneIndexOf(rows: readonly { readonly label: string }[], label: string): number {
+  const index = rows.findIndex((row) => row.label === label);
+  return (index < 0 ? 0 : index) % TONE_COUNT;
+}

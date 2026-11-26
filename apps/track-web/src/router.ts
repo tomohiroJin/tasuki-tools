@@ -7,12 +7,21 @@
 import { parseRoomRoute, type RoomRoute } from '@tasuki/room-core';
 
 export { roomHubPath as hubPathFor } from '@tasuki/room-core';
-export type Route = RoomRoute;
+/** `?view=display` つきの札は、映す画面（読むだけ・設計 §5 D1）。 */
+export type Route = RoomRoute | { name: 'display'; roomCode: string };
 
 const BASE = '/track';
+const DISPLAY_VIEW = 'display';
 
 export function parseRoute(pathname: string, search = ''): Route {
-  return parseRoomRoute(BASE, pathname, search);
+  const route = parseRoomRoute(BASE, pathname, search);
+  if (route.name === 'room' && new URLSearchParams(search).get('view') === DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
+  return route;
+}
+
+/** 映す画面の URL（ルームの画面から新しいタブで開く）。 */
+export function displayPathFor(roomCode: string): string {
+  return `${BASE}/?room=${encodeURIComponent(roomCode)}&view=${DISPLAY_VIEW}`;
 }
 
 /**
