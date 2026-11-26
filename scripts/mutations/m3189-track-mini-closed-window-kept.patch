@@ -10,14 +10,13 @@
 #       git apply scripts/mutations/m3189-*.patch
 # 復元: git apply -R scripts/mutations/m3189-*.patch
 diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
-index c66dbf6a..b3e41fc6 100644
 --- a/apps/track-web/src/hooks/use-mini-window.ts
 +++ b/apps/track-web/src/hooks/use-mini-window.ts
-@@ -56,7 +56,6 @@ export function useMiniWindow(): MiniWindow {
-       const target = win.document.createElement('div');
-       target.className = 'track-mini-root';
-       win.document.body.appendChild(target);
--      win.addEventListener('pagehide', release, { once: true });
-       windowRef.current = win;
-       setContainer(target);
-     } finally {
+@@ -39,7 +39,6 @@
+     windowRef.current = null;
+     stopWatchRef.current?.();
+     stopWatchRef.current = null;
+-    setContainer(null);
+   }, []);
+ 
+   /** 窓の参照は閉じる前に手放す（閉じ終わる前に「出す」を押されても、閉じかけの窓を前に出さない） */

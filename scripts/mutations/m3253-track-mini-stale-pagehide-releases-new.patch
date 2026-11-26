@@ -1,0 +1,22 @@
+# 変異 3253: track-mini-stale-pagehide-releases-new
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#
+# #476 古い窓の pagehide が、閉じてすぐ開いた新しい窓の描画先を外す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3253-*.patch
+# 復元: git apply -R scripts/mutations/m3253-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -71,7 +71,7 @@
+       win.document.body.appendChild(target);
+       // 閉じ終わっていない古い窓の `pagehide` が、あとから開いた窓の描画先を外さないよう、その窓のときだけ手放す
+       const onHide = (): void => {
+-        if (windowRef.current === win) release();
++        release();
+       };
+       win.addEventListener('pagehide', onHide, { once: true });
+       hideListenerRef.current = { win, listener: onHide };

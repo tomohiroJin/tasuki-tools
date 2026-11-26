@@ -1,0 +1,22 @@
+# 変異 3254: track-mini-keys-ignore-main-confirm
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-track-keys.test.tsx
+#
+# #476 窓の S・C キーが、本体の文書の確かめ・ダイアログを見ない。確かめが開いている間も窓の S で止まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3254-*.patch
+# 復元: git apply -R scripts/mutations/m3254-*.patch
+diff --git a/apps/track-web/src/hooks/use-track-keys.ts b/apps/track-web/src/hooks/use-track-keys.ts
+--- a/apps/track-web/src/hooks/use-track-keys.ts
++++ b/apps/track-web/src/hooks/use-track-keys.ts
+@@ -33,7 +33,7 @@
+       const action = keyActionOf(event, {
+         editable: isEditableTarget((target ?? document).activeElement),
+         // 窓に付けたキーでも、本体の文書の確かめ・ダイアログを見る（窓の外で確かめが開いている間は S を拾わない）
+-        dialogOpen: document.querySelector(BLOCKING) !== null || (target ?? document).querySelector(BLOCKING) !== null,
++        dialogOpen: (target ?? document).querySelector(BLOCKING) !== null,
+       });
+       if (action === null) return;
+       if (action.type === 'candidate') current.onCandidate(action.index);

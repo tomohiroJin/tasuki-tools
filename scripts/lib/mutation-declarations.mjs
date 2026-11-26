@@ -298,6 +298,9 @@ const RESERVED_3180_3209 =
 const RESERVED_3250_3269 =
   "**対応表より後に足した変異。** 3250〜3269 は #476 の第 2 段 D（映す画面・ミニ表示・時系列の帯）のレビューの直しに割り当てた範囲（3180〜3209 を使い切ったため）。";
 
+const RESERVED_3252_3269 =
+  "**対応表より後に足した変異。** 3252〜3269 は #476 の第 2 段 D（映す画面・ミニ表示・時系列の帯）の 2 回目のレビューの直しに割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -14194,7 +14197,7 @@ export const MUTATIONS = [
   },
   {
     id: 3209,
-    label: "窓へ写す規則の url() を、元のシートの場所で絶対にしない",
+    label: "窓の head に、開いたページの URL を指す base を置かない",
     patch: "m3209-track-mini-css-url-not-absolutized.patch",
     pkg: "apps/track-web",
     tests: ["tests/mini-window-copy.test.ts"],
@@ -14215,5 +14218,37 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/mini-window-copy.test.ts"],
     note: RESERVED_3250_3269 + " " + "#476 第 2 段 D のレビューの直し。相対の href が窓の基準 URL で読まれ、外部シートが読めない。",
+  },
+  {
+    id: 3252,
+    label: "窓へ写す規則の文字列を書き換える（data の値の中の入れ子の url(%23n) が壊れる）",
+    patch: "m3252-track-mini-css-rule-rewritten.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/mini-window-copy.test.ts"],
+    note: RESERVED_3252_3269 + " " + "#476 第 2 段 D の 2 回目のレビューの直し。body::after の mask-image が効かなくなる。",
+  },
+  {
+    id: 3253,
+    label: "古い窓の pagehide が、あとから開いた新しい窓の描画先も手放す",
+    patch: "m3253-track-mini-stale-pagehide-releases-new.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/use-mini-window.test.tsx"],
+    note: RESERVED_3252_3269 + " " + "#476 第 2 段 D の 2 回目のレビューの直し。閉じてすぐ出すと、新しい窓が空になる。",
+  },
+  {
+    id: 3254,
+    label: "窓の S・C キーが、本体の文書の確かめ・ダイアログを見ない",
+    patch: "m3254-track-mini-keys-ignore-main-confirm.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/use-track-keys.test.tsx"],
+    note: RESERVED_3252_3269 + " " + "#476 第 2 段 D の 2 回目のレビューの直し。確かめが開いている間も、窓の S で止まる。",
+  },
+  {
+    id: 3255,
+    label: "映す画面が、同一性の無い端末を玄関へ自動で送る",
+    patch: "m3255-track-display-auto-redirect-to-hub.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-display.test.tsx"],
+    note: RESERVED_3252_3269 + " " + "#476 第 2 段 D の 2 回目のレビューの直し。名乗った後の戻り先は操作できるルームの画面で、映す画面へ戻れない。",
   },
 ];

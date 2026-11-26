@@ -9,15 +9,14 @@
 #       git apply scripts/mutations/m3251-*.patch
 # 復元: git apply -R scripts/mutations/m3251-*.patch
 diff --git a/apps/track-web/src/platform/mini-window.ts b/apps/track-web/src/platform/mini-window.ts
-index 2d60e344..8c5392c4 100644
 --- a/apps/track-web/src/platform/mini-window.ts
 +++ b/apps/track-web/src/platform/mini-window.ts
-@@ -91,7 +91,7 @@ export function copyStylesInto(source: Document, target: Document): void {
-       if (sheet.href === null) continue;
+@@ -72,7 +72,7 @@
+     if (sheet.href !== null) {
        const link = target.createElement('link');
        link.rel = 'stylesheet';
 -      link.href = new URL(sheet.href, source.baseURI).href;
 +      link.href = sheet.href;
        target.head.appendChild(link);
+       continue;
      }
-   }
