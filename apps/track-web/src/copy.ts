@@ -123,6 +123,8 @@ export const saveFullNote = (max: number): string => `残せるのは ${max} 件
 export const SAVE_DONE = 'この端末に残しました';
 export const SAVE_FAILED = 'この端末に残せませんでした';
 export const SAVED_LINK = 'この端末の記録';
+/** リンクの読み上げの名前。新しいタブで開くことを伝える（見える文言は SAVED_LINK のまま） */
+export const SAVED_LINK_LABEL = `${SAVED_LINK}（新しいタブで開きます）`;
 
 // この端末の記録（第 2 段 B5）
 export const SAVED_HEADING = 'この端末の記録';

@@ -19,10 +19,33 @@ export interface FakeIndexedDb {
   stores: Map<string, Map<string, unknown>>;
   /** 開いた回数 */
   opened: { name: string; version: number }[];
+  /** 動いている要求がすべて片付くまで待つ（時間の長さでなく、未了の通知の数で待つ） */
+  idle: () => Promise<void>;
 }
 
 export function installFakeIndexedDb(): FakeIndexedDb {
-  const fake: FakeIndexedDb = { stores: new Map(), opened: [] };
+  let inflight = 0;
+  /** 未了の数を数えながら、次の周に処理を回す */
+  const later = (run: () => void): void => {
+    inflight += 1;
+    setTimeout(() => {
+      try {
+        run();
+      } finally {
+        inflight -= 1;
+      }
+    }, 0);
+  };
+  const fake: FakeIndexedDb = {
+    stores: new Map(),
+    opened: [],
+    idle: async () => {
+      // 1 周ごとに、続きの要求が足されていないかを見る（未了が 0 になった周で終える）
+      do {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      } while (inflight > 0);
+    },
+  };
 
   const makeTx = (storeName: string) => {
     let pending = 0;
@@ -37,18 +60,18 @@ export function installFakeIndexedDb(): FakeIndexedDb {
           const req: FakeRequest<T> = { result: undefined as T, error: null, onsuccess: null, onerror: null };
           pending += 1;
           req.result = run();
-          setTimeout(() => {
+          later(() => {
             req.onsuccess?.();
             pending -= 1;
             // 取引は、要求の通知がすべて終わった次の周で確定する（通知の中で足された要求を待つ）
-            setTimeout(() => {
+            later(() => {
               if (pending === 0) {
                 const done = tx.oncomplete;
                 tx.oncomplete = null;
                 done?.();
               }
-            }, 0);
-          }, 0);
+            });
+          });
           return req;
         };
         return {
@@ -81,10 +104,10 @@ export function installFakeIndexedDb(): FakeIndexedDb {
         onerror: null,
         onupgradeneeded: null,
       };
-      setTimeout(() => {
+      later(() => {
         request.onupgradeneeded?.();
         request.onsuccess?.();
-      }, 0);
+      });
       return request;
     },
   });

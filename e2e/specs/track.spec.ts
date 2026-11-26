@@ -173,7 +173,7 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
 
     // ルームの画面からのリンクは新しいタブで開く（元のタブのルームの接続を切らない）
     const popupPromise = page.context().waitForEvent('page');
-    await page.getByRole('link', { name: 'この端末の記録', exact: true }).click();
+    await page.getByRole('link', { name: 'この端末の記録（新しいタブで開きます）', exact: true }).click();
     const popup = await popupPromise;
     await expect(popup.getByRole('heading', { level: 1, name: 'この端末の記録', exact: true })).toBeVisible();
     expect(new URL(popup.url()).searchParams.get('view')).toBe('saved');

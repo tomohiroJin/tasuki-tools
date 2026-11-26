@@ -22,6 +22,7 @@ import {
   SAVED_EMPTY,
   SAVED_HEADING,
   SAVED_LINK,
+  SAVED_LINK_LABEL,
   SAVE_BUTTON,
   SAVE_DONE,
   SAVE_FAILED,
@@ -201,7 +202,11 @@ describe('ルームの持ち帰り: 端末に残す・CSV', () => {
 
   it('Given ルーム / When 「この端末の記録」へのリンクを見る / Then ルームのコードを運ぶ道で、新しいタブで開く（接続を切らない）', () => {
     renderRoom(stoppedTrack());
-    const link = screen.getByRole('link', { name: SAVED_LINK });
+    // 新しいタブで開くことが、読み上げの名前で分かる（見える文言は SAVED_LINK のまま）
+    const link = screen.getByRole('link', { name: SAVED_LINK_LABEL });
+    expect(SAVED_LINK_LABEL).toContain(SAVED_LINK);
+    expect(SAVED_LINK_LABEL).toContain('新しいタブ');
+    expect(link).toHaveTextContent(SAVED_LINK);
     expect(link).toHaveAttribute('href', savedPathFor('R1'));
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
@@ -228,9 +233,41 @@ describe('ルームの持ち帰り: 端末に残す・CSV', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
     await act(async () => {
       fireEvent.click(button(SAVE_BUTTON));
+      // 2 回目の保存が（あれば）端末へ書き終えるまで、未了の要求の数で待つ
+      await fake.idle();
     });
     expect(stored().size).toBe(1);
     expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE);
+  });
+
+  it('Given 計測中に残した / When 時計が進んでもう一度残す / Then その時点の写しを新しく残す（rev は変わらなくても同じ記録とみなさない）', async () => {
+    renderRoom(runningTrack(60 * MIN));
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
+    nowMs += 30 * MIN;
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+      await fake.idle();
+    });
+    expect(stored().size).toBe(2);
+    const ends = ([...stored().values()] as SavedRecord[]).map((r) => r.segments.at(-1)!.endMs).sort((a, b) => a - b);
+    expect(ends).toEqual([60 * MIN, 90 * MIN]);
+  });
+
+  it('Given ルームを作り直した / When rev が同じ別の記録を残す / Then 同じ記録とみなさず新しく残す（rev は部屋ごとに 0 から数える）', async () => {
+    renderRoom(stoppedTrack());
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
+    deliver(stoppedTrack(60 * MIN, { epochWallMs: Date.UTC(2026, 10, 24, 1, 0, 0) }));
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+      await fake.idle();
+    });
+    expect(stored().size).toBe(2);
   });
 
   it('Given 残した後 / When 記録が変わる / Then 残しましたの表示は消え、新しい記録は新しく残せる', async () => {

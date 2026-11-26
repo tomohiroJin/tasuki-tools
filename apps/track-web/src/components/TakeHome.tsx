@@ -21,6 +21,7 @@ import {
   COPY_MANUAL_FIELD,
   CSV_BUTTON,
   SAVED_LINK,
+  SAVED_LINK_LABEL,
   SAVE_BUTTON,
   SAVE_DONE,
   SAVE_FAILED,
@@ -100,7 +101,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, 
         <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord} onClick={onCsv}>
           {CSV_BUTTON}
         </button>
-        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref} target="_blank" rel="noopener">
+        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref} target="_blank" rel="noopener" aria-label={SAVED_LINK_LABEL}>
           {SAVED_LINK}
         </a>
       </div>
