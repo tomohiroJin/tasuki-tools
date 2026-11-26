@@ -35,24 +35,6 @@ export async function requestMiniWindow(): Promise<Window | null> {
   }
 }
 
-/** 絶対にしなくてよい url（絶対 URL・data・blob・フラグメント） */
-const KEEP_URL = /^(?:[a-z][a-z0-9+.-]*:|#)/i;
-
-/**
- * CSS の中の相対の `url(...)` を、`baseUrl`（そのシートの場所）からの絶対 URL にする。
- * 窓の文書の基準 URL は元のページと違うので、相対のまま写すと書体や画像が読めない。
- */
-export function absolutizeCssUrls(cssText: string, baseUrl: string): string {
-  return cssText.replace(/url\(\s*(['"]?)([^'")]*?)\1\s*\)/g, (whole, _quote: string, raw: string) => {
-    if (raw === '' || KEEP_URL.test(raw)) return whole;
-    try {
-      return `url("${new URL(raw, baseUrl).href}")`;
-    } catch {
-      return whole;
-    }
-  });
-}
-
 /** 元の `<html>` の属性（`lang`・`data-theme` ほか）を窓の `<html>` へ写す（元に無い属性は窓からも外す）。 */
 export function copyRootAttributes(source: Document, target: Document): void {
   const from = source.documentElement;
@@ -74,25 +56,34 @@ export function watchRootAttributes(source: Document, target: Document): () => v
 
 /**
  * 元のページの見た目を、開いた窓の文書へ写す。
- * 規則が読めるシートは、規則の `url(...)` をシートの場所で絶対にして `<style>` へ写し、
- * 読めないシート（別の出所）は絶対 URL の `<link>` で引く。`<html>` の属性も写す。
+ *
+ * 窓の文書の基準 URL は元のページと違うので、窓の `<head>` に**開いたページの URL を指す `<base href>`** を置く
+ * （`<style>` に写した規則の相対 `url(...)` は、これで元のページと同じ場所から読まれる）。
+ * **規則の文字列は書き換えない**（`data:` の値の中の入れ子の `url(%23n)` まで壊すため）。
+ * 場所を持つシート（`href` あり）は、規則が読めても絶対 URL の `<link>` で引く（相対の `url(...)` はそのシートの場所で読まれる）。
+ * 場所を持たない `<style>` は、規則をそのまま `<style>` へ写す。`<html>` の属性も写す。
  */
 export function copyStylesInto(source: Document, target: Document): void {
   copyRootAttributes(source, target);
+  const base = target.createElement('base');
+  base.href = source.baseURI;
+  target.head.appendChild(base);
   for (const sheet of Array.from(source.styleSheets)) {
-    try {
-      const style = target.createElement('style');
-      const base = sheet.href ?? source.baseURI;
-      style.textContent = Array.from(sheet.cssRules)
-        .map((rule) => absolutizeCssUrls(rule.cssText, base))
-        .join('\n');
-      target.head.appendChild(style);
-    } catch {
-      if (sheet.href === null) continue;
+    if (sheet.href !== null) {
       const link = target.createElement('link');
       link.rel = 'stylesheet';
       link.href = new URL(sheet.href, source.baseURI).href;
       target.head.appendChild(link);
+      continue;
+    }
+    try {
+      const style = target.createElement('style');
+      style.textContent = Array.from(sheet.cssRules)
+        .map((rule) => rule.cssText)
+        .join('\n');
+      target.head.appendChild(style);
+    } catch {
+      // 場所も規則も無いシートは写せない
     }
   }
 }

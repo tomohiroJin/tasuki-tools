@@ -4,7 +4,8 @@
  * 会議室の画面などに映す読むだけの画面。いまの作業名（大）・経過・作業名ごとの合計の表・時系列の帯。
  * **押せる部品を置かない**（取り違えて操作しない）。入り方は通常の接続（`useTrackSync`）で、
  * ここから送るのは再接続・表に戻ったときの `track.sync` だけ（操作の関数は 1 つも呼ばない。名簿には普通の参加者として載る）。
- * 名乗りは玄関に 1 つだけ（`docs/adr/0018`）。端末に同一性が無ければ、ルームの画面と同じく玄関へ送る。
+ * 名乗りは玄関に 1 つだけ（`docs/adr/0018`）。端末に同一性が無ければ、玄関へ**自動では送らず**、先にルームに入るよう案内して玄関のそのルームへのリンクを出す
+ * （名乗った後の戻り先は操作できるルームの画面で、映す画面へは戻れないため）。
  */
 import { bandOf, totalsOf, runningSegmentOf, durationOf, type TrackView } from '@tasuki/track-core';
 import { ConnectionBanner, RoomGoneView, RoomJoiningView, usePrefersReducedMotion } from '@tasuki/web-kit/room';

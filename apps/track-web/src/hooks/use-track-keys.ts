@@ -32,7 +32,8 @@ export function useTrackKeys(handlers: TrackKeyHandlers, target: Document | null
       if (!current.enabled) return;
       const action = keyActionOf(event, {
         editable: isEditableTarget((target ?? document).activeElement),
-        dialogOpen: (target ?? document).querySelector(BLOCKING) !== null,
+        // 窓に付けたキーでも、本体の文書の確かめ・ダイアログを見る（窓の外で確かめが開いている間は S を拾わない）
+        dialogOpen: document.querySelector(BLOCKING) !== null || (target ?? document).querySelector(BLOCKING) !== null,
       });
       if (action === null) return;
       if (action.type === 'candidate') current.onCandidate(action.index);

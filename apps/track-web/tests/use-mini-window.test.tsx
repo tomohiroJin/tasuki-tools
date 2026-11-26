@@ -176,4 +176,23 @@ describe('useMiniWindow', () => {
     expect(first.win.focus).not.toHaveBeenCalled();
     expect(result.current.container!.ownerDocument).toBe(second.doc);
   });
+
+  it('Given 閉じてすぐ新しい窓を開いた / When 古い窓がずっと後に pagehide を送る / Then 新しい窓の描画先は外れない', async () => {
+    const first = fakeWindow();
+    first.win.close = vi.fn();
+    const second = fakeWindow();
+    vi.mocked(platform.requestMiniWindow)
+      .mockResolvedValueOnce(first.win as unknown as Window)
+      .mockResolvedValueOnce(second.win as unknown as Window);
+    const { result } = renderHook(() => useMiniWindow());
+    await act(async () => result.current.open());
+    act(() => result.current.close());
+    await act(async () => result.current.open());
+    act(() => {
+      first.events.dispatchEvent(new Event('pagehide'));
+    });
+    expect(result.current.container!.ownerDocument).toBe(second.doc);
+    // 見張りも新しい窓のぶんが生きている（古い窓の pagehide で止めない）
+    expect(stopWatching).toHaveBeenCalledTimes(1);
+  });
 });

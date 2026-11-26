@@ -27,10 +27,15 @@ export function useMiniWindow(): MiniWindow {
   const windowRef = useRef<Window | null>(null);
   /** 元の `<html>` の属性の見張りを止める関数 */
   const stopWatchRef = useRef<(() => void) | null>(null);
+  /** 開いている窓の `pagehide` の聞き手（窓ごとに作る。手放すときに外す） */
+  const hideListenerRef = useRef<{ win: Window; listener: () => void } | null>(null);
   const requestingRef = useRef(false);
   const mountedRef = useRef(true);
 
   const release = useCallback((): void => {
+    const hide = hideListenerRef.current;
+    if (hide !== null) hide.win.removeEventListener('pagehide', hide.listener);
+    hideListenerRef.current = null;
     windowRef.current = null;
     stopWatchRef.current?.();
     stopWatchRef.current = null;
@@ -64,7 +69,12 @@ export function useMiniWindow(): MiniWindow {
       const target = win.document.createElement('div');
       target.className = 'track-mini-root';
       win.document.body.appendChild(target);
-      win.addEventListener('pagehide', release, { once: true });
+      // 閉じ終わっていない古い窓の `pagehide` が、あとから開いた窓の描画先を外さないよう、その窓のときだけ手放す
+      const onHide = (): void => {
+        if (windowRef.current === win) release();
+      };
+      win.addEventListener('pagehide', onHide, { once: true });
+      hideListenerRef.current = { win, listener: onHide };
       windowRef.current = win;
       setContainer(target);
     } finally {
@@ -76,12 +86,11 @@ export function useMiniWindow(): MiniWindow {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      stopWatchRef.current?.();
-      stopWatchRef.current = null;
-      windowRef.current?.close();
-      windowRef.current = null;
+      const win = windowRef.current;
+      release();
+      win?.close();
     };
-  }, []);
+  }, [release]);
 
   return { supported, container, open, close };
 }
