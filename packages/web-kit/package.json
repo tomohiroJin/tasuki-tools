@@ -18,12 +18,14 @@
     "@tasuki/sync-client": "workspace:*"
   },
   "peerDependencies": {
-    "react": "^19.1.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@tasuki/test-css": "workspace:*",
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
     "jsdom": "^30.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

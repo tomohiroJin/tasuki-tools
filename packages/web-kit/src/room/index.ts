@@ -7,6 +7,7 @@
 export { ClampedName } from './clamped-name.js';
 export { ConnectionBanner } from './connection-banner.js';
 export { connectionNotice, type ConnectionNotice } from './connection-notice.js';
+export { CUTIN_DURATION_MS, CutIn, type CutInCue, type CutInTone } from './cut-in.js';
 export { LoadingView } from './loading-view.js';
 export { ROOM_GATE_TEXT } from './room-gate-copy.js';
 export { RoomGoneView } from './room-gone-view.js';
