@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edgePositionOf, insertPreviewOf, insertRangeOf, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
+import { edgePositionOf, insertPreviewOf, insertRangeOf, lengthHm, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
 import { MIN_SEGMENT_MS } from '@tasuki/track-core';
 import { EPOCH_WALL_MS, MIN, seg } from './support/track-states';
 
@@ -146,6 +146,12 @@ describe('抜けを足す欄に出す、読み取った範囲と長さ', () => {
     expect(preview({ start: '18:00', mode: 'length', lengthMin: '810' }, -2 * HOUR)).toEqual(preview({ start: '18:00', end: '07:30' }, -2 * HOUR));
     // 前日の 23:30 から 60 分。終わりは今日（00:30 は過ぎた 00:40 のとき）なので前日は添えない
     expect(preview({ start: '23:30', mode: 'length', lengthMin: '60' }, 14 * HOUR + 40 * MIN)).toEqual({ startClock: '23:30', startYesterday: true, endClock: '00:30', endYesterday: false, lengthMin: 60 });
+  });
+
+  it('Given 長さ（分） / When h:mm にする / Then 分は 2 桁で出す', () => {
+    expect(lengthHm(5)).toBe('0:05');
+    expect(lengthHm(810)).toBe('13:30');
+    expect(lengthHm(1440)).toBe('24:00');
   });
 
   it('Given 秒つきの時刻 / When 読み取る / Then 分までを出す', () => {

@@ -9,14 +9,15 @@
 #       git apply scripts/mutations/m3109-*.patch
 # 復元: git apply -R scripts/mutations/m3109-*.patch
 diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
-index f9983a49..b3d04094 100644
+index 1d057ce0..538f28ff 100644
 --- a/apps/track-web/src/time-input.ts
 +++ b/apps/track-web/src/time-input.ts
-@@ -173,6 +173,6 @@ export function edgePositionOf(
+@@ -213,7 +213,7 @@ export function edgePositionOf(
+   const clock = parseClock(value);
    if (clock === null || range === null) return null;
-   const atMs = nearestClockPosition(clock, currentMs, epochWallMs, tzOffsetMin);
    // 秒の欄の無い入力（`HH:MM`）だけが分の単位。`<input type="time">` は秒が 0 のとき秒の欄を省く
 -  const minuteOnly = value.length === 5;
 +  const minuteOnly = true;
-   return snapToRange(atMs, minuteOnly, { ...range, minIsLookback: range.minMs <= nowMs - MAX_LOOKBACK_MS });
- }
+   const edgeRange = { ...range, minIsLookback: range.minMs <= nowMs - MAX_LOOKBACK_MS };
+   for (const atMs of clockPositionsByDistance(clock, currentMs, epochWallMs, tzOffsetMin)) {
+     const snapped = snapToRange(atMs, minuteOnly, edgeRange);

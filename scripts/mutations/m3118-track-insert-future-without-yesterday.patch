@@ -9,10 +9,10 @@
 #       git apply scripts/mutations/m3118-*.patch
 # 復元: git apply -R scripts/mutations/m3118-*.patch
 diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
-index f9983a49..f36cfb6b 100644
+index 1d057ce0..1911a7e0 100644
 --- a/apps/track-web/src/time-input.ts
 +++ b/apps/track-web/src/time-input.ts
-@@ -126,7 +126,7 @@ export function insertRangeOf(input: InsertInput, nowMs: number, epochWallMs: nu
+@@ -121,7 +121,7 @@ export function insertRangeOf(input: InsertInput, nowMs: number, epochWallMs: nu
      const minutes = Number(input.lengthMin);
      if (minutes < 1 || minutes > MAX_LENGTH_MIN) return fail('length');
      endMs = startMs + minutes * MS_PER_MIN;

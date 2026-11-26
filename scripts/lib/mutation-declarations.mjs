@@ -295,6 +295,9 @@ const RESERVED_2930_2949 =
 const RESERVED_3100_3119 =
   "**対応表より後に足した変異。** 3100〜3119 は #476 の第 2 段 PR A（手直しの残り）に割り当てた範囲。";
 
+const RESERVED_3270_3289 =
+  "**対応表より後に足した変異。** 3270〜3289 は #476 の第 2 段 PR A（手直しの残り）の 2 回目の直しに割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -14007,7 +14010,7 @@ export const MUTATIONS = [
   },
   {
     id: 3106,
-    label: "端を合わせる時刻が、動かす前の端に近い日でなく、端と同じ日の時刻でしか読まれない",
+    label: "端を合わせる時刻が、前日・翌日の読みを持たず、同じ日の時刻でしか読まれない",
     patch: "m3106-track-edge-nearest-day-off.patch",
     pkg: "apps/track-web",
     tests: ["tests/time-input.test.ts"],
@@ -14039,19 +14042,19 @@ export const MUTATIONS = [
   },
   {
     id: 3110,
-    label: "始まりだけを前日に読み替えた長さが、ちょうど 12 時間のものまで拒む",
-    patch: "m3110-track-insert-wrap-12h-boundary.patch",
+    label: "抜けを足す欄が、始まりだけを前日に読み替えた 12 時間より長い抜け（08:00 の 18:00〜07:30 など）を拒む",
+    patch: "m3110-track-insert-wrap-12h-cap-returns.patch",
     pkg: "apps/track-web",
     tests: ["tests/time-input.test.ts"],
-    note: RESERVED_3100_3119 + " " + "#476 の A4。12 時間の境界。",
+    note: RESERVED_3100_3119 + " " + "#476 の A4。長さの上限は設けない（夜をまたぐ正当な長い抜けを拒まない）。思い違いは押す前の表示で気づかせる。",
   },
   {
     id: 3111,
-    label: "始まりだけを前日に読み替えた長い抜け（23.5 時間）を黙って足す",
-    patch: "m3111-track-insert-wrap-cap-off.patch",
+    label: "抜けを足す欄の「読み取った時間」が、前日に読んだ端に前日を添えない",
+    patch: "m3111-track-insert-preview-yesterday-dropped.patch",
     pkg: "apps/track-web",
-    tests: ["tests/time-input.test.ts"],
-    note: RESERVED_3100_3119 + " " + "#476 の A4。抜けを足すのは上書きで、取り消しも効かない。",
+    tests: ["tests/time-input.test.ts", "tests/track-room.test.tsx"],
+    note: RESERVED_3100_3119 + " " + "#476 の A4 (2)。日付が見えず、23.5 時間の抜けに気づけない。",
   },
   {
     id: 3112,
@@ -14108,5 +14111,45 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/time-input.test.ts"],
     note: RESERVED_3100_3119 + " " + "#476 の A4。始まりが前日に読まれたことが分からない。",
+  },
+  {
+    id: 3119,
+    label: "抜けを足す欄の「読み取った時間」を読み上げの対象にする（入力のたびに読み上げが走る）",
+    patch: "m3119-track-insert-preview-live.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-room.test.tsx"],
+    note: RESERVED_3100_3119 + " " + "#476 の A4 (2)。入力のたびに範囲が読み上げられ、打つ邪魔になる。",
+  },
+  {
+    id: 3270,
+    label: "「読み取った時間」の長さ（h:mm）の分を 2 桁にしない（0:05 が 0:5 になる）",
+    patch: "m3270-track-insert-preview-length-unpadded.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3270_3289 + " " + "#476 の A4 (2)。長さの表示が読み違えられる。",
+  },
+  {
+    id: 3271,
+    label: "「読み取った時間」の終わりの前日の添えが、始まりのものと同じになる",
+    patch: "m3271-track-insert-preview-end-follows-start.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3270_3289 + " " + "#476 の A4 (2)。8:00 の 18:00〜07:30 の終わりに前日と出る。",
+  },
+  {
+    id: 3272,
+    label: "端を合わせる時刻が、範囲に収まる読み方を探さず、動かす前の端に最も近い読み方だけを見る",
+    patch: "m3272-track-edge-first-reading-only.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3270_3289 + " " + "#476 の A5 (3)。区切り 10:00〜10:30・いま 10:40 で、始まりに前日の 21:00 を入れられない。",
+  },
+  {
+    id: 3273,
+    label: "「読み取った時間」が、順が逆・いまより先・長さの誤りの入力にも出る",
+    patch: "m3273-track-insert-preview-invalid-shown.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3270_3289 + " " + "#476 の A4 (2)。読み取れない入力に、意味のない範囲が出る。",
   },
 ];
