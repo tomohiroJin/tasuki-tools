@@ -1,0 +1,22 @@
+# 変異 3106: track-time-previous-day-allowed
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 最初の区切りの始まりに終わりより後の時刻を入れても、前日として読んで受ける。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3106-*.patch
+# 復元: git apply -R scripts/mutations/m3106-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 94d1df3d..8567db39 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -126,6 +126,6 @@ export function edgePositionOf(
+   const clock = parseClock(value);
+   if (clock === null || range === null) return null;
+   const read = readClock(clock, range.maxMs, epochWallMs, tzOffsetMin);
+-  if (read.wrapped && !allowPreviousDay) return null;
++  
+   return snapToRange(read.posMs, clock, range);
+ }

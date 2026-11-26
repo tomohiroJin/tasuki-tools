@@ -1,0 +1,23 @@
+# 変異 3102: track-candidates-keep-running
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/projection.test.ts
+#
+# #476 候補が、計測中の作業と同じ名前も並べる（押しても何も起きない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3102-*.patch
+# 復元: git apply -R scripts/mutations/m3102-*.patch
+diff --git a/packages/track-core/src/projection.ts b/packages/track-core/src/projection.ts
+index 49e22564..16cced8d 100644
+--- a/packages/track-core/src/projection.ts
++++ b/packages/track-core/src/projection.ts
+@@ -94,7 +94,7 @@ export function candidatesOf(view: TrackView, topicTitle: string | null): Candid
+   const running = runningSegmentOf(view);
+   const runningLabel = running !== null && running.kind === "work" ? running.label : "";
+   const push = (label: string, source: Candidate["source"]): void => {
+-    if (label === runningLabel || seen.has(label) || out.length >= MAX_CANDIDATES) return;
++    if (seen.has(label) || out.length >= MAX_CANDIDATES) return;
+     seen.add(label);
+     out.push({ label, source, pinned: pinned.has(label) });
+   };

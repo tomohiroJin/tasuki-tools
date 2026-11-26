@@ -1,0 +1,23 @@
+# 変異 3101: track-label-zwj-dropped
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/label.test.ts
+#
+# #476 作業名の正規化が、ZWJ（U+200D）も落とす（絵文字が崩れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3101-*.patch
+# 復元: git apply -R scripts/mutations/m3101-*.patch
+diff --git a/packages/track-core/src/label.ts b/packages/track-core/src/label.ts
+index 7c070286..47c41dbd 100644
+--- a/packages/track-core/src/label.ts
++++ b/packages/track-core/src/label.ts
+@@ -22,7 +22,7 @@ export function hasControlChars(s: string): boolean {
+  * track-core はどの `@tasuki/*` にも依存しないので写す。正本を変えたらここも合わせる。
+  * ZWJ（U+200D）と字形選択子（U+FE0F ほか）は含めない（落とすと絵文字が崩れる。正本と同じ理由）。
+  */
+-const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u180e]/g;
++const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u200d\u2060-\u2064\u2066-\u2069\ufeff\u180e]/g;
+ 
+ /** NFKC を掛け、見えない書式の字を落とし、前後の空白を除く。空白と見えない字だけなら空（名前なし）になる。 */
+ export function normalizeLabel(raw: string): string {

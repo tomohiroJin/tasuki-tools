@@ -292,6 +292,9 @@ const RESERVED_2920_2929 =
 const RESERVED_2930_2949 =
   "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
 
+const RESERVED_3100_3119 =
+  "**対応表より後に足した変異。** 3100〜3119 は #476 の第 2 段 PR A（手直しの残り）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13953,5 +13956,93 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/turbo-env.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
+  },
+  {
+    id: 3100,
+    label: "作業名の正規化が、見えない書式の字（ゼロ幅の空白・向きを変える字・BOM）を落とさない",
+    patch: "m3100-track-label-invisible-kept.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/label.test.ts", "tests/track.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の PR #683 のレビューの持ち越し（A1）。見えない字だけの名前が「名前あり」になり、同じに見える名前が別に数えられる。",
+  },
+  {
+    id: 3101,
+    label: "作業名の正規化が、ZWJ（U+200D）も落とす",
+    patch: "m3101-track-label-zwj-dropped.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/label.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A1。家族の絵文字などが分解される。",
+  },
+  {
+    id: 3102,
+    label: "候補が、計測中の作業と同じ名前も並べる",
+    patch: "m3102-track-candidates-keep-running.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/projection.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A3。候補の 1 番目が計測中の名前になり、押しても何も起きない。",
+  },
+  {
+    id: 3103,
+    label: "「記録を消す」の後、フォーカスを開始のボタンへ移さない",
+    patch: "m3103-track-clear-no-focus-move.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-room.test.tsx"],
+    note: RESERVED_3100_3119 + " " + "#476 の A2。空の写しが届くと元のボタンが押せなくなり、フォーカスが失われる。",
+  },
+  {
+    id: 3104,
+    label: "時刻の入力が、下限と同じ分を秒の端数つきの下限へ寄せず拒む",
+    patch: "m3104-track-time-lower-minute-rejected.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A5。± のボタンで届く下限へ、時刻の入力では届かない。",
+  },
+  {
+    id: 3105,
+    label: "時刻の入力が、上限と同じ分を秒の端数つきの上限へ寄せない",
+    patch: "m3105-track-time-upper-minute-not-snapped.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A5。± のボタンで届く上限へ、時刻の入力では届かない。",
+  },
+  {
+    id: 3106,
+    label: "最初の区切りの始まりに終わりより後の時刻を入れても、前日として読んで受ける",
+    patch: "m3106-track-time-previous-day-allowed.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A5。23 時間の区切りが黙ってできる。",
+  },
+  {
+    id: 3107,
+    label: "区切りの編集欄が、最初の区切りの始まりにも前日の読みを許す",
+    patch: "m3107-track-editor-first-start-allows-previous-day.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-room.test.tsx"],
+    note: RESERVED_3100_3119 + " " + "#476 の A5。画面の側の配線が外れると、最初の区切りの始まりが前日へ動く。",
+  },
+  {
+    id: 3108,
+    label: "抜けを足す欄が、終わりを前日として読んで成り立たないときも、前日として読んだと示さない",
+    patch: "m3108-track-insert-yesterday-as-order.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts", "tests/track-room.test.tsx"],
+    note: RESERVED_3100_3119 + " " + "#476 の A4。出る文が理由と合わず、何を直すのか分からない。",
+  },
+  {
+    id: 3109,
+    label: "時刻の入力が、秒つきの時刻（分の頭でない入力）も下限へ寄せる",
+    patch: "m3109-track-time-seconds-snapped.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A5。範囲の外の秒つきの時刻が受けられる。",
+  },
+  {
+    id: 3110,
+    label: "抜けを足す欄が、前日へ読み替えていない終わりの順の誤りも、前日として読んだと示す",
+    patch: "m3110-track-insert-yesterday-unwrapped.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/time-input.test.ts"],
+    note: RESERVED_3100_3119 + " " + "#476 の A4。前日の読みでない誤りに、前日の文が出る。",
   },
 ];

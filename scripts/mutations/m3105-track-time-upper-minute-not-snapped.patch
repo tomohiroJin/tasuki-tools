@@ -1,0 +1,23 @@
+# 変異 3105: track-time-upper-minute-not-snapped
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 時刻の入力が、上限と同じ分を秒の端数つきの上限へ寄せない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3105-*.patch
+# 復元: git apply -R scripts/mutations/m3105-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 94d1df3d..7856d7ae 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -48,7 +48,7 @@ function readClock(clockMs: number, refPosMs: number, epochWallMs: number, tzOff
+ function snapToRange(atMs: number, clockMs: number, range: { minMs: number; maxMs: number }): number | null {
+   if (range.minMs > range.maxMs) return null;
+   if (atMs >= range.minMs && atMs <= range.maxMs) {
+-    return clockMs % MS_PER_MIN === 0 && atMs < range.maxMs && atMs + MS_PER_MIN > range.maxMs ? range.maxMs : atMs;
++    return clockMs % MS_PER_MIN === 0 && atMs < range.maxMs && atMs + MS_PER_MIN > range.maxMs ? atMs : atMs;
+   }
+   if (clockMs % MS_PER_MIN === 0 && atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return range.minMs;
+   return null;

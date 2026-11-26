@@ -1,0 +1,23 @@
+# 変異 3109: track-time-seconds-snapped
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 時刻の入力が、秒つきの時刻（分の頭でない入力）も下限へ寄せる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3109-*.patch
+# 復元: git apply -R scripts/mutations/m3109-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 94d1df3d..7d669009 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -50,7 +50,7 @@ function snapToRange(atMs: number, clockMs: number, range: { minMs: number; maxM
+   if (atMs >= range.minMs && atMs <= range.maxMs) {
+     return clockMs % MS_PER_MIN === 0 && atMs < range.maxMs && atMs + MS_PER_MIN > range.maxMs ? range.maxMs : atMs;
+   }
+-  if (clockMs % MS_PER_MIN === 0 && atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return range.minMs;
++  if (atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return range.minMs;
+   return null;
+ }
+ 

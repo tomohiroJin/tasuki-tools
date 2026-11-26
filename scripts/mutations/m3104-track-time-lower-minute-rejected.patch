@@ -1,0 +1,23 @@
+# 変異 3104: track-time-lower-minute-rejected
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 時刻の入力が、下限と同じ分を秒の端数つきの下限へ寄せず拒む。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3104-*.patch
+# 復元: git apply -R scripts/mutations/m3104-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 94d1df3d..48aac603 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -50,7 +50,7 @@ function snapToRange(atMs: number, clockMs: number, range: { minMs: number; maxM
+   if (atMs >= range.minMs && atMs <= range.maxMs) {
+     return clockMs % MS_PER_MIN === 0 && atMs < range.maxMs && atMs + MS_PER_MIN > range.maxMs ? range.maxMs : atMs;
+   }
+-  if (clockMs % MS_PER_MIN === 0 && atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return range.minMs;
++  if (clockMs % MS_PER_MIN === 0 && atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return null;
+   return null;
+ }
+ 
