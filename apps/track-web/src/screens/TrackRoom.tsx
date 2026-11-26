@@ -136,6 +136,15 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
     onResume: resumePrevious,
   });
 
+  // ミニ表示の窓にも S・C キーを付ける（本体のキーと同じ処理で「いまから」。数字キーは窓に候補が無いので何もしない）
+  useTrackKeys(
+    { enabled: canOperate, onCandidate: () => undefined, onStop: () => {
+        if (running !== null) sync.stop();
+      },
+      onResume: resumePrevious },
+    mini.container?.ownerDocument ?? null,
+  );
+
   const resume = (): void => {
     // 最後の区切り（全員の切断で閉じた区切り）と同じ名前・種類で、いまから始める（離れていた間は数えない）
     const last = view.segments.at(-1);
@@ -184,10 +193,11 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
           view={view}
           getNow={getNow}
           canOperate={canOperate}
+          // 「いつから」は本体と同じ選択を使い、使ったら「いまから」へ戻す
           onStop={() => {
-            if (running !== null) sync.stop();
+            if (running !== null) stop();
           }}
-          onBreak={() => sync.start('', 'break')}
+          onBreak={() => sync.start('', 'break', takeBack())}
           onResume={resumePrevious}
         />
       )}

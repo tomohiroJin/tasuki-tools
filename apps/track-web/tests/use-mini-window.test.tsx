@@ -10,7 +10,7 @@ vi.mock('../src/platform/mini-window', () => ({
   watchRootAttributes: vi.fn(),
 }));
 
-/** 偽の小さな窓。`close()` は本物と同じく `pagehide` を起こす。 */
+/** 偽のミニ表示の窓。`close()` は本物と同じく `pagehide` を起こす。 */
 function fakeWindow() {
   const events = new EventTarget();
   const doc = document.implementation.createHTMLDocument('mini');

@@ -13,7 +13,7 @@ const stubApi = (requestWindow: unknown): void => {
 /**
  * @requirements #476 設計 §5 D3（ミニ表示は対応ブラウザでだけ・代わりの道を作らない）
  */
-describe('小さな窓の対応', () => {
+describe('ミニ表示の窓の対応', () => {
   it('Given API が無い / When 対応を見る / Then 非対応で、窓を開こうとしても null', async () => {
     expect(isMiniWindowSupported()).toBe(false);
     expect(await requestMiniWindow()).toBeNull();

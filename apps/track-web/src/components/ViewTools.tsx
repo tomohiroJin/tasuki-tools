@@ -9,7 +9,7 @@ import { displayPathFor } from '../router';
 
 interface Props {
   roomCode: string;
-  /** 小さな窓を出せるブラウザか */
+  /** ミニ表示の窓を出せるブラウザか */
   miniSupported: boolean;
   miniOpen: boolean;
   onMiniToggle: () => void;
@@ -26,7 +26,7 @@ export function ViewTools({ roomCode, miniSupported, miniOpen, onMiniToggle }: P
           {DISPLAY_LINK}
         </a>
         {miniSupported && (
-          <button type="button" className="ui-button ui-button--secondary ui-button--sm" aria-pressed={miniOpen} onClick={onMiniToggle}>
+          <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onMiniToggle}>
             {miniOpen ? MINI_CLOSE_BUTTON : MINI_OPEN_BUTTON}
           </button>
         )}

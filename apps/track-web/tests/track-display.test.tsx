@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import type { TrackView } from '@tasuki/track-core';
 import { App } from '../src/App';
-import { BREAK_BUTTON, DISPLAY_LINK, MINI_CLOSE_BUTTON, MINI_OPEN_BUTTON, MINI_RESUME_BUTTON, NOW_IDLE, STOP_BUTTON, TIMELINE_HEADING, TOTALS_HEADING } from '../src/copy';
+import { BACK_FIELD, BREAK_BUTTON, DISPLAY_LINK, MINI_OFFLINE, MINI_CLOSE_BUTTON, MINI_OPEN_BUTTON, MINI_RESUME_BUTTON, NOW_IDLE, STOP_BUTTON, TIMELINE_HEADING, TOTALS_HEADING } from '../src/copy';
 import * as miniPlatform from '../src/platform/mini-window';
 import { EMPTY_TRACK, JOINED, MIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningTrack, seg, stoppedTrack, trackFrame, trackView } from './support/track-states';
 
@@ -153,7 +153,7 @@ describe('映す画面', () => {
   });
 });
 
-/** 偽の小さな窓。`close()` は `pagehide` を起こす。 */
+/** 偽のミニ表示の窓。`close()` は `pagehide` を起こす。 */
 function fakeMini() {
   const events = new EventTarget();
   const doc = document.implementation.createHTMLDocument('mini');
@@ -173,17 +173,18 @@ function fakeMini() {
  * @requirements #476 設計 §5 D3（ミニ表示）
  */
 describe('ミニ表示', () => {
-  it('Given 非対応のブラウザ / When ルームの画面を描く / Then 「小さな窓で出す」を出さない（代わりの道も無い）', () => {
+  it('Given 非対応のブラウザ / When ルームの画面を描く / Then 「ミニ表示で出す」を出さない（代わりの道も無い）', () => {
     renderAt('?room=R1', runningTrack());
     expect(screen.queryByRole('button', { name: MINI_OPEN_BUTTON })).toBeNull();
     expect(screen.getByRole('link', { name: DISPLAY_LINK })).toBeTruthy();
   });
 
-  async function openMini(state: TrackView) {
+  async function openMini(state: TrackView, afterRender?: () => void) {
     vi.mocked(miniPlatform.isMiniWindowSupported).mockReturnValue(true);
     const mini = fakeMini();
     vi.mocked(miniPlatform.requestMiniWindow).mockResolvedValue(mini.win as unknown as Window);
     const utils = renderAt('?room=R1', state);
+    afterRender?.();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: MINI_OPEN_BUTTON }));
     });
@@ -245,5 +246,69 @@ describe('ミニ表示', () => {
     const { win, unmount } = await openMini(runningTrack());
     unmount();
     expect(win.close).toHaveBeenCalled();
+  });
+
+  it('Given 窓の中 / When S・C キーを押す / Then 本体と同じく止める・直前を再開を送り、変換中のキーは拾わない', async () => {
+    const { doc } = await openMini(runningTrack());
+    fireEvent.keyDown(doc, { key: 's', isComposing: true });
+    expect(sentCommands()).toEqual([]);
+    fireEvent.keyDown(doc, { key: 's' });
+    fireEvent.keyDown(doc, { key: 'c' });
+    expect(sentCommands()).toEqual([
+      { command: 'track.stop' },
+      { command: 'track.start', label: 'Review', kind: 'work' },
+    ]);
+  });
+
+  it('Given 「5 分前から」を選んだ / When 窓の［止める］を押す / Then 本体と同じく backMin を載せ、使ったら「いまから」へ戻る', async () => {
+    const { panel } = await openMini(runningTrack());
+    const back = screen.getByRole('combobox', { name: BACK_FIELD });
+    fireEvent.change(back, { target: { value: '5' } });
+    fireEvent.click(panel.getByRole('button', { name: STOP_BUTTON }));
+    fireEvent.click(panel.getByRole('button', { name: STOP_BUTTON }));
+    expect(sentCommands()).toEqual([{ command: 'track.stop', backMin: 5 }, { command: 'track.stop' }]);
+    expect(back).toHaveValue('0');
+  });
+
+  it('Given 「5 分前から」を選んだ / When 窓の［休憩にする］を押す / Then backMin を載せる', async () => {
+    const { panel } = await openMini(runningTrack());
+    fireEvent.change(screen.getByRole('combobox', { name: BACK_FIELD }), { target: { value: '5' } });
+    fireEvent.click(panel.getByRole('button', { name: BREAK_BUTTON }));
+    expect(sentCommands()).toEqual([{ command: 'track.start', label: '', kind: 'break', backMin: 5 }]);
+  });
+
+  it('Given 接続が切れた / When 窓を見る / Then 切断中と示し、3 つのボタンは押せない', async () => {
+    const { panel } = await openMini(runningTrack());
+    expect(panel.queryByText(MINI_OFFLINE)).toBeNull();
+    act(() => latestSocket().drop());
+    expect(panel.getByText(MINI_OFFLINE)).toBeTruthy();
+    for (const name of [STOP_BUTTON, BREAK_BUTTON, MINI_RESUME_BUTTON]) {
+      expect((panel.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it('Given ミニ表示のボタン / When 見る / Then 押した状態（aria-pressed）は持たず、文言だけが切り替わる', async () => {
+    await openMini(runningTrack());
+    expect(screen.getByRole('button', { name: MINI_CLOSE_BUTTON }).hasAttribute('aria-pressed')).toBe(false);
+  });
+
+  it('Given 計測中 / When 秒の境目が来る / Then 窓の経過がその境目で進む（固定の間隔ではない）', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let now = 50_000;
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
+      // 写しを受けてから 0.9 秒たった時点で窓を開く（次の秒の境目まで 0.1 秒）
+      const { panel } = await openMini(runningTrack(), () => {
+        now = 50_900;
+      });
+      expect(panel.getByText('0:15:00')).toBeTruthy();
+      now = 51_050;
+      await act(async () => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(panel.getByText('0:15:01')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

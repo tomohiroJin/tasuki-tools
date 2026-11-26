@@ -1,12 +1,12 @@
 /**
- * ミニ表示の小さな窓（Document Picture-in-Picture・端末 I/O。#476 第 2 段・設計 §5 D3）。
+ * ミニ表示の窓（Document Picture-in-Picture・端末 I/O。#476 第 2 段・設計 §5 D3）。
  *
  * ブラウザの API（`window.documentPictureInPicture`）に触れるのはここだけ。
  * **対応の有無を見るのもここ。非対応のブラウザへ代わりの道（`window.open` ほか）は作らない**（`docs/adr/0038` 追記の決定 3）。
- * 画面は `isMiniWindowSupported()` が偽なら「小さな窓で出す」を出さない。
+ * 画面は `isMiniWindowSupported()` が偽なら「ミニ表示で出す」を出さない。
  */
 
-/** 小さな窓の大きさ（CSS px。ブラウザが収まる範囲へ寄せる） */
+/** ミニ表示の窓の大きさ（CSS px。ブラウザが収まる範囲へ寄せる） */
 export const MINI_WINDOW_SIZE = { width: 320, height: 200 } as const;
 
 /** この画面が使う範囲の Document Picture-in-Picture の型（lib.dom にまだ無い） */
@@ -19,12 +19,12 @@ const apiOf = (): DocumentPictureInPicture | null => {
   return api === undefined || typeof api.requestWindow !== 'function' ? null : api;
 };
 
-/** 小さな窓を出せるブラウザか。 */
+/** ミニ表示の窓を出せるブラウザか。 */
 export function isMiniWindowSupported(): boolean {
   return apiOf() !== null;
 }
 
-/** 小さな窓を開く。非対応・利用者が許さなかった・開けなかったときは null（理由は問わない・ログも書かない）。 */
+/** ミニ表示の窓を開く。非対応・利用者が許さなかった・開けなかったときは null（理由は問わない・ログも書かない）。 */
 export async function requestMiniWindow(): Promise<Window | null> {
   const api = apiOf();
   if (api === null) return null;

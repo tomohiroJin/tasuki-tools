@@ -142,3 +142,4 @@ export const MINI_RESUME_BUTTON = '直前を再開';
 export const bandSummary = (from: string, to: string, works: number, breaks: number): string => `${from} から ${to} まで。作業 ${works} 件、休憩 ${breaks} 件。`;
 export const DISPLAY_NEEDS_JOIN = 'この画面を映すには、先にこの端末でルームに入ってください。';
 export const DISPLAY_JOIN_LINK = 'ルームに入る';
+export const MINI_OFFLINE = '接続が切れています';
