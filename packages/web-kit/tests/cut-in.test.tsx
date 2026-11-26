@@ -151,7 +151,26 @@ describe('CutIn', () => {
   it('Given 動きを減らす設定 / When 描く / Then 待っても層を描かない', () => {
     stubMedia(true);
     render(<CutIn cue={cue({ delayMs: 100 })} />);
-    act(() => void vi.advanceTimersByTime(CUTIN_DURATION_MS * 2));
+    // 層が出ている時間の途中（待ちの後・終わりの前）で見る。終わった後に見ると、描いても消えていて恒真になる
+    act(() => void vi.advanceTimersByTime(100 + CUTIN_DURATION_MS / 2));
+    expect(layer()).toBeNull();
+  });
+
+  it('Given 描かない設定へ実行中に変わる / When 層が出ている / Then 外れる', () => {
+    let fire: () => void = () => undefined;
+    const media = {
+      matches: false,
+      addEventListener: vi.fn((_: string, fn: () => void) => {
+        fire = fn;
+      }),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal('matchMedia', vi.fn(() => media));
+    render(<CutIn cue={cue()} />);
+    act(() => void vi.advanceTimersByTime(0));
+    expect(layer()).not.toBeNull();
+    media.matches = true;
+    act(() => fire());
     expect(layer()).toBeNull();
   });
 
