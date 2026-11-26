@@ -41,6 +41,10 @@ describe("start（開始）", () => {
   it("制御文字を含む作業名は TRACK_INVALID_LABEL", () => {
     expect(codeOf(start(empty(), { label: "a\nb", kind: "work", now: at(0) }))).toBe("TRACK_INVALID_LABEL");
   });
+  it("見えない字だけの作業名は、名前なしと同じに扱う", () => {
+    const s = must(start(empty(), { label: "​‮", kind: "work", now: at(0) }));
+    expect(s.segments[0]!.label).toBe("");
+  });
   it("さかのぼって始められる", () => {
     const s = must(start(empty(), { label: "設計", kind: "work", backMin: 5, now: at(20) }));
     expect(shape(s)).toEqual(["設計:15-"]);

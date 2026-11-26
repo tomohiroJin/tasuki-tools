@@ -7,6 +7,8 @@ import { MIN, at, empty, must, sample } from "./support/states.js";
 
 /** sample(): 設計 0-10・実装 10-30・休憩 30-40・（隙間）・実装 50-（計測中） */
 const viewAt = (minutes: number, s: TrackState = sample()): TrackView => toView(s, at(minutes));
+/** sample() の計測中を止めたもの（候補が計測中の名前を外す規則に当たらない形） */
+const stoppedSample = (): TrackState => must(stop(sample(), { now: at(55) }));
 
 describe("advanceNow", () => {
   it("受け取ってからの経過を、送る時点の位置に足す", () => {
@@ -79,7 +81,7 @@ describe("runningSegmentOf", () => {
 
 describe("candidatesOf", () => {
   it("お題・定番・最近使った作業名の順に、重複を除いて並べる", () => {
-    let s = must(pin(sample(), { label: "レビュー", pinned: true }));
+    let s = must(pin(stoppedSample(), { label: "レビュー", pinned: true }));
     s = must(pin(s, { label: "実装", pinned: true }));
     expect(candidatesOf(toView(s, at(55)), "FizzBuzz")).toEqual([
       { label: "FizzBuzz", source: "topic", pinned: false },
@@ -91,10 +93,11 @@ describe("candidatesOf", () => {
   it("最近使った作業名は新しい順で、名前なしと休憩は入れない", () => {
     let s = must(start(sample(), { label: "", kind: "work", now: at(52) }));
     s = must(start(s, { label: "調べもの", kind: "work", now: at(54) }));
+    s = must(stop(s, { now: at(55) }));
     expect(candidatesOf(toView(s, at(55)), null).map((c) => c.label)).toEqual(["調べもの", "実装", "設計"]);
   });
   it("お題が定番にもあれば、お題の位置に定番の印つきで 1 度だけ出す", () => {
-    const s = must(pin(sample(), { label: "実装", pinned: true }));
+    const s = must(pin(stoppedSample(), { label: "実装", pinned: true }));
     expect(candidatesOf(toView(s, at(55)), " 実装 ")).toEqual([
       { label: "実装", source: "topic", pinned: true },
       { label: "設計", source: "recent", pinned: false },
@@ -116,7 +119,28 @@ describe("candidatesOf", () => {
     const list = candidatesOf(toView(s, at(20)), "お題");
     expect(list).toHaveLength(MAX_CANDIDATES);
     expect(list[0]!.label).toBe("お題");
-    expect(list[1]!.label).toBe("作業11");
+    // 作業11 は計測中なので外れる
+    expect(list[1]!.label).toBe("作業10");
+  });
+  it("計測中の区切りと同じ名前は、お題・定番・最近のどれからも外す", () => {
+    const s = must(pin(sample(), { label: "実装", pinned: true }));
+    expect(candidatesOf(toView(s, at(55)), "実装")).toEqual([{ label: "設計", source: "recent", pinned: false }]);
+  });
+  it("外した後の並びが候補の並び（数字キーの対応）になる", () => {
+    let s = must(pin(sample(), { label: "実装", pinned: true }));
+    s = must(pin(s, { label: "レビュー", pinned: true }));
+    expect(candidatesOf(toView(s, at(55)), "お題").map((c) => c.label)).toEqual(["お題", "レビュー", "設計"]);
+  });
+  it("計測中が休憩・名前なしなら、何も外さない", () => {
+    const s = must(start(stoppedSample(), { label: "", kind: "break", now: at(56) }));
+    expect(candidatesOf(toView(s, at(57)), null).map((c) => c.label)).toEqual(["実装", "設計"]);
+  });
+  it("止まっているときは、最後の作業名も候補に残る", () => {
+    expect(candidatesOf(toView(stoppedSample(), at(56)), null).map((c) => c.label)).toEqual(["実装", "設計"]);
+  });
+  it("お題の見えない字は落として候補にする（作業名と同じ正規化を通る）", () => {
+    expect(candidatesOf(viewAt(55), "Fizz\u200bBuzz")[0]).toEqual({ label: "FizzBuzz", source: "topic", pinned: false });
+    expect(candidatesOf(viewAt(55), "\u200b\u202e").map((c) => c.source)).not.toContain("topic");
   });
 });
 

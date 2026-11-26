@@ -90,8 +90,11 @@ export function candidatesOf(view: TrackView, topicTitle: string | null): Candid
   const pinned = new Set(view.pinned);
   const seen = new Set<string>();
   const out: Candidate[] = [];
+  // 計測中の作業と同じ名前は、押しても何も起きないので候補から外す（休憩・名前なしは名前を持たない）
+  const running = runningSegmentOf(view);
+  const runningLabel = running !== null && running.kind === "work" ? running.label : "";
   const push = (label: string, source: Candidate["source"]): void => {
-    if (seen.has(label) || out.length >= MAX_CANDIDATES) return;
+    if (label === runningLabel || seen.has(label) || out.length >= MAX_CANDIDATES) return;
     seen.add(label);
     out.push({ label, source, pinned: pinned.has(label) });
   };
