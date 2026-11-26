@@ -1,12 +1,13 @@
 /**
  * 時刻の入力（`<input type="time">` の値）を時刻軸の位置へ直す（#476・FR-17・FR-18）。**純粋関数。**
  *
- * 入力は日付を持たないので、**基準の位置より前の直近のその時刻**として読む
- * （入れた時刻が基準より後に見えるときは前日）。時間帯は呼ぶ側が渡す（UTC からの進み・分）。
+ * 入力は日付を持たないので、読み方は入力の場所ごとに決める。時間帯は呼ぶ側が渡す（UTC からの進み・分）。
  *
- * いまより後に見える時刻は前日として読む（0:10 に「23:00〜23:30」を足せる）。読み替えた結果が成り立たないときは、
- * 前日として読んだことが分かる誤りで返す（`insertRangeOf` の `yesterday`）。
- * 始まり・終わりを合わせる入力は分の単位なので、範囲の端の分を入れたら秒の端数つきの端へ寄せて受ける（`snapToRange`）。
+ * - 抜けを足す欄: **基準（いま）より前の直近のその時刻**として読む。いまより後に見える時刻は前日として読む（0:10 に「23:00〜23:30」を足せる）。
+ *   読み替えた結果が手元の検査で拒まれるときは、前日として読んだことを添える（`InsertRange` の `yesterday`）。
+ * - 分ける欄: 区切りの終わりより前の直近の時刻。
+ * - 始まり・終わりを合わせる欄: **動かす前の端の位置に最も近い日**のその時刻（`nearestClockPosition`）。範囲の外なら拒む。
+ *   範囲の端の分は、秒の端数つきの端へ寄せて受ける（`snapToRange`）。
  */
 import { MAX_LOOKBACK_MS, MIN_SEGMENT_MS, type SegmentView } from '@tasuki/track-core';
 
@@ -14,6 +15,11 @@ const MS_PER_MIN = 60_000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MIN;
 /** 長さの入力の上限（分）。手直しで置ける範囲（24 時間）に合わせる */
 const MAX_LENGTH_MIN = 24 * 60;
+/**
+ * 抜けを足す欄で、始まりだけを前日へ読み替えたときに受ける長さの上限。
+ * 11:20 に「11:30〜11:00」と入れて 23.5 時間の抜けが黙って足される（上書きで、取り消しも効かない）のを防ぐ。
+ */
+export const MAX_INSERT_WRAP_MS = 12 * 60 * MS_PER_MIN;
 
 /** `HH:MM`（か `HH:MM:SS`）を、1 日の中の ms にする。読めなければ null。 */
 export function parseClock(value: string): number | null {
@@ -41,16 +47,42 @@ function readClock(clockMs: number, refPosMs: number, epochWallMs: number, tzOff
 }
 
 /**
- * 分の単位で入れた時刻を、動かせる範囲 [min, max] へ収める。範囲に入らなければ null。
- * 範囲の端は秒の端数を持つので（± のボタンはそこへ届く）、端と同じ分を入れたら端そのものへ寄せる。
- * 秒つきの時刻（分の頭でない入力）は寄せない。
+ * 1 日の中の時刻を、基準の位置（`refPosMs`）の前日・当日・翌日のうち、基準に最も近い日の位置へ直す。
+ * 同じ距離なら当日・前日・翌日の順に選ぶ。
  */
-function snapToRange(atMs: number, clockMs: number, range: { minMs: number; maxMs: number }): number | null {
+function nearestClockPosition(clockMs: number, refPosMs: number, epochWallMs: number, tzOffsetMin: number): number {
+  const shift = tzOffsetMin * MS_PER_MIN;
+  const refLocal = epochWallMs + refPosMs + shift;
+  const dayStart = Math.floor(refLocal / MS_PER_DAY) * MS_PER_DAY;
+  let best = dayStart + clockMs;
+  for (const days of [-1, 1]) {
+    const local = dayStart + days * MS_PER_DAY + clockMs;
+    if (Math.abs(local - refLocal) < Math.abs(best - refLocal)) best = local;
+  }
+  return Math.round(best - shift - epochWallMs);
+}
+
+/** 動かせる範囲の下限か上限か（`snapToRange` が見る） */
+interface EdgeRange {
+  readonly minMs: number;
+  readonly maxMs: number;
+  /** 下限が「いまから 24 時間前」（`MAX_LOOKBACK_MS`）で決まっているか。その端は時間とともに動くので、寄せない */
+  readonly minIsLookback: boolean;
+}
+
+/**
+ * 時刻を、動かせる範囲 [min, max] へ収める。範囲に入らなければ null。
+ *
+ * 範囲の端は秒の端数を持つので（± のボタンはそこへ届く）、**秒の欄の無い入力**（分の単位）が端と同じ分なら、端そのものへ寄せる。
+ * 秒の欄のある入力（`10:10:00`）は寄せない。下限が「いまから 24 時間前」で決まっているときも寄せない
+ * （その端は送るまでの間に動いて、サーバーの側で範囲の外になる）。
+ */
+function snapToRange(atMs: number, minuteOnly: boolean, range: EdgeRange): number | null {
   if (range.minMs > range.maxMs) return null;
   if (atMs >= range.minMs && atMs <= range.maxMs) {
-    return clockMs % MS_PER_MIN === 0 && atMs < range.maxMs && atMs + MS_PER_MIN > range.maxMs ? range.maxMs : atMs;
+    return minuteOnly && atMs < range.maxMs && atMs + MS_PER_MIN > range.maxMs ? range.maxMs : atMs;
   }
-  if (clockMs % MS_PER_MIN === 0 && atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return range.minMs;
+  if (minuteOnly && !range.minIsLookback && atMs < range.minMs && atMs + MS_PER_MIN > range.minMs) return range.minMs;
   return null;
 }
 
@@ -65,36 +97,46 @@ export interface InsertInput {
   readonly lengthMin: string;
 }
 
-export type InsertRangeError = 'time' | 'length' | 'order' | 'future' | 'yesterday';
+export type InsertRangeError = 'time' | 'length' | 'order' | 'future';
 
-export type InsertRange = { readonly ok: true; readonly startMs: number; readonly endMs: number } | { readonly ok: false; readonly error: InsertRangeError };
+export type InsertRange =
+  | { readonly ok: true; readonly startMs: number; readonly endMs: number }
+  /** `yesterday`: 入れた時刻のどれかを前日として読み替えた結果の誤りか（画面は「前日の時刻として読みました」を添える） */
+  | { readonly ok: false; readonly error: InsertRangeError; readonly yesterday: boolean };
+
+const fail = (error: InsertRangeError, yesterday = false): InsertRange => ({ ok: false, error, yesterday });
 
 /**
- * 抜けを足す範囲。
+ * 抜けを足す範囲。始まりも終わりも「いま」より前の直近の時刻として読む（後に見える時刻は前日）。
  *
- * - 長さで指定: 始まりを「いま」より前の直近の時刻として読み、終わりが「いま」を越えたら拒む。
- * - 終わりで指定: 始まりも終わりも「いま」より前の直近の時刻として読む（後に見える時刻は前日）。
- *   終わりが前日へ読み替えられ、始まりより後にならないときは、`order` でなく `yesterday`（前日として読んだと示す文）で拒む。
+ * - 長さで指定: 終わりが「いま」を越えたら `future`。
+ * - 終わりで指定: 終わりが始まり以前なら `order`。始まりだけが前日に読み替わって `MAX_INSERT_WRAP_MS` より長いときも `order`。
+ *
+ * 前日へ読み替えた時刻があるときは、どの誤りにも `yesterday` を付ける。
  */
 export function insertRangeOf(input: InsertInput, nowMs: number, epochWallMs: number, tzOffsetMin: number): InsertRange {
   const startClock = parseClock(input.start);
-  if (startClock === null) return { ok: false, error: 'time' };
-  const startMs = positionBefore(startClock, nowMs, epochWallMs, tzOffsetMin);
+  if (startClock === null) return fail('time');
+  const start = readClock(startClock, nowMs, epochWallMs, tzOffsetMin);
+  const startMs = start.posMs;
   let endMs: number;
+  let yesterday = start.wrapped;
   if (input.mode === 'length') {
-    if (!/^\d+$/.test(input.lengthMin)) return { ok: false, error: 'length' };
+    if (!/^\d+$/.test(input.lengthMin)) return fail('length');
     const minutes = Number(input.lengthMin);
-    if (minutes < 1 || minutes > MAX_LENGTH_MIN) return { ok: false, error: 'length' };
+    if (minutes < 1 || minutes > MAX_LENGTH_MIN) return fail('length');
     endMs = startMs + minutes * MS_PER_MIN;
-    if (endMs > nowMs) return { ok: false, error: 'future' };
+    if (endMs > nowMs) return fail('future', yesterday);
   } else {
     const endClock = parseClock(input.end);
-    if (endClock === null) return { ok: false, error: 'time' };
+    if (endClock === null) return fail('time');
     const end = readClock(endClock, nowMs, epochWallMs, tzOffsetMin);
     endMs = end.posMs;
-    if (end.wrapped && endMs - startMs < MIN_SEGMENT_MS) return { ok: false, error: 'yesterday' };
+    yesterday = start.wrapped || end.wrapped;
+    // 始まりだけが前日に読み替わったとき、長い抜けを黙って足さない
+    if (start.wrapped && !end.wrapped && endMs - startMs > MAX_INSERT_WRAP_MS) return fail('order', yesterday);
   }
-  if (endMs - startMs < MIN_SEGMENT_MS) return { ok: false, error: 'order' };
+  if (endMs - startMs < MIN_SEGMENT_MS) return fail('order', yesterday);
   return { ok: true, startMs, endMs };
 }
 
@@ -112,20 +154,25 @@ export function splitPositionOf(value: string, segment: Pick<SegmentView, 'start
 }
 
 /**
- * 始まり・終わりを合わせる時刻の位置。動かせる範囲の上限より前の直近の時刻として読み、範囲に入る位置だけを返す（それ以外は null）。
- * 範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求めたものを渡す。
+ * 始まり・終わりを合わせる時刻の位置。
+ *
+ * 時刻は、**動かす前の端の位置（`currentMs`）に最も近い日**の時刻として読む（前日・当日・翌日から選ぶ）。
+ * 日をまたぐ区切りでも、入れた時刻が端のすぐ近くの日に読まれ、終わりより後の時刻を前日として受けて 23 時間の区切りにすることがない。
+ * 読んだ位置が範囲に入るときだけ返す（それ以外は null）。範囲は track-core の `adjustRangeOf`（サーバーの判定と同じ規則）で求めたものを渡す。
+ * `nowMs` は範囲を求めた「いま」。下限がこれから 24 時間前（`MAX_LOOKBACK_MS`）で決まっているかを見るのに使う。
  */
 export function edgePositionOf(
   value: string,
   range: { minMs: number; maxMs: number } | null,
+  currentMs: number,
+  nowMs: number,
   epochWallMs: number,
   tzOffsetMin: number,
-  /** 前日として読んでよいか。最初の区切りの始まりは下に区切りが無く、前日へ読むと 23 時間の区切りになるので、false にして拒む */
-  allowPreviousDay = true,
 ): number | null {
   const clock = parseClock(value);
   if (clock === null || range === null) return null;
-  const read = readClock(clock, range.maxMs, epochWallMs, tzOffsetMin);
-  if (read.wrapped && !allowPreviousDay) return null;
-  return snapToRange(read.posMs, clock, range);
+  const atMs = nearestClockPosition(clock, currentMs, epochWallMs, tzOffsetMin);
+  // 秒の欄の無い入力（`HH:MM`）だけが分の単位。`<input type="time">` は秒が 0 のとき秒の欄を省く
+  const minuteOnly = value.length === 5;
+  return snapToRange(atMs, minuteOnly, { ...range, minIsLookback: range.minMs <= nowMs - MAX_LOOKBACK_MS });
 }

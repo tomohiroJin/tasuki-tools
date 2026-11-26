@@ -16,7 +16,6 @@ import {
   INSERT_ERROR_LENGTH,
   INSERT_ERROR_ORDER,
   INSERT_ERROR_TIME,
-  INSERT_ERROR_YESTERDAY,
   INSERT_HEADING,
   INSERT_LENGTH_FIELD,
   INSERT_MODE_END,
@@ -25,6 +24,7 @@ import {
   INSERT_NOTE,
   INSERT_START_FIELD,
   INSERT_SUBMIT,
+  INSERT_YESTERDAY_NOTE,
   KIND_BREAK,
   KIND_WORK,
 } from '../copy';
@@ -35,7 +35,6 @@ const ERROR_TEXT: Record<InsertRangeError, string> = {
   length: INSERT_ERROR_LENGTH,
   order: INSERT_ERROR_ORDER,
   future: INSERT_ERROR_FUTURE,
-  yesterday: INSERT_ERROR_YESTERDAY,
 };
 
 interface Props {
@@ -62,14 +61,14 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [lengthMin, setLengthMin] = useState('');
-  const [error, setError] = useState<InsertRangeError | null>(null);
+  const [error, setError] = useState<{ code: InsertRangeError; yesterday: boolean } | null>(null);
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (!canOperate) return;
     const range = insertRangeOf({ start, mode, end, lengthMin }, getNow(), epochWallMs, tzOffsetMin);
     if (!range.ok) {
-      setError(range.error);
+      setError({ code: range.error, yesterday: range.yesterday });
       return;
     }
     setError(null);
@@ -138,7 +137,8 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
       <p className="track-hint">{INSERT_NOTE}</p>
       {error !== null && (
         <p id={errorId} className="track-form-error ui-note ui-note--error" role="alert">
-          {ERROR_TEXT[error]}
+          {error.yesterday ? INSERT_YESTERDAY_NOTE : ''}
+          {ERROR_TEXT[error.code]}
         </p>
       )}
       <div className="track-insert-actions">

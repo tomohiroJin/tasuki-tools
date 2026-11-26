@@ -63,6 +63,8 @@ export interface Candidate {
   readonly source: "topic" | "pinned" | "recent";
   /** 定番に固定されているか */
   readonly pinned: boolean;
+  /** いま計測中の作業と同じ名前か。一覧には残すが、切り替えのボタンとしては押せず、数字キーを割り当てない（星は使える） */
+  readonly running: boolean;
 }
 
 /** 文字の途中（サロゲートの間）で切らずに、UTF-16 の長さを上限に収める。 */
@@ -84,19 +86,24 @@ function topicLabel(title: string | null): string | null {
 
 /**
  * 切り替えの候補。お題のタイトル → 定番 → 最近使った作業名（新しい順）を、重複を除いて上限まで。
+ * 計測中の作業と同じ名前も一覧に残す（`running`）。上限（`MAX_CANDIDATES`）は押せる候補の数に掛け、計測中の 1 件は数えない。
  * 全員が同じ写しとお題を持つので、数字キーとの対応は全員で同じになる。
  */
 export function candidatesOf(view: TrackView, topicTitle: string | null): Candidate[] {
   const pinned = new Set(view.pinned);
   const seen = new Set<string>();
   const out: Candidate[] = [];
-  // 計測中の作業と同じ名前は、押しても何も起きないので候補から外す（休憩・名前なしは名前を持たない）
+  // 計測中の作業と同じ名前は、押しても何も起きない。残すが、押せる候補の数には数えない（休憩・名前なしは名前を持たない）
   const running = runningSegmentOf(view);
   const runningLabel = running !== null && running.kind === "work" ? running.label : "";
+  let pressable = 0;
   const push = (label: string, source: Candidate["source"]): void => {
-    if (label === runningLabel || seen.has(label) || out.length >= MAX_CANDIDATES) return;
+    if (seen.has(label)) return;
+    const isRunning = label !== "" && label === runningLabel;
+    if (!isRunning && pressable >= MAX_CANDIDATES) return;
     seen.add(label);
-    out.push({ label, source, pinned: pinned.has(label) });
+    out.push({ label, source, pinned: pinned.has(label), running: isRunning });
+    if (!isRunning) pressable++;
   };
   const topic = topicLabel(topicTitle);
   if (topic !== null) push(topic, "topic");

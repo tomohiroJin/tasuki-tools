@@ -34,11 +34,11 @@ import {
   INSERT_END_FIELD,
   INSERT_ERROR_ORDER,
   INSERT_ERROR_TIME,
-  INSERT_ERROR_YESTERDAY,
   INSERT_LENGTH_FIELD,
   INSERT_MODE_FIELD,
   INSERT_START_FIELD,
   INSERT_SUBMIT,
+  INSERT_YESTERDAY_NOTE,
   INTRO_TEXT,
   LABEL_FIELD,
   NOW_HEADING,
@@ -54,6 +54,7 @@ import {
   STOP_BUTTON,
   SWITCH_BUTTON,
   TIMELINE_HEADING,
+  RUNNING_MARK,
   TOPIC_MARK,
   TOTALS_HEADING,
   UNDO_BUTTON,
@@ -228,12 +229,12 @@ describe('計測中', () => {
 describe('候補', () => {
   const TOPIC = { type: 'topic', state: { topic: { title: 'FizzBuzz', body: '', source: 'manual' }, generating: false, degraded: false, aiUnlocked: false } };
 
-  it('Given お題・定番・最近の作業 / When 画面を描く / Then お題 → 定番 → 最近の順に番号つきで並び、お題には印が付く', () => {
+  it('Given お題・定番・最近の作業 / When 画面を描く / Then お題 → 定番 → 最近の順に並び、番号は押せる候補だけに付き（計測中の Build は飛ばす）、お題には印が付く', () => {
     renderRoom(runningTrack(60 * MIN, { pinned: ['Plan'] }));
     act(() => latestSocket().deliver(TOPIC));
     const items = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem');
-    expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['FizzBuzz', 'Plan', 'Review']);
-    expect(items.map((li) => li.querySelector('.track-candidate-number')?.textContent)).toEqual(['1', '2', '3']);
+    expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['FizzBuzz', 'Plan', 'Build', 'Review']);
+    expect(items.map((li) => li.querySelector('.track-candidate-number')?.textContent)).toEqual(['1', '2', undefined, '3']);
     expect(within(items[0]!).getByText(TOPIC_MARK)).toBeInTheDocument();
     expect(within(items[1]!).queryByText(TOPIC_MARK)).toBeNull();
   });
@@ -244,14 +245,25 @@ describe('候補', () => {
     expect(sentCommands()).toEqual([{ command: 'track.start', label: 'Review', kind: 'work' }]);
   });
 
-  it('Given 計測中の作業名が候補にもある / When 画面を描く / Then その名前は候補から外れる（押しても何も起きない）', () => {
+  it('Given 計測中の作業名が候補にもある / When 画面を描く / Then 一覧に残すが、計測中と示して押せず、番号は押せる候補だけに振る', () => {
     renderRoom(runningTrack(60 * MIN, { pinned: ['Build', 'Review'] }));
-    const labels = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem').map((li) => li.querySelector('.track-candidate-label')?.textContent);
-    expect(labels).toEqual(['Review']);
+    const items = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem');
+    expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['Build', 'Review']);
+    const running = items[0]!;
+    expect(within(running).getByText(RUNNING_MARK)).toBeInTheDocument();
+    expect(running.querySelector('.track-candidate-number')).toBeNull();
+    expect(running.querySelector('.track-candidate-pick')).toBeDisabled();
+    expect(items[1]!.querySelector('.track-candidate-number')?.textContent).toBe('1');
+  });
+
+  it('Given 計測中の作業名が候補にもある / When 星を押す / Then 計測中の名前でも固定・解除を送る', () => {
+    renderRoom(runningTrack(60 * MIN, { pinned: ['Build'] }));
+    fireEvent.click(button(pinLabel('Build')));
+    expect(sentCommands()).toEqual([{ command: 'track.pin', label: 'Build', pinned: false }]);
   });
 
   it('Given 定番とそうでない候補 / When 星を押す / Then 固定・解除を送り、押した状態を aria-pressed で示す', () => {
-    renderRoom(stoppedTrack(60 * MIN, { pinned: ['Review'] }));
+    renderRoom(runningTrack(60 * MIN, { pinned: ['Review'] }));
     const pinned = button(pinLabel('Review'));
     const unpinned = button(pinLabel('Build'));
     expect(pinned).toHaveAttribute('aria-pressed', 'true');
@@ -454,8 +466,8 @@ describe('時系列と手直し', () => {
     expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
   });
 
-  it('Given 最初の区切りの始まり / When 終わりより後に見える時刻（前日なら 24 時間の内）を入れる / Then 前日へ読まず、送らずに知らせる', () => {
-    // Review 0〜30 分・いま 60 分。61 分の時刻は終わりより後。前日として読めば 23 時間の区切りになる
+  it('Given 最初の区切りの始まり / When 終わりより後に見える時刻を入れる / Then 前日の時刻として受けず、送らずに知らせる', () => {
+    // Review 0〜30 分・いま 60 分。61 分の時刻は終わりより後。動かす前の端（0 分）に近い日で読むので、前日の 23 時間の区切りにならない
     const view = stoppedTrack();
     const timeline = openReview(view);
     fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 61 * MIN) } });
@@ -523,13 +535,13 @@ describe('抜けを足す', () => {
     expect(timeline.queryByRole('button', { name: INSERT_SUBMIT })).toBeNull();
   });
 
-  it('Given 終わりがいまより後（前日として読むと始まりより後にならない） / When 足す / Then 送らずに、前日として読んだと示す', () => {
+  it('Given 終わりがいまより後（前日として読むと始まりより後にならない） / When 足す / Then 送らずに、前日の時刻として読んだことと順の誤りを示す', () => {
     const view = stoppedTrack();
     const timeline = openInsert(view);
     fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
     fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 61 * MIN) } });
     fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
-    expect(timeline.getByRole('alert')).toHaveTextContent(INSERT_ERROR_YESTERDAY);
+    expect(timeline.getByRole('alert')).toHaveTextContent(`${INSERT_YESTERDAY_NOTE}${INSERT_ERROR_ORDER}`);
     expect(sentCommands()).toEqual([]);
   });
 
@@ -614,18 +626,30 @@ describe('持ち帰り', () => {
     expect(sentCommands()).toEqual([{ command: 'track.clear' }]);
   });
 
-  it('Given 確かめを開いた / When 消すを押す / Then フォーカスは開始のボタンへ移る（空の写しが届くと元のボタンは押せなくなる）', () => {
+  it('Given 確かめを開いた / When 消すを押す / Then 空の写しが届くまでフォーカスを動かさず、届いたら開始のボタンへ移す', () => {
     renderRoom(stoppedTrack());
     fireEvent.click(button(CLEAR_BUTTON));
     fireEvent.click(button(CLEAR_CONFIRM_YES));
+    expect(button(START_BUTTON)).not.toHaveFocus();
+    deliver(trackView({ nowMs: 60 * MIN, rev: 9 }));
     expect(button(START_BUTTON)).toHaveFocus();
   });
 
-  it('Given 計測中 / When 記録を消す / Then フォーカスは主のボタン（切り替える）へ移る', () => {
+  it('Given 計測中 / When 記録を消して空の写しが届く / Then フォーカスは主のボタン（切り替える）へ移る', () => {
     renderRoom(trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', 'Build', 0, null)] }));
     fireEvent.click(button(CLEAR_BUTTON));
     fireEvent.click(button(CLEAR_CONFIRM_YES));
-    expect(button(SWITCH_BUTTON)).toHaveFocus();
+    deliver(trackView({ nowMs: 60 * MIN, rev: 9 }));
+    expect(button(START_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 確かめを開いた / When 消すが拒まれる / Then フォーカスは元の「記録を消す」へ戻る', () => {
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '拒まれました' }));
+    expect(button(CLEAR_BUTTON)).toHaveFocus();
+    expect(button(START_BUTTON)).not.toHaveFocus();
   });
 
   it('Given 空の記録 / When 画面を描く / Then 記録を消すは押せない', () => {

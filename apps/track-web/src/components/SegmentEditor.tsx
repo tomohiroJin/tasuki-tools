@@ -92,9 +92,11 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
   const setEdge = (edge: SegmentEdge, event: FormEvent): void => {
     event.preventDefault();
     if (!canOperate) return;
-    // 最初の区切りの始まりに、終わりより後に見える時刻を入れても、前日へは読まない（23 時間の区切りになる）
-    const firstStart = edge === 'start' && view.segments[0]?.id === segment.id;
-    const atMs = edgePositionOf(edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, getNow()), view.epochWallMs, tzOffsetMin, !firstStart);
+    const current = positionOf(edge);
+    if (current === null) return;
+    const now = getNow();
+    // 時刻は、動かす前の端に最も近い日の時刻として読む（日をまたぐ区切りも、前日の時刻で 23 時間の区切りにならない）
+    const atMs = edgePositionOf(edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, now), current, now, view.epochWallMs, tzOffsetMin);
     setEdgeError(atMs === null ? edge : null);
     if (atMs === null) return;
     actions.adjustSegment(segment.id, edge, atMs);

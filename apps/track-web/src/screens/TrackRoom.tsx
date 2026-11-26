@@ -8,7 +8,7 @@
  * 玄関のそのルームへ送り返す。切断中（`!sync.joined`）は操作を押させない。
  * **誰が操作したかは、画面のどこにも出さない**（写しに無い。設計 §6）。
  */
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   LONG_RUNNING_NOTICE_MS,
   candidatesOf,
@@ -97,6 +97,7 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
   const tzOffsetMin = localTzOffsetMin();
   const canOperate = sync.joined;
   const startButtonRef = useRef<HTMLButtonElement>(null);
+  const focusStart = useCallback((): void => startButtonRef.current?.focus(), []);
 
   const running = runningSegmentOf(view);
   const candidates = candidatesOf(view, sync.topic?.topic?.title ?? null);
@@ -118,7 +119,8 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
     enabled: canOperate,
     // キーは「いまから」で送る（「いつから」の選択は画面の操作のためのもの）
     onCandidate: (index) => {
-      const candidate = candidates[index];
+      // 数字キーは押せる候補だけに振る（計測中の名前は飛ばす。`SwitchPanel` の番号と同じ並び）
+      const candidate = candidates.filter((c) => !c.running)[index];
       if (candidate !== undefined) sync.start(candidate.label, 'work');
     },
     onStop: () => {
@@ -164,7 +166,7 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
         <div className="ui-workspace-main track-column">
           <TotalsPanel totals={totals} />
           <Timeline view={view} nowMs={nowMs} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
-          <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} onCleared={() => startButtonRef.current?.focus()} />
+          <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} onCleared={focusStart} error={sync.error} />
         </div>
       </div>
       {/* 読み上げの領域は常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある） */}

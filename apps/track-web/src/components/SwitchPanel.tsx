@@ -15,6 +15,7 @@ import {
   CANDIDATES_LABEL,
   LABEL_FIELD,
   LABEL_PLACEHOLDER,
+  RUNNING_MARK,
   START_BUTTON,
   SWITCH_BUTTON,
   SWITCH_HEADING,
@@ -49,6 +50,9 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
     onStart(label);
     setLabel('');
   };
+
+  // 数字キーは、押せる候補だけに上から 1〜9 を振る（`TrackRoom` の `useTrackKeys` と同じ並び）
+  let number = 0;
 
   return (
     <section className="track-switch ui-stack" aria-labelledby={headingId}>
@@ -93,10 +97,11 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
       {candidates.length > 0 && (
         <div className="ui-stack ui-stack--tight">
           <ol className="track-candidates" aria-label={CANDIDATES_LABEL}>
-            {candidates.map((candidate, index) => (
+            {candidates.map((candidate) => (
               <li key={candidate.label} className="track-candidate">
-                <button type="button" className="track-candidate-pick" disabled={!canOperate} onClick={() => onStart(candidate.label)}>
-                  <span className="track-candidate-number">{index + 1}</span>
+                {/* 計測中の名前は押せない（切り替えても何も起きない）。番号も振らない。星は使える */}
+                <button type="button" className="track-candidate-pick" disabled={!canOperate || candidate.running} onClick={() => onStart(candidate.label)}>
+                  {candidate.running ? <span className="track-candidate-topic">{RUNNING_MARK}</span> : <span className="track-candidate-number">{++number}</span>}
                   {candidate.source === 'topic' && <span className="track-candidate-topic">{TOPIC_MARK}</span>}
                   <span className="track-candidate-label">{candidate.label}</span>
                 </button>

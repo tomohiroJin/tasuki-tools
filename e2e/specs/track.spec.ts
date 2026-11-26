@@ -78,13 +78,12 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(candidate(page, '設計')).toBeVisible();
     await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[2-9]/);
     // 入力欄からフォーカスを外してから押す（入力中の数字は拾わない）。
-    // 押すのは「設計」の番号。いま計測中の「実装」の番号を押しても何も起きないので、キーが効いたことにならない
+    // 数字キーは押せる候補だけに振る（いま計測中の「実装」は一覧に残るが番号を持たない）ので、「設計」の番号は一覧の表示から読む
     await page.getByRole('heading', { level: 1, name: 'うちわけ', exact: true }).click();
-    const labels = await page.getByRole('list', { name: '候補' }).locator('.track-candidate-label').allTextContents();
-    const designIndex = labels.indexOf('設計');
-    expect(designIndex, `候補に「設計」がある（${labels.join(',')}）`).toBeGreaterThanOrEqual(0);
+    const designNumber = await candidate(page, '設計').locator('.track-candidate-number').textContent();
+    expect(designNumber, '「設計」の候補に番号がある').toMatch(/^[1-9]$/);
     await expect(nowName(b)).toHaveText('実装');
-    await page.keyboard.press(String(designIndex + 1));
+    await page.keyboard.press(designNumber!);
     await expect(nowName(b)).toHaveText('設計');
 
     // When / Then その5: A が「休憩にする」→ 両方の画面で休憩になり、うちわけの表の「休憩」の行が進む
