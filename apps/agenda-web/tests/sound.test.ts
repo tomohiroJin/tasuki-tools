@@ -11,6 +11,9 @@ const bufferStart = vi.fn();
 const decodeAudioData = vi.fn();
 const fetchMock = vi.fn();
 let contextCount = 0;
+/** 作られたオシレーター・バッファの再生元（周波数の並びと、鳴らしたバッファを見る） */
+let oscillators: { type: string; frequency: { value: number } }[] = [];
+let sources: { buffer: unknown }[] = [];
 
 class FakeAudioContext {
   constructor() {
@@ -24,10 +27,16 @@ class FakeAudioContext {
   resume = vi.fn(() => Promise.resolve());
   createOscillator = () => {
     createOscillator();
-    return { type: 'sine', frequency: { value: 0 }, connect: vi.fn(), start: vi.fn(), stop: vi.fn() };
+    const osc = { type: 'sine', frequency: { value: 0 }, connect: vi.fn(), start: vi.fn(), stop: vi.fn() };
+    oscillators.push(osc);
+    return osc;
   };
   createGain = () => ({ gain: { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() });
-  createBufferSource = () => ({ buffer: null as unknown, connect: vi.fn(), start: bufferStart });
+  createBufferSource = () => {
+    const source = { buffer: null as unknown, connect: vi.fn(), start: bufferStart };
+    sources.push(source);
+    return source;
+  };
   decodeAudioData = decodeAudioData;
 }
 
@@ -45,6 +54,8 @@ beforeEach(() => {
   fetchMock.mockReset();
   fetchMock.mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) });
   contextCount = 0;
+  oscillators = [];
+  sources = [];
   state = 'suspended';
   vi.stubGlobal('AudioContext', FakeAudioContext);
   vi.stubGlobal('fetch', fetchMock);
@@ -237,6 +248,56 @@ describe('ファイルの音', () => {
     preloadChime('bell');
     await flush();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 音の取り違え（別の音が鳴る・別のファイルを読む）を捕まえる（#669 のレビュー）。
+ * 個数だけでは、時打ちも 2 打なのでトーンと区別できない。周波数の並びとファイルの URL・鳴らしたバッファで見る。
+ *
+ * @requirements #669 D1（音の一覧）・D8
+ */
+describe('音の取り違え', () => {
+  it.each([
+    ['strike', [1318.5, 880]],
+    ['chime-up', [660, 990]],
+    ['chime-down', [990, 660]],
+  ] as const)('Given 解錠済み / When playChime(%s) / Then その音の周波数の並びで鳴らす', async (id, freqs) => {
+    state = 'running';
+    const { playChime, unlockAudio } = await import('../src/platform/sound');
+    unlockAudio();
+    playChime(id);
+    await flush();
+    expect(oscillators.map((o) => o.frequency.value)).toEqual(freqs);
+    expect(bufferStart).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['department', 'department.mp3'],
+    ['melody', 'melody.mp3'],
+    ['sustained', 'sustained.mp3'],
+    ['bell', 'bell.mp3'],
+    ['voice-male', 'timeout-male.mp3'],
+    ['voice-female', 'timeout-female.mp3'],
+    ['voice-nise', 'timeout-nise.mp3'],
+    ['voice-mai', 'timeout-mai.mp3'],
+  ] as const)('Given %s / When preloadChime して鳴らす / Then %s を読み、その音のバッファを鳴らす', async (id, file) => {
+    state = 'running';
+    // URL を中身にして、デコードの結果から「どのファイルのバッファか」を辿れるようにする
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new TextEncoder().encode(url).buffer) }),
+    );
+    decodeAudioData.mockImplementation((bytes: ArrayBuffer) => Promise.resolve({ url: new TextDecoder().decode(bytes) }));
+    const { playChime, preloadChime, unlockAudio } = await import('../src/platform/sound');
+    unlockAudio();
+    preloadChime(id);
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(new RegExp(`sounds/${file.replace('.', '\\.')}$`));
+    playChime(id);
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(1);
+    expect(String((sources[0]?.buffer as { url: string }).url)).toMatch(new RegExp(`sounds/${file.replace('.', '\\.')}$`));
   });
 });
 

@@ -14017,6 +14017,22 @@ export const MUTATIONS = [
     note: RESERVED_2950_2969 + " " + "#669。選んでも覚えず、時間切れの音が変わらない（選択欄だけ戻る）。",
   },
   {
+    id: 2957,
+    label: "上昇 2 音・下降 2 音の分岐を外し、トーンを選んでも時打ちを鳴らす",
+    patch: "m2957-tone-branch-disabled.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 のレビュー。上昇・下降を選んでも時打ちが鳴る（時打ちも 2 打なので、個数だけの検査は通ってしまう）。",
+  },
+  {
+    id: 2958,
+    label: "ベルの音ファイルの名前を melody にすり替える",
+    patch: "m2958-bell-file-name-swapped.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 のレビュー。ベルを選んでもメロディが鳴る（ファイル名と URL を確かめる検査が 1 件だけだと取り違えが通る）。",
+  },
+  {
     id: 2970,
     label: "SoundSettings の音の種類の選択が、選んだ id でなく先頭の id を onChimeChange へ渡す",
     patch: "m2970-sound-settings-wrong-chime-id.patch",
