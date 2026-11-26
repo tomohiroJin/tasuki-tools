@@ -76,3 +76,8 @@ export const MD_COPY_MANUAL_FIELD = '結果の Markdown';
 export const MD_HEADING = 'チェックイン・チェックアウトの記録';
 export const MD_VISIBILITY_LABEL = '公開の仕方';
 export const mdPeople = (count: number): string => `${count} 人`;
+
+// ---- 札が開いたときのカットイン（#670。設計 `docs/superpowers/specs/2026-11-27-cutin-design.md` §4）。題は 9 字以下 ----
+export const CUTIN_ALL_SAME = '全員同じ';
+export const CUTIN_CHECKIN = 'チェックイン';
+export const CUTIN_CHECKOUT = 'おつかれさまでした';
