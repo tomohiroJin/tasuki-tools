@@ -289,6 +289,9 @@ const RESERVED_2900_2919 =
 const RESERVED_2920_2929 =
   "**対応表より後に足した変異。** 2920〜2929 は #675 の続き（前のタグからの一覧のレビューの指摘）に割り当てた範囲。";
 
+const RESERVED_2930_2949 =
+  "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13876,5 +13879,53 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/prod-verify.test.mjs"],
     note: RESERVED_2920_2929 + " " + "#675 のマージ前のレビュー。http・ローカル宛の値に資格情報が入っていると、端末やログへ値ごと出る。",
+  },
+  {
+    id: 2930,
+    label: "check-toolchain の e2e-webkit の段が WebKit を見ない（段の道具から外す）",
+    patch: "m2930-toolchain-e2e-webkit-skips-webkit.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note: RESERVED_2930_2949 + " " + "#674。WebKit の無い環境で OK を出し、WebKit の E2E が起動の時に全件落ちる。",
+  },
+  {
+    id: 2931,
+    label: "WebKit の revision を、macOS 以外の OS ごとの差し替えがあっても既定の revision で読む",
+    patch: "m2931-webkit-revision-accepts-any-overrides.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note: RESERVED_2930_2949 + " " + "#674。Playwright が ubuntu の版ごとに別の revision を探すようになったとき、違う revision を「ある」「無い」と誤る。",
+  },
+  {
+    id: 2932,
+    label: "checkWebkit が別の revision の WebKit でも通す（名前の頭だけを見る）",
+    patch: "m2932-check-webkit-accepts-any-revision.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note: RESERVED_2930_2949 + " " + "#674。古い revision の WebKit しか無い環境で OK を出し、Playwright が起動の時に落ちる（#509 の ffmpeg と同じ形）。",
+  },
+  {
+    id: 2933,
+    label: "TASUKI_E2E_BROWSER の知らない値を Chromium に読み替える",
+    patch: "m2933-e2e-browser-unknown-read-as-chromium.patch",
+    pkg: "e2e",
+    tests: ["tests/browser.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674。綴りを誤ると、WebKit で流したつもりで Chromium の結果を見る。",
+  },
+  {
+    id: 2934,
+    label: "WebKit で流すときも、ハーネスが版の確認を e2e の段（Chromium）で呼ぶ",
+    patch: "m2934-e2e-webkit-stage-checks-chromium.patch",
+    pkg: "e2e",
+    tests: ["tests/browser.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674。playwright test を直に叩いたとき、WebKit が無くても止まらず、ブラウザの起動で初めて落ちる。",
+  },
+  {
+    id: 2935,
+    label: "WebKit の project の絞り込みから @webkit を落とす（@core だけを流す）",
+    patch: "m2935-webkit-project-drops-webkit-tag.patch",
+    pkg: "e2e",
+    tests: ["tests/spec-tags.test.ts"],
+    note: RESERVED_2930_2949 + " " + "#674。iOS で崩れやすい所（玄関・狭い幅の配置とボタン・手動コピー）が WebKit で流れなくなっても、件数が減るだけで緑のまま。",
   },
 ];

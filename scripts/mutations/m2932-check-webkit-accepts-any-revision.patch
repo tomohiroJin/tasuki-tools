@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -357,7 +357,7 @@ export function readWebkitRevision(browsersJson, platform) {
+  */
+ export function checkWebkit(revision, dir, entries) {
+   const name = `webkit-${revision}`;
+-  if ((entries ?? []).includes(name)) return null;
++  if ((entries ?? []).some((e) => e.startsWith("webkit-"))) return null;
+   const others = (entries ?? [])
+     .map((e) => /^webkit-(\d+)$/.exec(e)?.[1])
+     .filter((r) => r !== undefined && r !== revision)
