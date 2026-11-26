@@ -1,0 +1,11 @@
+diff --git a/packages/poker-core/src/agreement.ts b/packages/poker-core/src/agreement.ts
+index 62ff2ea4..c4b5f205 100644
+--- a/packages/poker-core/src/agreement.ts
++++ b/packages/poker-core/src/agreement.ts
+@@ -57,5 +57,5 @@ export function judgeNearAgreement(votes: readonly VoteView[]): boolean {
+     counts.set(key, (counts.get(key) ?? 0) + 1);
+   }
+   if (counts.size !== 2) return false;
+-  return [...counts.values()].some((c) => c === 1);
++  return [...counts.values()].some((c) => c <= 2);
+ }

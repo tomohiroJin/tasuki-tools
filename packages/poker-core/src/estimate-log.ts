@@ -3,6 +3,7 @@
 // **参加者を持たない。** 行は「どのカードが何枚出たか」だけを持つ（匿名）。
 // すべて純関数で、入力を書き換えず新しい値を返す（憲法原則 IV）。
 import { err, ok, type Result } from 'neverthrow';
+import { UNANIMOUS_MIN_VOTES } from './agreement.js';
 import { FIBONACCI_DECK, cardKey, type Card, type NumberCardValue } from './deck.js';
 
 /** アイテム名の長さの上限（境界が見る。ここでは切らない） */
@@ -102,6 +103,31 @@ export function recordReveal(
     groups = [...log.groups, group];
   }
   return { nextId, groups: trimToLimit(groups) };
+}
+
+/** unanimousStreak が受ける束の形。サーバーの EstimateGroup も、画面へ届く EstimateGroupView も満たす */
+export interface StreakGroup {
+  entries: ReadonlyArray<{ counts: ReadonlyArray<{ card: Card; count: number }> }>;
+}
+
+/**
+ * 記録の末尾から数えて、続けて「全員同じ」だった開票の数（#670）。
+ * - 全員同じ = 行が 1 種類の数字の札だけで、枚数が UNANIMOUS_MIN_VOTES 以上（? と ☕ だけの行・1 票の行は数えない）
+ * - 束をまたいで古い順に並べた行の末尾から数える。末尾が全員同じでなければ 0
+ * - **票ではなく記録から数える**。全員の画面が同じ記録を持つので、どの画面も同じ数が出る
+ */
+export function unanimousStreak(groups: readonly StreakGroup[]): number {
+  let streak = 0;
+  for (let g = groups.length - 1; g >= 0; g -= 1) {
+    const entries = groups[g]!.entries;
+    for (let e = entries.length - 1; e >= 0; e -= 1) {
+      const counts = entries[e]!.counts;
+      const only = counts.length === 1 ? counts[0]! : null;
+      if (!only || only.card.kind !== 'number' || only.count < UNANIMOUS_MIN_VOTES) return streak;
+      streak += 1;
+    }
+  }
+  return streak;
 }
 
 /** 末尾の open の束を閉じてポイントを付ける。open の束が無ければ log をそのまま返す */

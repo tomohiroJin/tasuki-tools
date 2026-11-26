@@ -22,7 +22,9 @@ export { FIBONACCI_DECK, NUMBER_CARD_VALUES, cardKey, cardEquals } from './deck.
 export type { NumberCardValue, Card } from './deck.js';
 
 // ./estimate-log（#93。画面がアイテム名の上限を使う）
-export { MAX_ESTIMATE_ITEM } from './estimate-log.js';
+export { MAX_ESTIMATE_ITEM, unanimousStreak } from './estimate-log.js';
+// StreakGroup: unanimousStreak の引数の束の構造型（EstimateGroupView も満たす）
+export type { StreakGroup } from './estimate-log.js';
 
 // ./error-messages
 export { DEFAULT_ERROR_MESSAGE, messageForRoundError } from './error-messages.js';
@@ -99,7 +101,8 @@ export { createSnapshotBuilder } from './snapshot.js';
 export type { ParticipantFragment } from './snapshot.js';
 
 // ./agreement（#639。開票後の票から画面が呼ぶ。閾値はこのパッケージの中で閉じる）
-export { judgeAgreement } from './agreement.js';
+// #670: judgeAllBreak（全員休憩）・judgeNearAgreement（ほぼ同じ）。閾値はここで閉じる
+export { judgeAgreement, judgeAllBreak, judgeNearAgreement } from './agreement.js';
 // Agreement: judgeAgreement の戻り値型
 export type { Agreement } from './agreement.js';
 
