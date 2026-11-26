@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LONG_RUNNING_NOTICE_MS } from '@tasuki/track-core';
+import { LONG_RUNNING_NOTICE_MS, MAX_LOOKBACK_MS } from '@tasuki/track-core';
+import { AWAY_PROMPT_MIN_MS } from '../src/limits';
 import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from '../src/copy';
 import {
   announcementFor,
+  awayPromptOf,
   clockOf,
   formatElapsed,
   nameOf,
@@ -194,5 +196,48 @@ describe('試験の固定データ', () => {
   it('Given 基準の壁時計 / When 読む / Then 2026-11-23 01:00 UTC（時刻の期待値の前提）', () => {
     expect(new Date(EPOCH_WALL_MS).toISOString()).toBe('2026-11-23T01:00:00.000Z');
     expect(LONG_RUNNING_NOTICE_MS).toBeGreaterThan(MIN);
+  });
+});
+
+/**
+ * @requirements #476 FR-27・設計 §4 C1・C2
+ */
+describe('離れていたときの問いかけ', () => {
+  // Build は 45 分から計測中。いまが 135 分なら、ちょうど 90 分続いている
+  const NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
+  const view = runningTrack(NOW);
+  const away = (fromMs: number, awayMs = AWAY_PROMPT_MIN_MS) => ({ fromMs, awayMs });
+
+  it('Given 10 分離れ・計測中の区切りが 90 分続く / When 判定する / Then 問いかけを出し、位置と離れた分を返す', () => {
+    expect(awayPromptOf(view, NOW, away(NOW - 12 * MIN, 12 * MIN + 30_000))).toEqual({ fromMs: NOW - 12 * MIN, awayMin: 12 });
+  });
+
+  it('Given 離れたのが 10 分に 1ms 足りない / When 判定する / Then 出さない', () => {
+    expect(awayPromptOf(view, NOW, away(NOW - 10 * MIN, AWAY_PROMPT_MIN_MS - 1))).toBeNull();
+  });
+
+  it('Given 区切りが 90 分に 1ms 足りない / When 判定する / Then 出さない（ちょうどなら出す）', () => {
+    expect(awayPromptOf(view, NOW - 1, away(NOW - 11 * MIN))).toBeNull();
+    expect(awayPromptOf(view, NOW, away(NOW - 11 * MIN))).not.toBeNull();
+  });
+
+  it('Given 計測していない / When 判定する / Then 出さない', () => {
+    expect(awayPromptOf(stoppedTrack(NOW), NOW, away(NOW - 11 * MIN))).toBeNull();
+  });
+
+  it('Given 離れた記録が無い / When 判定する / Then 出さない', () => {
+    expect(awayPromptOf(view, NOW, null)).toBeNull();
+  });
+
+  it('Given 区切りが離れている間に始まった（始まりが離れた位置以後） / When 判定する / Then 出さない', () => {
+    const late = trackView({ nowMs: NOW, segments: [seg('g-1', 'work', 'Build', NOW - 91 * MIN, null)] });
+    expect(awayPromptOf(late, NOW, away(NOW - 91 * MIN))).toBeNull();
+    expect(awayPromptOf(late, NOW, away(NOW - 90 * MIN))).not.toBeNull();
+  });
+
+  it('Given 離れた位置が手直しで置ける範囲の外 / When 判定する / Then 出さない（サーバーが拒む）', () => {
+    const long = trackView({ nowMs: 30 * 60 * MIN, segments: [seg('g-1', 'work', 'Build', 0, null)] });
+    expect(awayPromptOf(long, 30 * 60 * MIN, away(30 * 60 * MIN - MAX_LOOKBACK_MS))).not.toBeNull();
+    expect(awayPromptOf(long, 30 * 60 * MIN, away(30 * 60 * MIN - MAX_LOOKBACK_MS - 1))).toBeNull();
   });
 });

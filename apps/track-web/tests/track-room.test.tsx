@@ -9,6 +9,9 @@ import { App } from '../src/App';
 import {
   ANNOUNCE_AUTO_STOPPED,
   ANNOUNCE_STOPPED,
+  AWAY_BREAK_BUTTON,
+  AWAY_CUT_BUTTON,
+  AWAY_KEEP_BUTTON,
   AUTO_CLOSED_MARK,
   BACK_FIELD,
   BREAK_BUTTON,
@@ -59,9 +62,15 @@ import {
   RUNNING_MARK,
   TOPIC_MARK,
   TOTALS_HEADING,
+  NOTIFY_BUTTON,
+  NOTIFY_DENIED_TEXT,
   UNDO_BUTTON,
+  UNDO_NOTE_AWAY,
   UNNAMED_NAME,
+  LONG_RUNNING_NOTIFY_BODY,
   announceStarted,
+  awayPromptText,
+  longRunningNotifyTitle,
   backOption,
   editLabel,
   edgeTimeLabel,
@@ -74,6 +83,7 @@ import {
   tabTitle,
   undoRemaining,
 } from '../src/copy';
+import { NOTIFY_PREFERENCE_KEY } from '../src/platform/notify';
 import { localTzOffsetMin } from '../src/platform/timezone';
 import { clockOf } from '../src/track-view';
 import { EMPTY_TRACK, JOINED, MIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningTrack, seg, stoppedTrack, trackFrame, trackView } from './support/track-states';
@@ -1004,5 +1014,239 @@ describe('操作の失敗', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('作業名は 80 字までです');
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button'));
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+/** `document.visibilityState` を差し替えて `visibilitychange` を起こす。 */
+function setVisibility(state: 'visible' | 'hidden'): void {
+  act(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+/**
+ * @requirements #476 FR-27・設計 §4 C1〜C5
+ */
+describe('離れていたとき', () => {
+  /** Build が 45 分から計測中。135 分で、ちょうど 90 分続いている */
+  const LONG_NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
+  let wall = 0;
+
+  beforeEach(() => {
+    wall = 1_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => wall);
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
+  /** 隠れて、`awayMs` たって表に戻り、サーバーの新しい写しが届くところまで進める。 */
+  function leaveAndReturn(awayMs: number, after: TrackView = runningTrack(LONG_NOW + awayMs)): void {
+    setVisibility('hidden');
+    nowMs += awayMs;
+    wall += awayMs;
+    setVisibility('visible');
+    deliver(after);
+  }
+
+  it('Given 90 分続く計測中 / When 12 分離れて戻る / Then 戻った本人の画面に問いかけが出て、サーバーへは何も送らない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    const before = sentCommands().length;
+    leaveAndReturn(12 * MIN);
+    expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
+    expect(button(AWAY_KEEP_BUTTON)).toBeInTheDocument();
+    // 戻ったときに送るのは写しの取り直し（track.sync）だけ。離れたことはサーバーへ送らない
+    expect(sentCommands().slice(before).map((c) => c['command'])).toEqual(['track.sync']);
+  });
+
+  it('Given 問いかけが出ている / When 「離れた時刻で切る」 / Then 非表示になった位置で止める（track.stop の atMs）', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN);
+    fireEvent.click(button(AWAY_CUT_BUTTON));
+    expect(sentCommands().at(-1)).toEqual({ command: 'track.stop', atMs: LONG_NOW });
+    expect(screen.queryByText(awayPromptText(12))).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 「その間を休憩にする」 / Then 非表示になった位置からの track.away を送る', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN);
+    fireEvent.click(button(AWAY_BREAK_BUTTON));
+    expect(sentCommands().at(-1)).toEqual({ command: 'track.away', fromMs: LONG_NOW });
+    expect(screen.queryByText(awayPromptText(12))).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 「そのまま残す」 / Then 何も送らず、問いかけを下ろす', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN);
+    const before = sentCommands().length;
+    fireEvent.click(button(AWAY_KEEP_BUTTON));
+    expect(sentCommands()).toHaveLength(before);
+    expect(screen.queryByText(awayPromptText(12))).toBeNull();
+  });
+
+  it('Given 離れたのが 10 分に満たない / When 戻る / Then 問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(10 * MIN - 1);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 計測中の区切りが 90 分に満たない / When 12 分離れて戻る / Then 問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW - 13 * MIN));
+    leaveAndReturn(12 * MIN, runningTrack(LONG_NOW - 13 * MIN + 12 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れている間に別の人が止めた / When 戻って新しい写しが届く / Then 問いかけは出ない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN, stoppedTrack(LONG_NOW + 12 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れた間を休憩にする操作が全員の写しに届く / When 写しの undo が away / Then 取り消しの帯に文が出る', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    deliver(runningTrack(LONG_NOW, { rev: 4, undo: { rev: 4, kind: 'away', remainingMs: 8000 } }));
+    expect(screen.getByText(UNDO_NOTE_AWAY)).toBeInTheDocument();
+    fireEvent.click(button(UNDO_BUTTON));
+    expect(sentCommands().at(-1)).toEqual({ command: 'track.undo', rev: 4 });
+  });
+
+  it('Given 切断中 / When 問いかけが出る / Then 送る 2 つは押せず、残すは押せる', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN);
+    act(() => latestSocket().drop());
+    expect(button(AWAY_CUT_BUTTON)).toBeDisabled();
+    expect(button(AWAY_BREAK_BUTTON)).toBeDisabled();
+    expect(button(AWAY_KEEP_BUTTON)).toBeEnabled();
+  });
+});
+
+/**
+ * @requirements #476 FR-6・設計 §4 C6・C7
+ */
+describe('止め忘れの通知', () => {
+  const LONG_NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
+  const created: { title: string; options: NotificationOptions | undefined }[] = [];
+  let permission: NotificationPermission = 'default';
+  let requested = 0;
+
+  class FakeNotification {
+    static get permission(): NotificationPermission {
+      return permission;
+    }
+    static requestPermission(): Promise<NotificationPermission> {
+      requested += 1;
+      permission = nextAnswer;
+      return Promise.resolve(permission);
+    }
+    constructor(title: string, options?: NotificationOptions) {
+      created.push({ title, options });
+    }
+  }
+  let nextAnswer: NotificationPermission = 'granted';
+
+  beforeEach(() => {
+    created.length = 0;
+    permission = 'default';
+    nextAnswer = 'granted';
+    requested = 0;
+    vi.stubGlobal('Notification', FakeNotification);
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
+  /** 設定を入にして、裏に回し、知らせが出る境目を越える。 */
+  async function enable(): Promise<void> {
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    await act(async () => {
+      fireEvent.click(button(NOTIFY_BUTTON));
+      await Promise.resolve();
+    });
+  }
+
+  it('Given 既定 / When 画面を描く / Then 切のまま、許可は求めない', () => {
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(requested).toBe(0);
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toEqual([]);
+  });
+
+  it('Given 通知する / When 押す / Then その時に許可を求め、入にして端末へ覚える', async () => {
+    await enable();
+    expect(requested).toBe(1);
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem(NOTIFY_PREFERENCE_KEY)).toBe('1');
+  });
+
+  it('Given 許可が拒まれた / When 押す / Then 入にならず、拒まれたことを知らせる', async () => {
+    nextAnswer = 'denied';
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    await act(async () => {
+      fireEvent.click(button(NOTIFY_BUTTON));
+      await Promise.resolve();
+    });
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(NOTIFY_DENIED_TEXT)).toBeInTheDocument();
+    expect(localStorage.getItem(NOTIFY_PREFERENCE_KEY)).toBeNull();
+  });
+
+  it('Given 入 / When ページが裏のまま知らせが出る / Then 1 回だけ通知し、文に作業名を出さない', async () => {
+    await enable();
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toHaveLength(1);
+    expect(created[0]!.title).toBe(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MIN));
+    expect(created[0]!.options?.body).toBe(LONG_RUNNING_NOTIFY_BODY);
+    expect(JSON.stringify(created)).not.toContain('Build');
+    // 同じ区切りの写しがもう一度届いても重ねない
+    deliver(runningTrack(LONG_NOW + MIN));
+    expect(created).toHaveLength(1);
+  });
+
+  it('Given 入 / When ページが前面のまま知らせが出る / Then 通知しない', async () => {
+    await enable();
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toEqual([]);
+  });
+
+  it('Given 切 / When ページが裏のまま知らせが出る / Then 通知しない', () => {
+    permission = 'granted';
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toEqual([]);
+  });
+
+  it('Given 通知に未対応のブラウザ / When 画面を描く / Then 設定のボタンを出さない', () => {
+    vi.stubGlobal('Notification', undefined);
+    Reflect.deleteProperty(globalThis, 'Notification');
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(screen.queryByRole('button', { name: NOTIFY_BUTTON })).toBeNull();
+  });
+
+  it('Given 入を覚えた端末 / When 画面を開き直す / Then 入のまま（許可が下りている間）', () => {
+    permission = 'granted';
+    localStorage.setItem(NOTIFY_PREFERENCE_KEY, '1');
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Given 入を覚えたが許可が取り消された / When 画面を開く / Then 切として読む', () => {
+    permission = 'denied';
+    localStorage.setItem(NOTIFY_PREFERENCE_KEY, '1');
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Given 画面を開いた時点で知らせが出ている / When 裏に回る / Then 通知しない（出る瞬間ではない）', () => {
+    permission = 'granted';
+    localStorage.setItem(NOTIFY_PREFERENCE_KEY, '1');
+    renderRoom(runningTrack(LONG_NOW + MIN));
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW + 2 * MIN));
+    expect(created).toEqual([]);
   });
 });

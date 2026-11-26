@@ -25,6 +25,7 @@ import {
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
 import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion } from '@tasuki/web-kit/room';
 import { Notices } from '../components/Notices';
+import { NotifyToggle } from '../components/NotifyToggle';
 import { NowPanel } from '../components/NowPanel';
 import { SwitchPanel } from '../components/SwitchPanel';
 import { TakeHome } from '../components/TakeHome';
@@ -33,15 +34,18 @@ import { TotalsPanel } from '../components/TotalsPanel';
 import { CLOSE_BUTTON, FOOTNOTE, PAGE_HEADING, longRunningText } from '../copy';
 import { useAnnouncement } from '../hooks/use-announcement';
 import { useSaveToDevice } from '../hooks/use-saved-count';
+import { useLongRunningNotify } from '../hooks/use-long-running-notify';
+import { useNotifySetting } from '../hooks/use-notify-setting';
 import { useTabTitle } from '../hooks/use-tab-title';
 import { useTrackClock } from '../hooks/use-track-clock';
 import { useTrackKeys } from '../hooks/use-track-keys';
 import { useTrackSync, type TrackSync } from '../hooks/use-track-sync';
 import { useUndoSeconds } from '../hooks/use-undo-seconds';
 import { downloadTextFile } from '../platform/download';
+import { usePageAway } from '../platform/use-page-away';
 import { localTzOffsetMin } from '../platform/timezone';
 import { hubPathFor, redirectTo, savedPathFor } from '../router';
-import { nameOf, tabTitleOf } from '../track-view';
+import { awayPromptOf, nameOf, tabTitleOf } from '../track-view';
 
 const MS_PER_MIN = 60_000;
 
@@ -96,6 +100,9 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
   const reducedMotion = usePrefersReducedMotion();
   const { nowMs, getNow } = useTrackClock(view, sync.receivedAt, reducedMotion);
   const saved = useSaveToDevice(view, getNow);
+  // 離れていた間は端末だけが覚える（サーバーへは送らない）。問いかけは戻ってきた本人の画面にだけ出る
+  const pageAway = usePageAway(getNow);
+  const notify = useNotifySetting();
   const undoSeconds = useUndoSeconds(view.undo, sync.receivedAt);
   // 「いつから」は止める・休憩にする・切り替えるのどれにも効く。1 回使ったら「いまから」へ戻す（次の操作まで持ち越さない）
   const [backMin, setBackMin] = useState<BackMinutes | null>(null);
@@ -109,6 +116,8 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
   const totals = totalsOf(view, nowMs);
   const longRunning = longRunningOf(view, nowMs);
   const longText = longRunning === null ? null : longRunningText(nameOf(longRunning), LONG_RUNNING_NOTICE_MS / MS_PER_MIN);
+  const awayPrompt = awayPromptOf(view, nowMs, pageAway.returned);
+  useLongRunningNotify(longRunning?.id ?? null, notify.enabled);
   const announcement = useAnnouncement(view, longText);
   useTabTitle(tabTitleOf(view, nowMs));
 
@@ -145,7 +154,24 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
 
   return (
     <>
-      <Notices view={view} tzOffsetMin={tzOffsetMin} longRunningText={longText} canOperate={canOperate} onResume={resume} onDismiss={sync.dismissOffer} />
+      <Notices
+        view={view}
+        tzOffsetMin={tzOffsetMin}
+        longRunningText={longText}
+        awayPrompt={awayPrompt}
+        canOperate={canOperate}
+        onAwayKeep={pageAway.clear}
+        onAwayCut={() => {
+          if (awayPrompt !== null) sync.stopAt(awayPrompt.fromMs);
+          pageAway.clear();
+        }}
+        onAwayBreak={() => {
+          if (awayPrompt !== null) sync.away(awayPrompt.fromMs);
+          pageAway.clear();
+        }}
+        onResume={resume}
+        onDismiss={sync.dismissOffer}
+      />
       <div className="ui-workspace">
         <div className="ui-workspace-side track-column">
           <NowPanel
@@ -167,6 +193,7 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
             onPin={sync.pin}
             submitRef={startButtonRef}
           />
+          <NotifyToggle setting={notify} />
         </div>
         <div className="ui-workspace-main track-column">
           <TotalsPanel totals={totals} />

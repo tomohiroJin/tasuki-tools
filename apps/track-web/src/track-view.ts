@@ -5,7 +5,8 @@
  * （名前・経過の h:mm:ss・時刻・描き直す秒・取り消しの残り・± の行き先・読み上げの文・タブの題）を持つ。
  * **端末（`document`・時計・時間帯）は読まない。** 要る値は引数で受ける。
  */
-import { durationOf, formatClock, formatDuration, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { MAX_LOOKBACK_MS, durationOf, formatClock, formatDuration, longRunningOf, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { AWAY_PROMPT_MIN_MS } from './limits';
 import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from './copy';
 
 const MS_PER_SEC = 1000;
@@ -107,4 +108,37 @@ export function announcementFor(prev: TrackView | null, next: TrackView): string
 export function tabTitleOf(view: TrackView, nowMs: number): string | null {
   const running = runningSegmentOf(view);
   return running === null ? null : tabTitle(nameOf(running), formatDuration(durationOf(running, nowMs)));
+}
+
+/** 表に戻ったときに端末が覚えていること。**端末だけが持つ**（サーバーへ送らず、状態にも載せない。設計 §4 C2） */
+export interface AwayReturn {
+  /** 非表示になった時点の時刻軸の位置 */
+  readonly fromMs: number;
+  /** 非表示だった時間（端末の壁時計。スリープも含めて測る） */
+  readonly awayMs: number;
+}
+
+/** 離れていたときの問いかけ */
+export interface AwayPrompt {
+  readonly fromMs: number;
+  /** 離れていた分（切り捨て） */
+  readonly awayMin: number;
+}
+
+/**
+ * 離れていたときの問いかけを出すか（FR-27・設計 §4 C1）。次を**すべて**満たすときだけ出す。
+ *
+ * - 非表示だった時間が `AWAY_PROMPT_MIN_MS`（10 分）以上
+ * - 計測中の区切りが `LONG_RUNNING_NOTICE_MS`（90 分）以上続いている
+ * - その区切りは、非表示になる前から始まっている（離れている間に別の人が始めた区切りは、離れた時刻で切れない）
+ * - 非表示になった位置が、手直しで置ける範囲（いまから `MAX_LOOKBACK_MS` の内）にある（外ならサーバーが拒む）
+ *
+ * 写しが更新されて条件を外れたら（他の人が止めた・切り替えたなど）、自然に出なくなる。
+ */
+export function awayPromptOf(view: TrackView, nowMs: number, away: AwayReturn | null): AwayPrompt | null {
+  if (away === null || away.awayMs < AWAY_PROMPT_MIN_MS) return null;
+  const running = longRunningOf(view, nowMs);
+  if (running === null || running.startMs >= away.fromMs) return null;
+  if (nowMs - away.fromMs > MAX_LOOKBACK_MS) return null;
+  return { fromMs: away.fromMs, awayMin: Math.floor(away.awayMs / 60_000) };
 }
