@@ -3,6 +3,7 @@
  *
  * 時刻の入力は日付を持たないので、「いま」より前の直近の時刻として読む（`time-input.ts`。純粋関数）。
  * 足した範囲に区切りがあれば、足した区切りで上書きされる（サーバーの規則。欄の下に 1 行で断る）。
+ * 押す前に、読み取った範囲と長さを欄の中に出す（前日に読んだ端には前日と添える。読み上げの対象にはしない）。
  * 範囲の誤り（時刻が無い・順が逆・いまより先）は送る前にここで示し、それ以外の拒否はサーバーの文が画面の上に出る。
  */
 import { useId, useState, type FormEvent } from 'react';
@@ -25,10 +26,12 @@ import {
   INSERT_START_FIELD,
   INSERT_SUBMIT,
   INSERT_YESTERDAY_NOTE,
+  insertPreviewEdgeText,
+  insertPreviewText,
   KIND_BREAK,
   KIND_WORK,
 } from '../copy';
-import { insertRangeOf, type InsertRangeError } from '../time-input';
+import { insertPreviewOf, insertRangeOf, lengthHm, type InsertRangeError } from '../time-input';
 
 const ERROR_TEXT: Record<InsertRangeError, string> = {
   time: INSERT_ERROR_TIME,
@@ -62,6 +65,9 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
   const [end, setEnd] = useState('');
   const [lengthMin, setLengthMin] = useState('');
   const [error, setError] = useState<{ code: InsertRangeError; yesterday: boolean } | null>(null);
+
+  // 入力のたびに読み直す（「いま」は描くたびに取り直す）。読み取れない入力では出さない
+  const preview = insertPreviewOf({ start, mode, end, lengthMin }, getNow(), epochWallMs, tzOffsetMin);
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -134,6 +140,11 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
           </div>
         )}
       </div>
+      {preview !== null && (
+        <p className="track-hint">
+          {insertPreviewText(insertPreviewEdgeText(preview.startClock, preview.startYesterday), insertPreviewEdgeText(preview.endClock, preview.endYesterday), lengthHm(preview.lengthMin))}
+        </p>
+      )}
       <p className="track-hint">{INSERT_NOTE}</p>
       {error !== null && (
         <p id={errorId} className="track-form-error ui-note ui-note--error" role="alert">

@@ -36,6 +36,8 @@ import {
   INSERT_ERROR_TIME,
   INSERT_LENGTH_FIELD,
   INSERT_MODE_FIELD,
+  insertPreviewEdgeText,
+  insertPreviewText,
   INSERT_START_FIELD,
   INSERT_SUBMIT,
   INSERT_YESTERDAY_NOTE,
@@ -466,11 +468,20 @@ describe('時系列と手直し', () => {
     expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
   });
 
-  it('Given 最初の区切りの始まり / When 終わりより後に見える時刻を入れる / Then 前日の時刻として受けず、送らずに知らせる', () => {
-    // Review 0〜30 分・いま 60 分。61 分の時刻は終わりより後。動かす前の端（0 分）に近い日で読むので、前日の 23 時間の区切りにならない
+  it('Given 最初の区切りの始まり / When 終わりより後に見える時刻を入れる / Then 範囲に収まる読み方（前日）があれば受け、収まらなければ送らずに知らせる', () => {
+    // Review 0〜30 分・いま 60 分。始まりの下限は前日の 60 分の位置（11:00）。61 分の時刻は今日では終わりより後だが、前日の読みは下限に収まる
     const view = stoppedTrack();
     const timeline = openReview(view);
     fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 61 * MIN) } });
+    fireEvent.click(within(timeline.getByRole('group', { name: EDGE_START })).getByRole('button', { name: EDGE_SET_BUTTON }));
+    expect(sentCommands()).toEqual([{ command: 'track.segment.adjust', id: 'g-1', edge: 'start', atMs: 61 * MIN - 24 * 60 * MIN }]);
+  });
+
+  it('Given 最初の区切りの始まり / When どの読み方も範囲に収まらない時刻を入れる / Then 送らずに知らせる', () => {
+    // 59 分の時刻は、今日では終わりより後・前日では下限（前日の 60 分の位置）より前
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 59 * MIN) } });
     fireEvent.click(within(timeline.getByRole('group', { name: EDGE_START })).getByRole('button', { name: EDGE_SET_BUTTON }));
     expect(sentCommands()).toEqual([]);
     expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
@@ -543,6 +554,39 @@ describe('抜けを足す', () => {
     fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
     expect(timeline.getByRole('alert')).toHaveTextContent(`${INSERT_YESTERDAY_NOTE}${INSERT_ERROR_ORDER}`);
     expect(sentCommands()).toEqual([]);
+  });
+
+  it('Given 始まりと終わりを入れた / When 押す前 / Then 読み取った範囲と長さを出す（読み上げの対象にはしない）', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 10 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 25 * MIN) } });
+    const preview = timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 10 * MIN), false), insertPreviewEdgeText(clock(view, 25 * MIN), false), '0:15'));
+    expect(preview.closest('[aria-live]')).toBeNull();
+    expect(timeline.queryByRole('alert')).toBeNull();
+    expect(timeline.queryByRole('status')).toBeNull();
+  });
+
+  it('Given 始まりが前日に読み替わる（23.5 時間） / When 押す前 / Then 前日を添えた範囲と長さを出し、終わりで指定しても長さで指定しても同じ', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    // いまは 60 分の位置。90 分の位置の時刻は前日、50 分の位置は今日
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 90 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 50 * MIN) } });
+    const expected = insertPreviewText(insertPreviewEdgeText(clock(view, 90 * MIN), true), insertPreviewEdgeText(clock(view, 50 * MIN), false), '23:20');
+    expect(timeline.getByText(expected)).toBeInTheDocument();
+    fireEvent.change(timeline.getByRole('combobox', { name: INSERT_MODE_FIELD }), { target: { value: 'length' } });
+    fireEvent.change(timeline.getByRole('textbox', { name: INSERT_LENGTH_FIELD }), { target: { value: String(23 * 60 + 20) } });
+    expect(timeline.getByText(expected)).toBeInTheDocument();
+  });
+
+  it('Given 読み取れない入力（順が逆） / When 押す前 / Then 範囲は出さない', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 10 * MIN) } });
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
   });
 
   it('Given 始まりと長さ・種類は休憩 / When 足す / Then 終わりは始まりに長さを足した位置で、名前は空になる', () => {
@@ -635,7 +679,7 @@ describe('持ち帰り', () => {
     expect(button(START_BUTTON)).toHaveFocus();
   });
 
-  it('Given 計測中 / When 記録を消して空の写しが届く / Then フォーカスは主のボタン（切り替える）へ移る', () => {
+  it('Given 計測中 / When 記録を消して空の写しが届く / Then フォーカスは開始のボタンへ移る', () => {
     renderRoom(trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', 'Build', 0, null)] }));
     fireEvent.click(button(CLEAR_BUTTON));
     fireEvent.click(button(CLEAR_CONFIRM_YES));

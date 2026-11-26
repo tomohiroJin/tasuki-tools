@@ -98,6 +98,10 @@ export const INSERT_ERROR_LENGTH = '長さは 1 分以上の整数で入れて�
 export const INSERT_ERROR_ORDER = '終わりは始まりより後にしてください。';
 export const INSERT_ERROR_FUTURE = 'いまより先の時間は足せません。';
 /** 前日として読み替えた時刻があるときに、誤りの文の前へ添える */
+/** 押す前に欄の中へ出す、読み取った範囲と長さ（読み上げの対象にしない） */
+export const INSERT_PREVIEW_YESTERDAY = '前日';
+export const insertPreviewEdgeText = (clock: string, yesterday: boolean): string => (yesterday ? `${INSERT_PREVIEW_YESTERDAY} ${clock}` : clock);
+export const insertPreviewText = (startText: string, endText: string, lengthText: string): string => `読み取った時間 ${startText} から ${endText}（長さ ${lengthText}）`;
 export const INSERT_YESTERDAY_NOTE = '前日の時刻として読みました。';
 
 // 持ち帰り
