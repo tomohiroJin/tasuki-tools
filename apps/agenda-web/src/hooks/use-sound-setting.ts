@@ -9,12 +9,39 @@
  *   画面のどこかに触れて解錠されたときも `on` になる。鳴らすのは `on` のときだけ
  */
 import { useCallback, useState, useSyncExternalStore } from 'react';
-import { isAudioUnlocked, subscribeAudioState, unlockAudio } from '../platform/sound';
+import {
+  DEFAULT_CHIME_ID,
+  isAudioUnlocked,
+  isChimeId,
+  preloadChime,
+  subscribeAudioState,
+  unlockAudio,
+  type ChimeId,
+} from '../platform/sound';
 
 /** off = 音なし・locked = 音ありを覚えているが解錠前（押して有効にする）・on = 音あり（鳴らせる） */
 export type SoundState = 'off' | 'locked' | 'on';
 
 export const SOUND_SETTING_KEY = 'tasuki.agenda.sound';
+/** 時間切れの音の選択（#669 D5。端末ごと。読めない値・未知の値は既定の時打ち） */
+export const CHIME_SETTING_KEY = 'tasuki.agenda.chime';
+
+function readChime(): ChimeId {
+  try {
+    const v = localStorage.getItem(CHIME_SETTING_KEY);
+    return isChimeId(v) ? v : DEFAULT_CHIME_ID;
+  } catch {
+    return DEFAULT_CHIME_ID;
+  }
+}
+
+function writeChime(id: ChimeId): void {
+  try {
+    localStorage.setItem(CHIME_SETTING_KEY, id);
+  } catch {
+    /* 覚えられないだけ。いまの画面の選択は効く */
+  }
+}
 
 function readSetting(): boolean {
   try {
@@ -32,8 +59,21 @@ function writeSetting(on: boolean): void {
   }
 }
 
-export function useSoundSetting(): { soundState: SoundState; soundOn: boolean; toggleSound: () => void } {
+export function useSoundSetting(): {
+  soundState: SoundState;
+  soundOn: boolean;
+  toggleSound: () => void;
+  chimeId: ChimeId;
+  setChimeId: (id: ChimeId) => void;
+} {
   const [remembered, setRemembered] = useState(readSetting);
+  const [chimeId, setChimeIdState] = useState(readChime);
+  const setChimeId = useCallback((id: ChimeId) => {
+    setChimeIdState(id);
+    writeChime(id);
+    // 選んだ音を先に読む（時間切れの瞬間に間に合わせる）
+    preloadChime(id);
+  }, []);
   const unlocked = useSyncExternalStore(subscribeAudioState, isAudioUnlocked, () => false);
   const soundState: SoundState = !remembered ? 'off' : unlocked ? 'on' : 'locked';
   const toggleSound = useCallback(() => {
@@ -47,5 +87,5 @@ export function useSoundSetting(): { soundState: SoundState; soundOn: boolean; t
     writeSetting(next);
     if (next) unlockAudio();
   }, [soundState]);
-  return { soundState, soundOn: soundState === 'on', toggleSound };
+  return { soundState, soundOn: soundState === 'on', toggleSound, chimeId, setChimeId };
 }

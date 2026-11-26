@@ -19,6 +19,7 @@ import { useLocalClock } from '../hooks/use-local-clock';
 import { useRunSignals } from '../hooks/use-run-signals';
 import { useSoundSetting } from '../hooks/use-sound-setting';
 import { useWallClock } from '../hooks/use-wall-clock';
+import { preloadChime } from '../platform/sound';
 import { CLOSE_BUTTON, PAGE_HEADING } from '../copy';
 import { useAgendaSync, type AgendaSync } from '../hooks/use-agenda-sync';
 import { hubPathFor, redirectTo } from '../router';
@@ -103,8 +104,13 @@ function PhaseView({
   const reducedMotion = usePrefersReducedMotion();
   const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
   const wallNow = useWallClock();
-  const { soundState, soundOn, toggleSound } = useSoundSetting();
-  const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
+  const { soundState, soundOn, toggleSound, chimeId } = useSoundSetting();
+  const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, chimeId, reducedMotion });
+  // 進める画面になったら、選んだ音を先に読む（時間切れの瞬間に間に合わせる・#669 D8）
+  const running = view.phase !== 'idle';
+  useEffect(() => {
+    if (running) preloadChime(chimeId);
+  }, [running, chimeId]);
   // 「開始」を押した本人の印（押した時刻）。進める画面の最初の描画で消費する（他の参加者の画面は位相が変わっても寄せない・#455）。
   // 返事が来ない開始（同じ文言の失敗で表示が変わらない・送信が黙って落ちた）でも印が残らないよう、時間で切る
   const startedAtRef = useRef<number | null>(null);
