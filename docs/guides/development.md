@@ -21,7 +21,7 @@
 | ffmpeg（E2E の動画の記録） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること（`playwright install chromium`・`webkit` が一緒に入れる。`docs/adr/0033` 決定 3） |
 | Caddy（E2E） | `toolchain.json` の `caddy` | 完全一致（ハーネスが取得してキャッシュする） |
 
-**`pnpm test`・`pnpm e2e`・変異検査は、始める前に版を比べ、合わなければ始めません。**
+**`pnpm test`・`pnpm e2e`・`pnpm e2e:webkit`・変異検査は、始める前に版を比べ、合わなければ始めません。**
 どの道具がどの版で、どう揃えるかを出して止まります。先に確かめるだけなら次を叩きます。
 
 ```bash
