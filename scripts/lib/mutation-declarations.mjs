@@ -14234,4 +14234,12 @@ export const MUTATIONS = [
     tests: ["tests/room-page-effect.test.tsx"],
     note: RESERVED_2990_3019 + " " + "#670。RoomPage.tsx。連続・休憩・割れの添え書きがカットインに出ない。",
   },
+  {
+    id: 3004,
+    label: "開票の演出で、割れを全員一致・全員バラバラより先に見る",
+    patch: "m3004-effect-split-hides-scattered.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2990_3019 + " " + "#670 のまとめ役の確認。全員が違う数字の札は必ず割れにも当たるので、#639 の「全員バラバラ」が数字だけの回で一度も出なくなる。",
+  },
 ];

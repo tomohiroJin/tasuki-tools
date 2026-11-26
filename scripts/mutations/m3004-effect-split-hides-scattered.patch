@@ -1,0 +1,14 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 2a8e2af7..1fa212be 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -80,8 +80,8 @@ export function resultsEffectOf(
+   // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
+   if (judgeAllBreak(round.votes)) return 'break';
+   const agreement = judgeAgreement(round.votes);
+-  if (agreement !== null) return agreement;
+   if (findSpread(round.votes) !== null) return 'split';
++  if (agreement !== null) return agreement;
+   if (judgeNearAgreement(round.votes)) return 'near';
+   return 'complete';
+ }
