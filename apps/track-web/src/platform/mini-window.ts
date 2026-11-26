@@ -62,6 +62,11 @@ export function watchRootAttributes(source: Document, target: Document): () => v
  * **規則の文字列は書き換えない**（`data:` の値の中の入れ子の `url(%23n)` まで壊すため）。
  * 場所を持つシート（`href` あり）は、規則が読めても絶対 URL の `<link>` で引く（相対の `url(...)` はそのシートの場所で読まれる）。
  * 場所を持たない `<style>` は、規則をそのまま `<style>` へ写す。`<html>` の属性も写す。
+ *
+ * **本番では `<base>` は効かない**（`deploy/caddy/tasuki.conf` の CSP が `base-uri 'none'`。窓は開いた側の CSP を受け継ぐ）。
+ * 本番のビルドでは CSS はすべて場所を持つシート（`<link>`）なので、`<link>` で引き直すだけで足りる。
+ * `<base>` が効くのは、開発時に Vite が差し込む場所を持たない `<style>` だけである。
+ * 本番で場所を持たない `<style>` を差し込む形を持ち込むと、窓の中で相対の `url(...)` が解決されなくなる。
  */
 export function copyStylesInto(source: Document, target: Document): void {
   copyRootAttributes(source, target);
