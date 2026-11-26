@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+index 3036eba9..f07a18a8 100644
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -193,7 +193,6 @@ function fetchBytes(id: ChimeId): Promise<ArrayBuffer | null> {
+         return null;
+       }
+     })();
+-    bytesLoads.set(id, load);
+   }
+   return load;
+ }

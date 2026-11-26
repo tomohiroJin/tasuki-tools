@@ -292,6 +292,9 @@ const RESERVED_2920_2929 =
 const RESERVED_2930_2949 =
   "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
 
+const RESERVED_2950_2969 =
+  "**対応表より後に足した変異。** 2950〜2969 は #669（agenda の時間切れの音を選べる）の音の中核に割り当てた範囲。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13953,5 +13956,45 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/turbo-env.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
+  },
+  {
+    id: 2950,
+    label: "時間切れの音を、解錠前（running でない）でも鳴らす",
+    patch: "m2950-play-chime-ignores-lock.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "解錠前の時間切れの音が resume を待って残り、次に画面を触った瞬間に遅れて鳴る。",
+  },
+  {
+    id: 2951,
+    label: "覚えた音の読み出しが、未知の値を既定へ戻さずそのまま使う",
+    patch: "m2951-chime-setting-keeps-unknown.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/chime-setting.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "一覧に無い id（古い版・手で書き換えた値）を覚えていると、選択欄が空になり時間切れの音が決まらない。",
+  },
+  {
+    id: 2952,
+    label: "ファイルの音が読めていないとき、時打ちで代えずに黙る",
+    patch: "m2952-unloaded-file-chime-stays-silent.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "音ファイルが未読・読み込み失敗・デコード失敗のとき、時間切れに何も鳴らない（D8 の代わりの時打ちが破れる）。",
+  },
+  {
+    id: 2953,
+    label: "時間切れに、選んだ音でなく時打ちを鳴らす",
+    patch: "m2953-run-signals-plays-strike-not-chosen.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "選んだ音を無視して常に時打ちが鳴る（音を選べる機能が働かない）。",
+  },
+  {
+    id: 2954,
+    label: "同じ音を何度も読み込む（fetch の結果を覚えない）",
+    patch: "m2954-chime-fetch-not-cached.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "選ぶたび・画面を開くたびに同じ mp3 を取り直し、通信が無駄に増える。",
   },
 ];

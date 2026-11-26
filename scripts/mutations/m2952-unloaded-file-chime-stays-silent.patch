@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+index 3036eba9..17659253 100644
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -244,6 +244,7 @@ function playNow(ctx: AudioContext, id: ChimeId): void {
+     return;
+   }
+   const buffer = buffers.get(id);
++  if (buffer === undefined && FILE_NAMES[id] !== undefined) return;
+   if (buffer !== undefined) {
+     void playBuffer(ctx, buffer);
+     return;
