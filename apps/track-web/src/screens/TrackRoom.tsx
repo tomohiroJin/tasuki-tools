@@ -8,7 +8,7 @@
  * 玄関のそのルームへ送り返す。切断中（`!sync.joined`）は操作を押させない。
  * **誰が操作したかは、画面のどこにも出さない**（写しに無い。設計 §6）。
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   LONG_RUNNING_NOTICE_MS,
   candidatesOf,
@@ -45,7 +45,7 @@ import { downloadTextFile } from '../platform/download';
 import { usePageAway } from '../platform/use-page-away';
 import { localTzOffsetMin } from '../platform/timezone';
 import { hubPathFor, redirectTo, savedPathFor } from '../router';
-import { awayPromptOf, nameOf, tabTitleOf } from '../track-view';
+import { awayPromptOf, isAwayPromptStillValid, nameOf, tabTitleOf, type AwayPrompt } from '../track-view';
 
 const MS_PER_MIN = 60_000;
 
@@ -100,8 +100,10 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
   const reducedMotion = usePrefersReducedMotion();
   const { nowMs, getNow } = useTrackClock(view, sync.receivedAt, reducedMotion);
   const saved = useSaveToDevice(view, getNow);
+  const running = runningSegmentOf(view);
   // 離れていた間は端末だけが覚える（サーバーへは送らない）。問いかけは戻ってきた本人の画面にだけ出る
-  const pageAway = usePageAway(getNow);
+  const pageAway = usePageAway(() => ({ position: getNow(), runningId: running?.id ?? null }));
+  const [shownAwayPrompt, setShownAwayPrompt] = useState<AwayPrompt | null>(null);
   const notify = useNotifySetting();
   const undoSeconds = useUndoSeconds(view.undo, sync.receivedAt);
   // 「いつから」は止める・休憩にする・切り替えるのどれにも効く。1 回使ったら「いまから」へ戻す（次の操作まで持ち越さない）
@@ -111,12 +113,24 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
   const startButtonRef = useRef<HTMLButtonElement>(null);
   const focusStart = useCallback((): void => startButtonRef.current?.focus(), []);
 
-  const running = runningSegmentOf(view);
   const candidates = candidatesOf(view, sync.topic?.topic?.title ?? null);
   const totals = totalsOf(view, nowMs);
   const longRunning = longRunningOf(view, nowMs);
   const longText = longRunning === null ? null : longRunningText(nameOf(longRunning), LONG_RUNNING_NOTICE_MS / MS_PER_MIN);
-  const awayPrompt = awayPromptOf(view, nowMs, pageAway.returned);
+  // 戻った後に届いた写しで 1 度だけ判定し、出すと決めたら持つ（判定を済ませた記録は忘れる）。対象の区切りが止まれば下ろす
+  const returned = pageAway.returned;
+  const clearReturned = pageAway.clear;
+  useEffect(() => {
+    if (returned === null || sync.receivedAt < returned.returnedAt) return;
+    const prompt = awayPromptOf(view, nowMs, sync.receivedAt, returned);
+    clearReturned();
+    if (prompt !== null) setShownAwayPrompt(prompt);
+  }, [returned, sync.receivedAt, view, nowMs, clearReturned]);
+  const awayPrompt = shownAwayPrompt !== null && isAwayPromptStillValid(view, shownAwayPrompt) ? shownAwayPrompt : null;
+  const answerAway = (send: (fromMs: number) => void): void => {
+    if (awayPrompt !== null) send(awayPrompt.fromMs);
+    setShownAwayPrompt(null);
+  };
   useLongRunningNotify(longRunning?.id ?? null, notify.enabled);
   const announcement = useAnnouncement(view, longText);
   useTabTitle(tabTitleOf(view, nowMs));
@@ -160,15 +174,9 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
         longRunningText={longText}
         awayPrompt={awayPrompt}
         canOperate={canOperate}
-        onAwayKeep={pageAway.clear}
-        onAwayCut={() => {
-          if (awayPrompt !== null) sync.stopAt(awayPrompt.fromMs);
-          pageAway.clear();
-        }}
-        onAwayBreak={() => {
-          if (awayPrompt !== null) sync.away(awayPrompt.fromMs);
-          pageAway.clear();
-        }}
+        onAwayKeep={() => setShownAwayPrompt(null)}
+        onAwayCut={() => answerAway(sync.stopAt)}
+        onAwayBreak={() => answerAway(sync.away)}
         onResume={resume}
         onDismiss={sync.dismissOffer}
       />

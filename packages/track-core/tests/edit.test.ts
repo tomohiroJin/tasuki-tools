@@ -275,8 +275,9 @@ describe("away（離れていた間を休憩にする・FR-27）", () => {
     expect(codeOf(away(sample(), { fromMs: 50 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
     expect(codeOf(away(sample(), { fromMs: 45 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
   });
-  it("いまより先・いまとの差が 1 秒未満は TRACK_BACKDATE_TOO_FAR", () => {
+  it("いまより先・いまちょうど・いまとの差が 1 秒未満は TRACK_BACKDATE_TOO_FAR", () => {
     expect(codeOf(away(sample(), { fromMs: 61 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    expect(codeOf(away(sample(), { fromMs: 60 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
     expect(codeOf(away(sample(), { fromMs: 60 * MIN - MIN_SEGMENT_MS + 1, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
     const edge = must(away(sample(), { fromMs: 60 * MIN - MIN_SEGMENT_MS, now: NOW }));
     expect(edge.segments.slice(3).map((g) => [g.kind, g.startMs, g.endMs])).toEqual([
@@ -285,7 +286,7 @@ describe("away（離れていた間を休憩にする・FR-27）", () => {
       ["work", 60 * MIN, null],
     ]);
   });
-  it("いまから 24 時間より前は TRACK_BACKDATE_TOO_FAR", () => {
+  it("いまから 24 時間より前に置こうとすると、上書きの範囲の規則（insertSegment）で拒まれる", () => {
     const longRunning = must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
     const now = at(30 * 60);
     expect(codeOf(away(longRunning, { fromMs: 6 * 60 * MIN - 1, now }))).toBe("TRACK_BACKDATE_TOO_FAR");

@@ -1029,40 +1029,47 @@ function setVisibility(state: 'visible' | 'hidden'): void {
  * @requirements #476 FR-27・設計 §4 C1〜C5
  */
 describe('離れていたとき', () => {
-  /** Build が 45 分から計測中。135 分で、ちょうど 90 分続いている */
+  /** Build（g-3）が 45 分から計測中。135 分で、ちょうど 90 分続いている */
   const LONG_NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
-  let wall = 0;
 
-  beforeEach(() => {
-    wall = 1_000_000;
-    vi.spyOn(Date, 'now').mockImplementation(() => wall);
-  });
   afterEach(() => {
     Reflect.deleteProperty(document, 'visibilityState');
+    Reflect.deleteProperty(window, 'documentPictureInPicture');
   });
 
-  /** 隠れて、`awayMs` たって表に戻り、サーバーの新しい写しが届くところまで進める。 */
-  function leaveAndReturn(awayMs: number, after: TrackView = runningTrack(LONG_NOW + awayMs)): void {
+  /** 隠れて、`awayMs` たって表に戻る（写しはまだ届かない）。 */
+  function leaveAndReturn(awayMs: number): void {
     setVisibility('hidden');
     nowMs += awayMs;
-    wall += awayMs;
     setVisibility('visible');
+  }
+
+  /** 戻った後に、サーバーの新しい写し（位置は非表示になった位置から `awayMs` 後）が届く。 */
+  function leaveReturnAndSync(awayMs: number, after: TrackView = runningTrack(LONG_NOW + awayMs)): void {
+    leaveAndReturn(awayMs);
     deliver(after);
   }
 
-  it('Given 90 分続く計測中 / When 12 分離れて戻る / Then 戻った本人の画面に問いかけが出て、サーバーへは何も送らない', () => {
+  it('Given 90 分続く計測中 / When 12 分離れて戻り写しが届く / Then 戻った本人の画面に問いかけが出て、離れたことは送らない', () => {
     renderRoom(runningTrack(LONG_NOW));
     const before = sentCommands().length;
-    leaveAndReturn(12 * MIN);
+    leaveReturnAndSync(12 * MIN);
     expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
-    expect(button(AWAY_KEEP_BUTTON)).toBeInTheDocument();
-    // 戻ったときに送るのは写しの取り直し（track.sync）だけ。離れたことはサーバーへ送らない
+    // 戻ったときに送るのは写しの取り直し（track.sync）だけ。離れたこと自体はサーバーへ送らない
     expect(sentCommands().slice(before).map((c) => c['command'])).toEqual(['track.sync']);
+  });
+
+  it('Given 戻った直後で写しがまだ届かない / When 判定する / Then 問いかけを出さず、写しが届いてから出す', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+    deliver(runningTrack(LONG_NOW + 12 * MIN));
+    expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
   });
 
   it('Given 問いかけが出ている / When 「離れた時刻で切る」 / Then 非表示になった位置で止める（track.stop の atMs）', () => {
     renderRoom(runningTrack(LONG_NOW));
-    leaveAndReturn(12 * MIN);
+    leaveReturnAndSync(12 * MIN);
     fireEvent.click(button(AWAY_CUT_BUTTON));
     expect(sentCommands().at(-1)).toEqual({ command: 'track.stop', atMs: LONG_NOW });
     expect(screen.queryByText(awayPromptText(12))).toBeNull();
@@ -1070,7 +1077,7 @@ describe('離れていたとき', () => {
 
   it('Given 問いかけが出ている / When 「その間を休憩にする」 / Then 非表示になった位置からの track.away を送る', () => {
     renderRoom(runningTrack(LONG_NOW));
-    leaveAndReturn(12 * MIN);
+    leaveReturnAndSync(12 * MIN);
     fireEvent.click(button(AWAY_BREAK_BUTTON));
     expect(sentCommands().at(-1)).toEqual({ command: 'track.away', fromMs: LONG_NOW });
     expect(screen.queryByText(awayPromptText(12))).toBeNull();
@@ -1078,28 +1085,71 @@ describe('離れていたとき', () => {
 
   it('Given 問いかけが出ている / When 「そのまま残す」 / Then 何も送らず、問いかけを下ろす', () => {
     renderRoom(runningTrack(LONG_NOW));
-    leaveAndReturn(12 * MIN);
+    leaveReturnAndSync(12 * MIN);
     const before = sentCommands().length;
     fireEvent.click(button(AWAY_KEEP_BUTTON));
     expect(sentCommands()).toHaveLength(before);
     expect(screen.queryByText(awayPromptText(12))).toBeNull();
   });
 
+  it('Given 問いかけが出ている / When 何も押さずに写しが届き続ける / Then 何も送らず、問いかけは出たまま', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    const before = sentCommands().length;
+    nowMs += 30_000;
+    deliver(runningTrack(LONG_NOW + 12 * MIN + 30_000));
+    expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
+    expect(sentCommands()).toHaveLength(before);
+  });
+
   it('Given 離れたのが 10 分に満たない / When 戻る / Then 問いかけを出さない', () => {
     renderRoom(runningTrack(LONG_NOW));
-    leaveAndReturn(10 * MIN - 1);
+    leaveReturnAndSync(10 * MIN - 1);
     expect(screen.queryByText(/離れていました/)).toBeNull();
   });
 
   it('Given 計測中の区切りが 90 分に満たない / When 12 分離れて戻る / Then 問いかけを出さない', () => {
     renderRoom(runningTrack(LONG_NOW - 13 * MIN));
-    leaveAndReturn(12 * MIN, runningTrack(LONG_NOW - 13 * MIN + 12 * MIN));
+    leaveReturnAndSync(12 * MIN, runningTrack(LONG_NOW - 13 * MIN + 12 * MIN));
     expect(screen.queryByText(/離れていました/)).toBeNull();
   });
 
   it('Given 離れている間に別の人が止めた / When 戻って新しい写しが届く / Then 問いかけは出ない', () => {
     renderRoom(runningTrack(LONG_NOW));
-    leaveAndReturn(12 * MIN, stoppedTrack(LONG_NOW + 12 * MIN));
+    leaveReturnAndSync(12 * MIN, stoppedTrack(LONG_NOW + 12 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れている間に別の区切りへ切り替わった / When 戻って新しい写しが届く / Then 問いかけは出ない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    const switched = trackView({
+      nowMs: LONG_NOW + 12 * MIN,
+      rev: 9,
+      segments: [seg('g-3', 'work', 'Build', 45 * MIN, LONG_NOW + 2 * MIN), seg('g-4', 'work', 'Test', LONG_NOW + 2 * MIN, null)],
+    });
+    leaveReturnAndSync(12 * MIN, switched);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 他の人が止めた写しが届く / Then 問いかけを下ろす', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    deliver(stoppedTrack(LONG_NOW + 13 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 短く離れて問いかけが出なかった / When 後で長く使い続ける / Then 古い記録で問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(MIN, runningTrack(LONG_NOW + MIN));
+    nowMs += 20 * MIN;
+    deliver(runningTrack(LONG_NOW + 21 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れている間ミニ表示の窓が開いていた / When 戻って写しが届く / Then 問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: { window: {} } });
+    leaveReturnAndSync(12 * MIN);
     expect(screen.queryByText(/離れていました/)).toBeNull();
   });
 
@@ -1113,7 +1163,7 @@ describe('離れていたとき', () => {
 
   it('Given 切断中 / When 問いかけが出る / Then 送る 2 つは押せず、残すは押せる', () => {
     renderRoom(runningTrack(LONG_NOW));
-    leaveAndReturn(12 * MIN);
+    leaveReturnAndSync(12 * MIN);
     act(() => latestSocket().drop());
     expect(button(AWAY_CUT_BUTTON)).toBeDisabled();
     expect(button(AWAY_BREAK_BUTTON)).toBeDisabled();
@@ -1204,6 +1254,26 @@ describe('止め忘れの通知', () => {
     // 同じ区切りの写しがもう一度届いても重ねない
     deliver(runningTrack(LONG_NOW + MIN));
     expect(created).toHaveLength(1);
+  });
+
+  it('Given 通知した区切り / When 止まって取り消しで同じ区切りの知らせが出直す / Then 重ねて通知しない（区切りの id で 1 回）', async () => {
+    await enable();
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toHaveLength(1);
+    deliver(stoppedTrack(LONG_NOW + MIN));
+    deliver(runningTrack(LONG_NOW + 2 * MIN));
+    expect(created).toHaveLength(1);
+  });
+
+  it('Given 入 / When 別の区切りで次の知らせが出る / Then その区切りでもう 1 回通知する', async () => {
+    await enable();
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    const next = trackView({ nowMs: LONG_NOW + 100 * MIN, rev: 9, segments: [seg('g-9', 'work', 'Next', LONG_NOW, null)] });
+    deliver(trackView({ ...next, segments: [seg('g-9', 'work', 'Next', LONG_NOW + MIN, null)], nowMs: LONG_NOW + 2 * MIN }));
+    deliver(next);
+    expect(created).toHaveLength(2);
   });
 
   it('Given 入 / When ページが前面のまま知らせが出る / Then 通知しない', async () => {

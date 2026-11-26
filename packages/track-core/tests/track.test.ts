@@ -164,14 +164,19 @@ describe("stop（停止）", () => {
       expect(codeOf(stop(running(), { atMs: 0, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
       expect(codeOf(stop(running(), { atMs: -MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
     });
-    it("いまより先は TRACK_BACKDATE_TOO_FAR", () => {
+    it("いまより先・いまちょうどは TRACK_BACKDATE_TOO_FAR（いまより前だけ）", () => {
       expect(codeOf(stop(running(), { atMs: 131 * MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(codeOf(stop(running(), { atMs: 130 * MIN, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");
+      expect(must(stop(running(), { atMs: 130 * MIN - 1, now: at(130) })).segments.map((g) => g.endMs)).toEqual([130 * MIN - 1]);
     });
-    it("いまから 24 時間より前は TRACK_BACKDATE_TOO_FAR", () => {
+    it("始まりの 1ms 後は通す（始まりより後ならよい）", () => {
+      expect(must(stop(running(), { atMs: 1_000, now: at(130) })).segments.map((g) => [g.startMs, g.endMs])).toEqual([[0, 1_000]]);
+      // 1 秒に満たなければ、通るが区切りは残らない
+      expect(must(stop(running(), { atMs: 1, now: at(130) })).segments).toEqual([]);
+    });
+    it("24 時間より前でも、始まりより後なら通る（置ける範囲は別に見ない）", () => {
       const s = must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
-      const nowMin = 26 * 60;
-      expect(codeOf(stop(s, { atMs: (nowMin - 24 * 60) * MIN - 1, now: at(nowMin) }))).toBe("TRACK_BACKDATE_TOO_FAR");
-      expect(shape(must(stop(s, { atMs: (nowMin - 24 * 60) * MIN, now: at(nowMin) })))).toEqual([`設計:0-${String(2 * 60)}`]);
+      expect(shape(must(stop(s, { atMs: 60 * MIN, now: at(30 * 60) })))).toEqual(["設計:0-60"]);
     });
     it("さかのぼりと同時には受けない", () => {
       expect(codeOf(stop(running(), { atMs: 20 * MIN, backMin: 5, now: at(130) }))).toBe("TRACK_BACKDATE_TOO_FAR");

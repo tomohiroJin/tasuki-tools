@@ -50,13 +50,14 @@ export function Notices({ view, tzOffsetMin, longRunningText, awayPrompt, canOpe
         <div className="track-notice" data-notice="away">
           <p className="track-notice-text">{awayPromptText(awayPrompt.awayMin)}</p>
           <div className="track-notice-actions">
-            <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onAwayKeep}>
+            {/* 既定の選択は「そのまま残す」（主のボタン）。押さずに放っておけば何も送らない */}
+            <button type="button" className="ui-button ui-button--sm" onClick={onAwayKeep}>
               {AWAY_KEEP_BUTTON}
             </button>
             <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={!canOperate} onClick={onAwayCut}>
               {AWAY_CUT_BUTTON}
             </button>
-            <button type="button" className="ui-button ui-button--sm" disabled={!canOperate} onClick={onAwayBreak}>
+            <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={!canOperate} onClick={onAwayBreak}>
               {AWAY_BREAK_BUTTON}
             </button>
           </div>
