@@ -10,10 +10,10 @@
  * - 開いている間に別の窓が割り込まないよう、開く要求の最中は重ねて頼まない
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { copyStylesInto, isMiniWindowSupported, requestMiniWindow } from '../platform/mini-window';
+import { copyStylesInto, isMiniWindowSupported, requestMiniWindow, watchRootAttributes } from '../platform/mini-window';
 
 export interface MiniWindow {
-  /** 対応ブラウザか（偽なら画面は「小さな窓で出す」を出さない） */
+  /** 対応ブラウザか（偽なら画面は「ミニ表示で出す」を出さない） */
   readonly supported: boolean;
   /** 窓の中の描画先（開いていなければ null） */
   readonly container: HTMLElement | null;
@@ -25,17 +25,24 @@ export function useMiniWindow(): MiniWindow {
   const [supported] = useState(isMiniWindowSupported);
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const windowRef = useRef<Window | null>(null);
+  /** 元の `<html>` の属性の見張りを止める関数 */
+  const stopWatchRef = useRef<(() => void) | null>(null);
   const requestingRef = useRef(false);
   const mountedRef = useRef(true);
 
   const release = useCallback((): void => {
     windowRef.current = null;
+    stopWatchRef.current?.();
+    stopWatchRef.current = null;
     setContainer(null);
   }, []);
 
+  /** 窓の参照は閉じる前に手放す（閉じ終わる前に「出す」を押されても、閉じかけの窓を前に出さない） */
   const close = useCallback((): void => {
-    windowRef.current?.close();
-  }, []);
+    const win = windowRef.current;
+    release();
+    win?.close();
+  }, [release]);
 
   const open = useCallback(async (): Promise<void> => {
     if (windowRef.current !== null) {
@@ -53,6 +60,7 @@ export function useMiniWindow(): MiniWindow {
         return;
       }
       copyStylesInto(document, win.document);
+      stopWatchRef.current = watchRootAttributes(document, win.document);
       const target = win.document.createElement('div');
       target.className = 'track-mini-root';
       win.document.body.appendChild(target);
@@ -68,6 +76,8 @@ export function useMiniWindow(): MiniWindow {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
       windowRef.current?.close();
       windowRef.current = null;
     };

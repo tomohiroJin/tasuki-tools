@@ -7,6 +7,7 @@ vi.mock('../src/platform/mini-window', () => ({
   isMiniWindowSupported: vi.fn(),
   requestMiniWindow: vi.fn(),
   copyStylesInto: vi.fn(),
+  watchRootAttributes: vi.fn(),
 }));
 
 /** 偽の小さな窓。`close()` は本物と同じく `pagehide` を起こす。 */
@@ -23,8 +24,11 @@ function fakeWindow() {
   return { win, doc, events };
 }
 
+const stopWatching = vi.fn();
+
 beforeEach(() => {
   vi.mocked(platform.isMiniWindowSupported).mockReturnValue(true);
+  vi.mocked(platform.watchRootAttributes).mockReturnValue(stopWatching);
 });
 
 /**
@@ -135,5 +139,41 @@ describe('useMiniWindow', () => {
       await pending;
     });
     expect(win.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given 開いた / When 元の html の属性を見張る / Then 元と窓の文書を渡し、窓が閉じたら見張りを止める', async () => {
+    const { win, doc } = fakeWindow();
+    vi.mocked(platform.requestMiniWindow).mockResolvedValue(win as unknown as Window);
+    const { result } = renderHook(() => useMiniWindow());
+    await act(async () => result.current.open());
+    expect(platform.watchRootAttributes).toHaveBeenCalledWith(document, doc);
+    expect(stopWatching).not.toHaveBeenCalled();
+    act(() => result.current.close());
+    expect(stopWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given 開いている / When 画面を外す / Then 見張りも止める', async () => {
+    const { win } = fakeWindow();
+    vi.mocked(platform.requestMiniWindow).mockResolvedValue(win as unknown as Window);
+    const { result, unmount } = renderHook(() => useMiniWindow());
+    await act(async () => result.current.open());
+    unmount();
+    expect(stopWatching).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given 窓がまだ閉じ終わらない（pagehide が来ない） / When close のあとにもう一度開く / Then 古い窓を前に出さず、新しい窓を開く', async () => {
+    const first = fakeWindow();
+    first.win.close = vi.fn();
+    const second = fakeWindow();
+    vi.mocked(platform.requestMiniWindow)
+      .mockResolvedValueOnce(first.win as unknown as Window)
+      .mockResolvedValueOnce(second.win as unknown as Window);
+    const { result } = renderHook(() => useMiniWindow());
+    await act(async () => result.current.open());
+    act(() => result.current.close());
+    expect(result.current.container).toBeNull();
+    await act(async () => result.current.open());
+    expect(first.win.focus).not.toHaveBeenCalled();
+    expect(result.current.container!.ownerDocument).toBe(second.doc);
   });
 });
