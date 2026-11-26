@@ -15,7 +15,7 @@ const BOM = "﻿";
 const EOL = "\r\n";
 
 /** 列の見出し（順も含めて契約。表計算や工数の道具へ移すときの取り決め） */
-export const CSV_COLUMNS = ["date", "start", "end", "minutes", "kind", "label", "auto_closed"] as const;
+export const CSV_COLUMNS = ["start_date", "start", "end_date", "end", "minutes", "kind", "label", "auto_closed"] as const;
 
 /** 表計算が数式として読む字で始まる値（`=` `+` `-` `@` タブ CR LF） */
 const FORMULA_LEAD = /^[=+\-@\t\r\n]/;
@@ -38,6 +38,7 @@ export function toCsv(view: TrackView, nowMs: number, tzOffsetMin: number): stri
     return [
       formatDate(startWall, tzOffsetMin),
       formatClock(startWall, tzOffsetMin),
+      formatDate(endWall, tzOffsetMin),
       formatClock(endWall, tzOffsetMin),
       (durationOf(g, nowMs) / MS_PER_MIN).toFixed(2),
       g.kind,

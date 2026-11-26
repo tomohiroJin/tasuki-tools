@@ -165,7 +165,7 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     const path = await download.path();
     const bytes = await readFile(path);
     expect([...bytes.subarray(0, 3)], 'UTF-8 の BOM').toEqual([0xef, 0xbb, 0xbf]);
-    expect(bytes.subarray(3).toString('utf8').split('\r\n')[0]).toBe('date,start,end,minutes,kind,label,auto_closed');
+    expect(bytes.subarray(3).toString('utf8').split('\r\n')[0]).toBe('start_date,start,end_date,end,minutes,kind,label,auto_closed');
 
     // (1) この端末に残す
     await page.getByRole('button', { name: 'この端末に残す', exact: true }).click();
