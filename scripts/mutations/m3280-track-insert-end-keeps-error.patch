@@ -1,0 +1,22 @@
+# 変異 3280: track-insert-end-keeps-error
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 抜けを足す欄で、終わりを直しても前の誤りを下ろさない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3280-*.patch
+# 復元: git apply -R scripts/mutations/m3280-*.patch
+diff --git a/apps/track-web/src/components/InsertForm.tsx b/apps/track-web/src/components/InsertForm.tsx
+index e7c71b9c..70af807e 100644
+--- a/apps/track-web/src/components/InsertForm.tsx
++++ b/apps/track-web/src/components/InsertForm.tsx
+@@ -138,7 +138,6 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
+             <label htmlFor={endId}>{INSERT_END_FIELD}</label>
+             <input id={endId} className="ui-input" type="time" value={end} aria-describedby={error ? errorId : undefined} onChange={(event) => {
+               setEnd(event.target.value);
+-              setError(null);
+             }} />
+           </div>
+         ) : (
