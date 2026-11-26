@@ -445,9 +445,6 @@
   margin: 0;
   font-size: var(--font-size-xs);
 }
-.track-saved-link {
-  font-size: var(--font-size-sm);
-}
 
 /* ── この端末の記録（第 2 段 B） ───────────────────────────── */
 .track-saved-list {

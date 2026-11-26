@@ -87,7 +87,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, 
         <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord} onClick={onCsv}>
           {CSV_BUTTON}
         </button>
-        <a className="track-saved-link" href={savedHref}>
+        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref}>
           {SAVED_LINK}
         </a>
       </div>

@@ -96,7 +96,7 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
         <h1 ref={headingRef} tabIndex={-1}>
           {SAVED_HEADING}
         </h1>
-        <a className="ui-page-header-back" href={roomCode === null ? '/' : hubPathFor(roomCode)}>
+        <a className="ui-page-header-back ui-button ui-button--quiet" href={roomCode === null ? '/' : hubPathFor(roomCode)}>
           {roomCode === null ? SAVED_BACK_HOME : SAVED_BACK_ROOM}
         </a>
       </header>

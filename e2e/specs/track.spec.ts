@@ -152,6 +152,8 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await openTrackTool(page, 'e2e-track-saved');
     await startWork(page, '残す作業');
     await expect(nowName(page)).toHaveText('残す作業');
+    // 1 秒（MIN_SEGMENT_MS）に満たない区切りは残さない（track-core の stop）。経過が 2 秒を超えてから止める
+    await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '', { message: '経過が 2 秒を超える' }).toMatch(/0:00:0[2-9]/);
     await nowPanel(page).getByRole('button', { name: '止める', exact: true }).click();
     await expect(segments(page)).toHaveCount(1);
 
@@ -182,6 +184,8 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await saved.getByRole('button', { name: /の記録を開く/ }).click();
     await expect(saved.getByRole('region', { name: 'ここまでのうちわけ' }).getByRole('row').filter({ hasText: '残す作業' })).toBeVisible();
     await expect(saved.getByRole('region', { name: '時系列' }).locator('.track-segment')).toHaveCount(1);
+    // 記録の画面も、4 つの幅で溢れず、押せる大きさを保つ（一覧・開いた記録・全部消す）
+    await expectScreenAcrossWidths(saved, 'この端末の記録（開いた記録）', 6);
     expect(sockets, 'ルームに接続しない（名簿に載らない）').toBe(0);
     await saved.close();
   });
