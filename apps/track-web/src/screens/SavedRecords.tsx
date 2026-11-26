@@ -39,7 +39,7 @@ import { downloadTextFile } from '../platform/download';
 import { localTzOffsetMin } from '../platform/timezone';
 import { hubPathFor } from '../router';
 import { MAX_SAVED_RECORDS, viewOfRecord, type SavedRecord } from '../storage/saved-record';
-import { clearSaved, deleteSaved, loadSaved } from '../storage/saved-store';
+import { deleteMany, deleteSaved, loadSaved } from '../storage/saved-store';
 import { isUnnamed, nameOf, rangeTextOf } from '../track-view';
 
 type Loaded = { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; records: SavedRecord[] };
@@ -79,7 +79,7 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
   };
   const removeAll = async (): Promise<void> => {
     try {
-      await clearSaved();
+      await deleteMany(records.map((r) => r.id));
     } catch {
       setDeleteFailed(true);
       return;
@@ -121,7 +121,7 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
                 const view = viewOfRecord(record);
                 const when = `${formatDate(record.savedAtMs, tzOffsetMin)} ${formatClock(record.savedAtMs, tzOffsetMin)}`;
                 const total = formatDuration(totalsOf(view, view.nowMs).totalMs);
-                const names = new Set(record.segments.filter((g) => g.kind === 'work').map((g) => g.label)).size;
+                const names = new Set(record.segments.filter((g) => g.kind === 'work' && g.label !== '').map((g) => g.label)).size;
                 const open = openId === record.id;
                 return (
                   <li key={record.id} className="track-saved-item" data-saved={record.id}>

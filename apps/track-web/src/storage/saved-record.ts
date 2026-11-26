@@ -79,11 +79,15 @@ export function viewOfRecord(record: SavedRecord): TrackView {
   };
 }
 
-/** 保存したあとに上限を超えているぶんの ID（残した時刻の古い順。並びには依らない）。 */
-export function evictedIds(records: readonly SavedRecord[]): string[] {
+/**
+ * 保存したあとに上限を超えているぶんの ID（残した時刻の古い順。並びには依らない）。
+ * `keepId`（いま残したばかりの記録）は、時刻が古くても消す候補にしない。
+ */
+export function evictedIds(records: readonly SavedRecord[], keepId?: string): string[] {
   const excess = records.length - MAX_SAVED_RECORDS;
   if (excess <= 0) return [];
-  return [...records]
+  return records
+    .filter((r) => r.id !== keepId)
     .sort((a, b) => a.savedAtMs - b.savedAtMs)
     .slice(0, excess)
     .map((r) => r.id);

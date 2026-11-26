@@ -43,13 +43,15 @@ interface Props {
   /** 端末に残っている件数（読めるまでは null） */
   savedCount: number | null;
   saveStatus: SaveStatus;
+  /** 保存中（残すボタンを押せなくする） */
+  saving: boolean;
   onSave: () => void;
   onCsv: () => void;
   /** 「この端末の記録」の画面への道 */
   savedHref: string;
 }
 
-export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, error, savedCount, saveStatus, onSave, onCsv, savedHref }: Props) {
+export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, error, savedCount, saveStatus, saving, onSave, onCsv, savedHref }: Props) {
   const { copy, state } = useCopyText(markdown, { keepFailure: true });
   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。記録が変わって state が idle に戻っても開いたまま残す
   // （選んでいる途中で欄が消えない。中身はそのときの文に差し替わる）
@@ -58,36 +60,47 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, 
     if (state === 'failed') setManualKept(true);
     else if (state === 'done') setManualKept(false);
   }, [state]);
+  // 知らせの欄に出す結果の持ち主（最後に押した方）
+  const [last, setLast] = useState<'copy' | 'save'>('copy');
   const manualOpen = state === 'failed' || (manualKept && state === 'idle');
 
   return (
     <section className="track-takehome ui-stack">
       <div className="track-takehome-actions">
         <ClearControl enabled={hasRecord} canOperate={canOperate} onClear={onClear} onCleared={onCleared} error={error} />
-        <button type="button" className="ui-button ui-button--secondary" onClick={() => void copy()}>
+        <button type="button" className="ui-button ui-button--secondary" onClick={() => {
+            setLast('copy');
+            void copy();
+          }}>
           {COPY_BUTTON}
         </button>
       </div>
       <p role="status" className="track-copy-status">
-        {/* 知らせの領域は 1 つ（コピーの結果を優先し、なければ端末に残した結果） */}
-        {state === 'done'
-          ? COPY_DONE
-          : state === 'failed'
-            ? COPY_FAILED
-            : saveStatus === 'done'
-              ? SAVE_DONE
-              : saveStatus === 'failed'
-                ? SAVE_FAILED
-                : ''}
+        {/* 知らせの領域は 1 つ。最後に動かした操作（コピーか保存か）の結果を出す */}
+        {last === 'copy'
+          ? state === 'done'
+            ? COPY_DONE
+            : state === 'failed'
+              ? COPY_FAILED
+              : ''
+          : saveStatus === 'done'
+            ? SAVE_DONE
+            : saveStatus === 'failed'
+              ? SAVE_FAILED
+              : ''}
       </p>
       <div className="track-takehome-actions">
-        <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord} onClick={onSave}>
+        <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord || saving}
+          onClick={() => {
+            setLast('save');
+            onSave();
+          }}>
           {SAVE_BUTTON}
         </button>
         <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord} onClick={onCsv}>
           {CSV_BUTTON}
         </button>
-        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref}>
+        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref} target="_blank" rel="noopener">
           {SAVED_LINK}
         </a>
       </div>

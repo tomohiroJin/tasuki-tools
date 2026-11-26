@@ -171,6 +171,16 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await page.getByRole('button', { name: 'この端末に残す', exact: true }).click();
     await expect(page.getByRole('status').filter({ hasText: 'この端末に残しました' })).toBeVisible();
 
+    // ルームの画面からのリンクは新しいタブで開く（元のタブのルームの接続を切らない）
+    const popupPromise = page.context().waitForEvent('page');
+    await page.getByRole('link', { name: 'この端末の記録', exact: true }).click();
+    const popup = await popupPromise;
+    await expect(popup.getByRole('heading', { level: 1, name: 'この端末の記録', exact: true })).toBeVisible();
+    expect(new URL(popup.url()).searchParams.get('view')).toBe('saved');
+    await expect(page.getByRole('heading', { level: 1, name: 'うちわけ', exact: true })).toBeVisible();
+    await expect(nowPanel(page)).toBeVisible();
+    await popup.close();
+
     // (2) ルームのコードなしで開く（同じ文脈＝名乗りは端末にある。それでも玄関へ送らず、接続しない）
     const saved = await page.context().newPage();
     let sockets = 0;

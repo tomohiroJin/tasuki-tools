@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_SAVED_RECORDS, type SavedRecord } from '../src/storage/saved-record';
-import { clearSaved, deleteSaved, loadSaved, saveRecord } from '../src/storage/saved-store';
+import { deleteMany, deleteSaved, loadSaved, saveRecord } from '../src/storage/saved-store';
 import { installFakeIndexedDb, type FakeIndexedDb } from './support/fake-indexeddb';
 
 const rec = (n: number): SavedRecord => ({
@@ -64,8 +64,31 @@ describe('saved-store', () => {
     for (let n = 1; n <= MAX_SAVED_RECORDS + 1; n += 1) await saveRecord(rec(n));
     expect(stored().get('r0')).toEqual(future);
     expect(stored().has('broken')).toBe(true);
-    await clearSaved();
+    // 全部消す = 一覧に見えていた記録の ID だけを渡す
+    await deleteMany((await loadSaved()).map((r) => r.id));
     expect([...stored().keys()].sort()).toEqual(['broken', 'r0']);
+  });
+
+  it('上限で消すのは読める記録の 1 件だけ。読めない記録が数に入って余分に消えない', async () => {
+    await loadSaved();
+    stored().set('broken', { id: 'broken' });
+    for (let n = 1; n <= MAX_SAVED_RECORDS + 1; n += 1) await saveRecord(rec(n));
+    expect((await loadSaved()).length).toBe(MAX_SAVED_RECORDS);
+  });
+
+  it('残したばかりの記録は、時刻が古くても上限で消さない', async () => {
+    for (let n = 11; n <= MAX_SAVED_RECORDS + 10; n += 1) await saveRecord(rec(n));
+    await saveRecord(rec(1));
+    expect(stored().has('r1')).toBe(true);
+    expect(stored().has('r11')).toBe(false);
+    expect(stored().size).toBe(MAX_SAVED_RECORDS);
+  });
+
+  it('全部消すは、渡した ID だけを消す（後から別のタブで残した記録は残る）', async () => {
+    await saveRecord(rec(1));
+    await saveRecord(rec(2));
+    await deleteMany(['r1']);
+    expect([...stored().keys()]).toEqual(['r2']);
   });
 
   it('同じ ID で残し直すと置き換わる（件数は増えない）', async () => {
@@ -79,7 +102,7 @@ describe('saved-store', () => {
     await saveRecord(rec(2));
     await deleteSaved('r1');
     expect((await loadSaved()).map((r) => r.id)).toEqual(['r2']);
-    await clearSaved();
+    await deleteMany(['r2']);
     expect(await loadSaved()).toEqual([]);
   });
 });

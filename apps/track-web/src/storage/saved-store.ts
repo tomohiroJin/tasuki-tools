@@ -59,7 +59,7 @@ export function saveRecord(record: SavedRecord): Promise<void> {
     store.put(record);
     const all = store.getAll();
     all.onsuccess = () => {
-      for (const id of evictedIds(recordsFromStore(all.result as unknown[]))) store.delete(id);
+      for (const id of evictedIds(recordsFromStore(all.result as unknown[]), record.id)) store.delete(id);
     };
   });
 }
@@ -72,14 +72,11 @@ export function deleteSaved(id: string): Promise<void> {
 }
 
 /**
- * 読める記録をすべて消す。**読めない記録（新しい版・壊れた値）は消さない**（一覧に出ない記録を、
- * 利用者が見ないまま消さない。後の版が読めるかもしれない・B7）。
+ * 渡した ID の記録を消す（「全部消す」: 一覧に見えていた記録だけ。押した時点のストアは読み直さない）。
+ * 一覧に出ない記録（新しい版・壊れた値）と、一覧を読んだ後に別のタブで残した記録は消さない（B5・B7）。
  */
-export function clearSaved(): Promise<void> {
+export function deleteMany(ids: readonly string[]): Promise<void> {
   return write((store) => {
-    const all = store.getAll();
-    all.onsuccess = () => {
-      for (const record of recordsFromStore(all.result as unknown[])) store.delete(record.id);
-    };
+    for (const id of ids) store.delete(id);
   });
 }

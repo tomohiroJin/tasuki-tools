@@ -126,14 +126,14 @@ export const SAVED_LINK = 'この端末の記録';
 
 // この端末の記録（第 2 段 B5）
 export const SAVED_HEADING = 'この端末の記録';
-export const SAVED_BACK_ROOM = 'うちわけへ戻る';
+export const SAVED_BACK_ROOM = 'ルームへ戻る';
 export const SAVED_BACK_HOME = '最初の画面へ戻る';
 export const SAVED_LOADING = '読み込んでいます';
 export const SAVED_LOAD_FAILED = 'この端末の記録を読めませんでした';
 export const SAVED_DELETE_FAILED = 'この端末の記録を消せませんでした';
 export const SAVED_EMPTY = 'まだ残した記録はありません。ルームの画面の「この端末に残す」で残せます。';
 export const savedCountNote = (count: number, max: number): string => `${count} 件（残せるのは ${max} 件まで）`;
-export const savedItemText = (when: string, total: string, count: number): string => `${when} 全体 ${total} 作業 ${count} 件`;
+export const savedItemText = (when: string, total: string, count: number): string => `${when} 全体 ${total} 作業名 ${count} 件`;
 export const SAVED_OPEN_BUTTON = '開く';
 export const SAVED_CLOSE_BUTTON = '閉じる';
 export const savedOpenLabel = (when: string): string => `${when} の記録を開く`;

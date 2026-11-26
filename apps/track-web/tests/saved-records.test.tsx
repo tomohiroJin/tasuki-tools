@@ -10,6 +10,7 @@ import { App } from '../src/App';
 import {
   COPY_BUTTON,
   COPY_DONE,
+  COPY_FAILED,
   CSV_BUTTON,
   SAVED_BACK_HOME,
   SAVED_BACK_ROOM,
@@ -72,6 +73,8 @@ function renderRoom(state: TrackView = EMPTY_TRACK) {
     latestSocket().deliver(trackFrame(state));
   });
 }
+
+const deliver = (state: TrackView): void => act(() => latestSocket().deliver(trackFrame(state)));
 
 /** ダウンロードのリンクを押したときの (ファイル名, 中身) を集める */
 function captureDownloads(): { name: string; text: Promise<string> }[] {
@@ -196,9 +199,60 @@ describe('ルームの持ち帰り: 端末に残す・CSV', () => {
     expect(await downloads[0]!.text).toBe(toCsv(view, 60 * MIN, tz));
   });
 
-  it('Given ルーム / When 「この端末の記録」へのリンクを見る / Then ルームのコードを運ぶ道になっている', () => {
+  it('Given ルーム / When 「この端末の記録」へのリンクを見る / Then ルームのコードを運ぶ道で、新しいタブで開く（接続を切らない）', () => {
     renderRoom(stoppedTrack());
-    expect(screen.getByRole('link', { name: SAVED_LINK })).toHaveAttribute('href', savedPathFor('R1'));
+    const link = screen.getByRole('link', { name: SAVED_LINK });
+    expect(link).toHaveAttribute('href', savedPathFor('R1'));
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('Given コピーに失敗した後 / When 残す / Then 知らせの欄は、最後に動いた保存の結果を出す', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    renderRoom(stoppedTrack());
+    await act(async () => {
+      fireEvent.click(button(COPY_BUTTON));
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(COPY_FAILED);
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
+  });
+
+  it('Given 同じ記録 / When 残すを 2 回押す / Then 端末に残るのは 1 件で、残しましたをもう一度出す', async () => {
+    renderRoom(stoppedTrack());
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    expect(stored().size).toBe(1);
+    expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE);
+  });
+
+  it('Given 残した後 / When 記録が変わる / Then 残しましたの表示は消え、新しい記録は新しく残せる', async () => {
+    renderRoom(stoppedTrack());
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
+    deliver(stoppedTrack(60 * MIN, { rev: 9 }));
+    expect(screen.getByRole('status')).not.toHaveTextContent(SAVE_DONE);
+    await act(async () => {
+      fireEvent.click(button(SAVE_BUTTON));
+    });
+    await waitFor(() => expect(stored().size).toBe(2));
+  });
+
+  it('Given 記録がある / When CSV で保存を押す / Then ファイル名の時刻は端末の時計でなく時刻軸から求める', async () => {
+    const downloads = captureDownloads();
+    const view = stoppedTrack();
+    renderRoom(view);
+    fireEvent.click(button(CSV_BUTTON));
+    expect(downloads[0]!.name).toBe(csvFileName(view.epochWallMs + 60 * MIN, tz));
   });
 });
 
@@ -308,6 +362,26 @@ describe('この端末の記録の画面', () => {
     await waitFor(() => expect(document.querySelectorAll('[data-saved]')).toHaveLength(1));
     expect(stored().has('r2')).toBe(false);
     expect(stored().has('r1')).toBe(true);
+  });
+
+  it('Given 名前のある作業と名前なし・休憩 / When 一覧を見る / Then 作業名の数は、名前のあるものだけを数える', async () => {
+    const r = rec(1, 'Review');
+    await seed([{ ...r, segments: [...r.segments, { kind: 'work', label: '', startMs: 45 * MIN, endMs: 50 * MIN, autoClosed: false }] }]);
+    openSaved();
+    expect(await screen.findByText(/作業名 1 件/)).toBeInTheDocument();
+  });
+
+  it('Given 一覧を開いた後に別のタブで残した記録 / When 全部消す / Then 見えていた記録だけが消え、後から残した記録は残る', async () => {
+    await seed([rec(1), rec(2)]);
+    openSaved();
+    await screen.findByText(/2 件（残せるのは/);
+    stored().set('r9', rec(9));
+    fireEvent.click(button(SAVED_DELETE_ALL_BUTTON));
+    await act(async () => {
+      fireEvent.click(button(SAVED_DELETE_ALL_YES));
+    });
+    await screen.findByText(SAVED_EMPTY);
+    expect([...stored().keys()]).toEqual(['r9']);
   });
 
   it('Given 2 件 / When 全部消すを押す / Then 確かめるまで消さず、やめれば残り、確かめれば全部消える', async () => {

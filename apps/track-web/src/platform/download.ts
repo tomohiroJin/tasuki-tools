@@ -1,7 +1,9 @@
 /**
  * テキストをファイルとして保存する（端末 I/O。#476 第 2 段 B9）。
- * Blob のリンクを 1 度だけ押し、すぐに解放する。CSV の中身と名前は track-core が作る（ここは渡されたものを保存するだけ）。
+ * Blob のリンクを 1 度だけ押し、少し待ってから解放する。CSV の中身と名前は track-core が作る（ここは渡されたものを保存するだけ）。
  */
+export const REVOKE_DELAY_MS = 1000;
+
 export function downloadTextFile(fileName: string, text: string, mime = 'text/csv;charset=utf-8'): void {
   const url = URL.createObjectURL(new Blob([text], { type: mime }));
   const link = document.createElement('a');
@@ -11,5 +13,6 @@ export function downloadTextFile(fileName: string, text: string, mime = 'text/cs
   document.body.append(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // ダウンロードが URL を読み終える前に手放すと、ブラウザによっては空のファイルになる。少し待ってから手放す
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }

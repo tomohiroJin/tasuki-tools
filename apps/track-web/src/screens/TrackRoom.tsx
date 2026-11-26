@@ -180,8 +180,9 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; 
             error={sync.error}
             savedCount={saved.count}
             saveStatus={saved.status}
+            saving={saved.saving}
             onSave={() => void saved.save()}
-            onCsv={() => downloadTextFile(csvFileName(Date.now(), tzOffsetMin), toCsv(view, getNow(), tzOffsetMin))}
+            onCsv={() => downloadTextFile(csvFileName(view.epochWallMs + getNow(), tzOffsetMin), toCsv(view, getNow(), tzOffsetMin))}
             savedHref={savedPathFor(roomCode)}
           />
         </div>
