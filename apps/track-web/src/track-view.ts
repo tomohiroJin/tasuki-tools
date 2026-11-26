@@ -5,8 +5,8 @@
  * （名前・経過の h:mm:ss・時刻・描き直す秒・取り消しの残り・± の行き先・読み上げの文・タブの題）を持つ。
  * **端末（`document`・時計・時間帯）は読まない。** 要る値は引数で受ける。
  */
-import { durationOf, formatClock, formatDuration, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
-import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from './copy';
+import { durationOf, formatClock, formatDuration, formatMonthDay, runningSegmentOf, type Band, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, bandSummary, tabTitle } from './copy';
 
 const MS_PER_SEC = 1000;
 
@@ -116,4 +116,24 @@ export const TONE_COUNT = 4;
 export function toneIndexOf(rows: readonly { readonly label: string }[], label: string): number {
   const index = rows.findIndex((row) => row.label === label);
   return (index < 0 ? 0 : index) % TONE_COUNT;
+}
+
+/**
+ * 帯の両端の時刻。右端は切り下げた位置でなく、計測中は「いま」から求める（止まっていれば最後の終わり）。
+ * 両端の日付が違うときは、月/日を添える。
+ */
+export function axisLabelsOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): { start: string; end: string } {
+  const startWall = view.epochWallMs + band.startMs;
+  const endWall = view.epochWallMs + Math.max(band.endMs, band.running ? nowMs : band.endMs);
+  const spans = formatMonthDay(startWall, tzOffsetMin) !== formatMonthDay(endWall, tzOffsetMin);
+  const label = (wall: number): string => (spans ? `${formatMonthDay(wall, tzOffsetMin)} ${formatClock(wall, tzOffsetMin)}` : formatClock(wall, tzOffsetMin));
+  return { start: label(startWall), end: label(endWall) };
+}
+
+/** 帯の読み上げ向けの要約（始まりと終わりの時刻・作業と休憩の区切りの数）。 */
+export function bandSummaryOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): string {
+  const { start, end } = axisLabelsOf(view, band, nowMs, tzOffsetMin);
+  const works = band.parts.filter((part) => part.kind === 'work').length;
+  const breaks = band.parts.filter((part) => part.kind === 'break').length;
+  return bandSummary(start, end, works, breaks);
 }

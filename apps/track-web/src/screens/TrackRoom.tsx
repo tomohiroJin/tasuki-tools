@@ -174,7 +174,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
         </div>
         <div className="ui-workspace-main track-column">
           <TotalsPanel totals={totals} />
-          <Timeline view={view} nowMs={nowMs} totals={totals} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
+          <Timeline view={view} nowMs={nowMs} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
           <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} />
         </div>
       </div>

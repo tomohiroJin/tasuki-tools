@@ -139,3 +139,6 @@ export const DISPLAY_NOTE = '大きな画面に映します。読むだけで、
 export const MINI_OPEN_BUTTON = 'ミニ表示で出す';
 export const MINI_CLOSE_BUTTON = 'ミニ表示を閉じる';
 export const MINI_RESUME_BUTTON = '直前を再開';
+export const bandSummary = (from: string, to: string, works: number, breaks: number): string => `${from} から ${to} まで。作業 ${works} 件、休憩 ${breaks} 件。`;
+export const DISPLAY_NEEDS_JOIN = 'この画面を映すには、先にこの端末でルームに入ってください。';
+export const DISPLAY_JOIN_LINK = 'ルームに入る';

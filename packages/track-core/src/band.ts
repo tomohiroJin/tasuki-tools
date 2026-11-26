@@ -25,6 +25,8 @@ export interface BandPart {
 export interface Band {
   readonly startMs: number;
   readonly endMs: number;
+  /** 計測中か（計測中なら右端は刻みへ切り下げた位置。画面の端の時刻は「いま」から求める） */
+  readonly running: boolean;
   readonly parts: readonly BandPart[];
 }
 
@@ -52,5 +54,5 @@ export function bandOf(view: TrackView, nowMs: number): Band | null {
     }
     cursor = Math.max(cursor, segmentEnd);
   }
-  return endMs > first.startMs ? { startMs: first.startMs, endMs, parts } : null;
+  return endMs > first.startMs ? { startMs: first.startMs, endMs, running: running !== null, parts } : null;
 }

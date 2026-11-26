@@ -28,6 +28,7 @@ describe("bandOf", () => {
     expect(band).toEqual({
       startMs: 10 * MIN,
       endMs: 25 * MIN,
+      running: false,
       parts: [
         { kind: "work", label: "A", startMs: 10 * MIN, endMs: 20 * MIN, ms: 10 * MIN },
         { kind: "break", label: "", startMs: 20 * MIN, endMs: 25 * MIN, ms: 5 * MIN },
@@ -47,6 +48,7 @@ describe("bandOf", () => {
   it("Given 計測中 / When 帯を作る / Then 終わりは、いまを 1 分の刻みに切り下げた位置", () => {
     const band = bandOf(view([seg("g-1", "work", "A", 0, 10 * MIN), seg("g-2", "work", "B", 10 * MIN, null)]), 25 * MIN + 59_000);
     expect(band?.endMs).toBe(25 * MIN);
+    expect(band?.running).toBe(true);
     expect(band?.parts.at(-1)).toEqual({ kind: "work", label: "B", startMs: 10 * MIN, endMs: 25 * MIN, ms: 15 * MIN });
   });
 

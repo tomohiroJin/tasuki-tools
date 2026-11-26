@@ -4,7 +4,7 @@
  * 見出しの行の［抜けを足す］で、区切りを後から足す欄を開く。
  */
 import { useId, useRef, useState } from 'react';
-import type { Totals, TrackView } from '@tasuki/track-core';
+import type { TrackView } from '@tasuki/track-core';
 import {
   AUTO_CLOSED_MARK,
   EDIT_BUTTON,
@@ -25,14 +25,13 @@ import { TimeBand } from './TimeBand';
 interface Props {
   view: TrackView;
   nowMs: number;
-  totals: Totals;
   getNow: () => number;
   tzOffsetMin: number;
   canOperate: boolean;
   actions: TrackActions;
 }
 
-export function Timeline({ view, nowMs, totals, getNow, tzOffsetMin, canOperate, actions }: Props) {
+export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions }: Props) {
   const headingId = useId();
   const insertId = useId();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,7 +57,7 @@ export function Timeline({ view, nowMs, totals, getNow, tzOffsetMin, canOperate,
           {INSERT_BUTTON}
         </button>
       </div>
-      <TimeBand view={view} nowMs={nowMs} totals={totals} tzOffsetMin={tzOffsetMin} />
+      <TimeBand view={view} nowMs={nowMs} tzOffsetMin={tzOffsetMin} />
       {inserting && (
         <div id={insertId}>
           <InsertForm

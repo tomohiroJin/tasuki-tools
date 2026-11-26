@@ -63,7 +63,7 @@ const formatDate = (wallMs: number, tzOffsetMin: number): string => {
   return `${year}-${pad2(month)}-${pad2(date)}`;
 };
 
-const formatMonthDay = (wallMs: number, tzOffsetMin: number): string => {
+export const formatMonthDay = (wallMs: number, tzOffsetMin: number): string => {
   const { month, date } = civilOf(dayOf(wallMs, tzOffsetMin));
   return `${pad2(month)}/${pad2(date)}`;
 };

@@ -3,38 +3,41 @@
  *
  * **飾り**（`aria-hidden`）。同じ情報は時系列の一覧と表が持つ（割合の帯 `TotalsPanel` と同じ作法）。
  * 色だけに頼らない: 休憩は斜めの縞（`.track-band-part--break`）・隙間は空き（地の色のまま）。
- * 作業の色は表の行の頭の印と同じ番号で巡るだけで、良し悪しを表さない（FR-19）。
+ * 作業の色は合計の並びの順で巡るだけで、良し悪しを表さない（FR-19）。
  * 並びの計算は track-core の `bandOf`（計測中のいまは 1 分の刻みなので、毎秒は動かない）。
+ * **色の番号は、帯と同じ 1 分の刻みの合計の並びで決める**（1 分の内で合計の順位が入れ替わっても、色は動かさない）。
+ * 右端の時刻だけは「いま」から求める（切り下げた位置を出すと、最大 1 分遅れて見える）。
  */
 import type { CSSProperties } from 'react';
-import { bandOf, type TrackView, type Totals } from '@tasuki/track-core';
-import { clockOf, toneIndexOf } from '../track-view';
+import { bandOf, stepDown, totalsOf, type TrackView } from '@tasuki/track-core';
+import { axisLabelsOf, toneIndexOf } from '../track-view';
 
 interface Props {
   view: TrackView;
   /** 「いま」の位置（刻みへの切り下げは `bandOf` が行う） */
   nowMs: number;
-  totals: Totals;
   tzOffsetMin: number;
 }
 
-export function TimeBand({ view, nowMs, totals, tzOffsetMin }: Props) {
+export function TimeBand({ view, nowMs, tzOffsetMin }: Props) {
   const band = bandOf(view, nowMs);
   if (band === null) return null;
+  const rows = totalsOf(view, stepDown(nowMs)).rows;
+  const axis = axisLabelsOf(view, band, nowMs, tzOffsetMin);
   return (
     <div className="track-band-wrap" aria-hidden="true">
       <div className="track-band-line">
         {band.parts.map((part) => (
           <span
             key={`${part.kind}:${part.startMs}`}
-            className={part.kind === 'work' ? `track-band-part track-tone--${toneIndexOf(totals.rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
+            className={part.kind === 'work' ? `track-band-part track-tone--${toneIndexOf(rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
             style={{ '--share': part.ms } as CSSProperties}
           />
         ))}
       </div>
       <div className="track-band-axis track-digits">
-        <span>{clockOf(view, band.startMs, tzOffsetMin)}</span>
-        <span>{clockOf(view, band.endMs, tzOffsetMin)}</span>
+        <span>{axis.start}</span>
+        <span>{axis.end}</span>
       </div>
     </div>
   );
