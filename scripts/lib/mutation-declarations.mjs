@@ -295,6 +295,9 @@ const RESERVED_2930_2949 =
 const RESERVED_3180_3209 =
   "**対応表より後に足した変異。** 3180〜3209 は #476 の第 2 段 D（映す画面・ミニ表示・時系列の帯）に割り当てた範囲。";
 
+const RESERVED_3250_3269 =
+  "**対応表より後に足した変異。** 3250〜3269 は #476 の第 2 段 D（映す画面・ミニ表示・時系列の帯）のレビューの直しに割り当てた範囲（3180〜3209 を使い切ったため）。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -14092,5 +14095,125 @@ export const MUTATIONS = [
     pkg: "apps/track-web",
     tests: ["tests/use-mini-window.test.tsx"],
     note: RESERVED_3180_3209 + " " + "#476 第 2 段 D。D3。窓が素のまま（ボタンも文字も整わない）で出る。",
+  },
+  {
+    id: 3197,
+    label: "時系列の帯の行が、部分どうしの間（gap）を持つ",
+    patch: "m3197-track-band-line-gap.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-css.test.ts"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。区切りが多いと、間の幅の合計で帯が親の幅を超え、右端が切れる。",
+  },
+  {
+    id: 3198,
+    label: "時系列の帯の部分が、最小の幅（min-width）を持つ",
+    patch: "m3198-track-band-part-min-width.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-css.test.ts"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。区切りが多いと、最小の幅の合計で帯が親の幅を超え、右端が切れる。",
+  },
+  {
+    id: 3199,
+    label: "映す画面の「ルームに入る」が、玄関のそのルームでなく玄関の先頭へ向かう",
+    patch: "m3199-track-display-join-link-to-top.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-display.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。名乗った後にそのルームへ戻れない。",
+  },
+  {
+    id: 3200,
+    label: "映す画面の時系列が、読み上げ向けの要約を持たない",
+    patch: "m3200-track-display-summary-missing.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-display.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。帯は飾りなので、読み上げでは見出しだけになる。",
+  },
+  {
+    id: 3201,
+    label: "時系列の帯の色の番号を、1 分の刻みでなくその時点の合計の並びで決める",
+    patch: "m3201-track-band-tone-live-totals.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-display.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。1 分の内で合計の順位が入れ替わると、帯の色が入れ替わる。",
+  },
+  {
+    id: 3202,
+    label: "時系列の帯の右端の時刻を、「いま」でなく切り下げた位置から求める",
+    patch: "m3202-track-axis-end-stepped.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-view.test.ts"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。右端の時刻が最大 1 分遅れて見える。",
+  },
+  {
+    id: 3203,
+    label: "時系列の帯の両端の日付が違っても、月/日を添えない",
+    patch: "m3203-track-axis-no-date.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/band-view.test.ts"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。日をまたぐ記録の右端が、前の日の時刻に読める。",
+  },
+  {
+    id: 3204,
+    label: "ミニ表示の経過を、秒の境目でなく固定の 1 秒の間隔で描き直す",
+    patch: "m3204-track-mini-seconds-fixed-interval.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-display.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。受け取った時刻とずれて、秒が飛んだり止まったりする。",
+  },
+  {
+    id: 3205,
+    label: "ミニ表示の窓の文書に、S・C キーの聞き手を付けない",
+    patch: "m3205-track-mini-keys-not-attached.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-display.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。窓にフォーカスがあるとき、キーで止められない。",
+  },
+  {
+    id: 3206,
+    label: "ミニ表示の［止める］が、「いつから」の選択を使わない",
+    patch: "m3206-track-mini-stop-ignores-back.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-display.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。本体の［止める］と違い、選んだ分前から止まらない。",
+  },
+  {
+    id: 3207,
+    label: "ミニ表示を閉じるとき、窓の参照を手放さない",
+    patch: "m3207-track-mini-close-keeps-ref.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/use-mini-window.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。閉じ終わる前に「出す」を押すと、閉じかけの窓を前に出して空振りする。",
+  },
+  {
+    id: 3208,
+    label: "元の html の属性の変化（色の切り替え）を、開いた窓へ写し直さない",
+    patch: "m3208-track-mini-root-attrs-not-watched.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/use-mini-window.test.tsx"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。開いた後に色を切り替えても、窓だけ元の色のまま残る。",
+  },
+  {
+    id: 3209,
+    label: "窓へ写す規則の url() を、元のシートの場所で絶対にしない",
+    patch: "m3209-track-mini-css-url-not-absolutized.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/mini-window-copy.test.ts"],
+    note: RESERVED_3180_3209 + " " + "#476 第 2 段 D のレビューの直し。窓の基準 URL で読まれ、書体や画像が読めない。",
+  },
+  {
+    id: 3250,
+    label: "ミニ表示が、切断中であることを示さない",
+    patch: "m3250-track-mini-offline-note-missing.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/track-display.test.tsx"],
+    note: RESERVED_3250_3269 + " " + "#476 第 2 段 D のレビューの直し。3 つのボタンが押せない理由が分からない。",
+  },
+  {
+    id: 3251,
+    label: "窓へ写す外部シートの link を、絶対 URL にしない",
+    patch: "m3251-track-mini-link-href-relative.patch",
+    pkg: "apps/track-web",
+    tests: ["tests/mini-window-copy.test.ts"],
+    note: RESERVED_3250_3269 + " " + "#476 第 2 段 D のレビューの直し。相対の href が窓の基準 URL で読まれ、外部シートが読めない。",
   },
 ];

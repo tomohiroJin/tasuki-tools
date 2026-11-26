@@ -1,0 +1,22 @@
+# 変異 3208: track-mini-root-attrs-not-watched
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#
+# #476 元の html の属性の変化（色の切り替え）を、開いた窓へ写し直さない。開いた後に色を切り替えても、窓だけ元の色のまま残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3208-*.patch
+# 復元: git apply -R scripts/mutations/m3208-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+index 340bbe5c..6ec8cfd6 100644
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -60,7 +60,6 @@ export function useMiniWindow(): MiniWindow {
+         return;
+       }
+       copyStylesInto(document, win.document);
+-      stopWatchRef.current = watchRootAttributes(document, win.document);
+       const target = win.document.createElement('div');
+       target.className = 'track-mini-root';
+       win.document.body.appendChild(target);

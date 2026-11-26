@@ -9,11 +9,11 @@
 #       git apply scripts/mutations/m3191-*.patch
 # 復元: git apply -R scripts/mutations/m3191-*.patch
 diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
-index c66dbf6a..b7407a56 100644
+index 340bbe5c..eef117ac 100644
 --- a/apps/track-web/src/hooks/use-mini-window.ts
 +++ b/apps/track-web/src/hooks/use-mini-window.ts
-@@ -38,10 +38,6 @@ export function useMiniWindow(): MiniWindow {
-   }, []);
+@@ -45,10 +45,6 @@ export function useMiniWindow(): MiniWindow {
+   }, [release]);
  
    const open = useCallback(async (): Promise<void> => {
 -    if (windowRef.current !== null) {

@@ -10,13 +10,13 @@
 #       git apply scripts/mutations/m3190-*.patch
 # 復元: git apply -R scripts/mutations/m3190-*.patch
 diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
-index c66dbf6a..5467d845 100644
+index 340bbe5c..ded2511e 100644
 --- a/apps/track-web/src/hooks/use-mini-window.ts
 +++ b/apps/track-web/src/hooks/use-mini-window.ts
-@@ -68,7 +68,6 @@ export function useMiniWindow(): MiniWindow {
-     mountedRef.current = true;
-     return () => {
+@@ -78,7 +78,6 @@ export function useMiniWindow(): MiniWindow {
        mountedRef.current = false;
+       stopWatchRef.current?.();
+       stopWatchRef.current = null;
 -      windowRef.current?.close();
        windowRef.current = null;
      };

@@ -1,0 +1,23 @@
+# 変異 3200: track-display-summary-missing
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-display.test.tsx
+#
+# #476 映す画面の時系列が、読み上げ向けの要約を持たない。帯は飾りなので、読み上げでは見出しだけになる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3200-*.patch
+# 復元: git apply -R scripts/mutations/m3200-*.patch
+diff --git a/apps/track-web/src/screens/TrackDisplay.tsx b/apps/track-web/src/screens/TrackDisplay.tsx
+index 0736744c..eb04b8ab 100644
+--- a/apps/track-web/src/screens/TrackDisplay.tsx
++++ b/apps/track-web/src/screens/TrackDisplay.tsx
+@@ -86,7 +86,7 @@ function DisplayBody({ view, receivedAt }: { view: TrackView; receivedAt: number
+         <section className="track-display-band ui-stack" aria-label={TIMELINE_HEADING}>
+           <h2>{TIMELINE_HEADING}</h2>
+           {/* 帯は飾り。同じ情報を、読み上げ向けの文でも持つ */}
+-          <p className="ui-visually-hidden">{bandSummaryOf(view, band, nowMs, tzOffsetMin)}</p>
++          
+           <TimeBand view={view} nowMs={nowMs} tzOffsetMin={tzOffsetMin} />
+         </section>
+       )}

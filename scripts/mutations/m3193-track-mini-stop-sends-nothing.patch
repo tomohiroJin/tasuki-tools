@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m3193-*.patch
 # 復元: git apply -R scripts/mutations/m3193-*.patch
 diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
-index 1ce8454a..307c7a41 100644
+index bc8934d8..306567ae 100644
 --- a/apps/track-web/src/screens/TrackRoom.tsx
 +++ b/apps/track-web/src/screens/TrackRoom.tsx
-@@ -185,7 +185,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
-           getNow={getNow}
+@@ -195,7 +195,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
            canOperate={canOperate}
+           // 「いつから」は本体と同じ選択を使い、使ったら「いまから」へ戻す
            onStop={() => {
--            if (running !== null) sync.stop();
-+            if (running === null) sync.stop();
+-            if (running !== null) stop();
++            if (running === null) stop();
            }}
-           onBreak={() => sync.start('', 'break')}
+           onBreak={() => sync.start('', 'break', takeBack())}
            onResume={resumePrevious}

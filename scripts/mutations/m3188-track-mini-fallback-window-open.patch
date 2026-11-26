@@ -9,11 +9,11 @@
 #       git apply scripts/mutations/m3188-*.patch
 # 復元: git apply -R scripts/mutations/m3188-*.patch
 diff --git a/apps/track-web/src/platform/mini-window.ts b/apps/track-web/src/platform/mini-window.ts
-index be8c98b3..cebee28c 100644
+index 2d60e344..4d345982 100644
 --- a/apps/track-web/src/platform/mini-window.ts
 +++ b/apps/track-web/src/platform/mini-window.ts
 @@ -27,7 +27,7 @@ export function isMiniWindowSupported(): boolean {
- /** 小さな窓を開く。非対応・利用者が許さなかった・開けなかったときは null（理由は問わない・ログも書かない）。 */
+ /** ミニ表示の窓を開く。非対応・利用者が許さなかった・開けなかったときは null（理由は問わない・ログも書かない）。 */
  export async function requestMiniWindow(): Promise<Window | null> {
    const api = apiOf();
 -  if (api === null) return null;

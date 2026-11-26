@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m3192-*.patch
 # 復元: git apply -R scripts/mutations/m3192-*.patch
 diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
-index 1ce8454a..d09f9bee 100644
+index bc8934d8..050fe072 100644
 --- a/apps/track-web/src/screens/TrackRoom.tsx
 +++ b/apps/track-web/src/screens/TrackRoom.tsx
-@@ -187,7 +187,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
+@@ -197,7 +197,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
            onStop={() => {
-             if (running !== null) sync.stop();
+             if (running !== null) stop();
            }}
--          onBreak={() => sync.start('', 'break')}
-+          onBreak={() => sync.start('', 'work')}
+-          onBreak={() => sync.start('', 'break', takeBack())}
++          onBreak={() => sync.start('', 'work', takeBack())}
            onResume={resumePrevious}
          />
        )}

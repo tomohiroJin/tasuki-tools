@@ -9,7 +9,7 @@
 #       git apply scripts/mutations/m3186-*.patch
 # 復元: git apply -R scripts/mutations/m3186-*.patch
 diff --git a/apps/track-web/src/components/ViewTools.tsx b/apps/track-web/src/components/ViewTools.tsx
-index 109e70c2..04d6e550 100644
+index 71b5280d..ebb3aec2 100644
 --- a/apps/track-web/src/components/ViewTools.tsx
 +++ b/apps/track-web/src/components/ViewTools.tsx
 @@ -25,7 +25,7 @@ export function ViewTools({ roomCode, miniSupported, miniOpen, onMiniToggle }: P
@@ -18,6 +18,6 @@ index 109e70c2..04d6e550 100644
          </a>
 -        {miniSupported && (
 +        {(miniSupported || true) && (
-           <button type="button" className="ui-button ui-button--secondary ui-button--sm" aria-pressed={miniOpen} onClick={onMiniToggle}>
+           <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={onMiniToggle}>
              {miniOpen ? MINI_CLOSE_BUTTON : MINI_OPEN_BUTTON}
            </button>

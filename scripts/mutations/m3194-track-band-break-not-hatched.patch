@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m3194-*.patch
 # 復元: git apply -R scripts/mutations/m3194-*.patch
 diff --git a/apps/track-web/src/components/TimeBand.tsx b/apps/track-web/src/components/TimeBand.tsx
-index aeb57c2e..85fe8ff0 100644
+index 3b3d846d..8a05a93b 100644
 --- a/apps/track-web/src/components/TimeBand.tsx
 +++ b/apps/track-web/src/components/TimeBand.tsx
-@@ -27,7 +27,7 @@ export function TimeBand({ view, nowMs, totals, tzOffsetMin }: Props) {
+@@ -30,7 +30,7 @@ export function TimeBand({ view, nowMs, tzOffsetMin }: Props) {
          {band.parts.map((part) => (
            <span
              key={`${part.kind}:${part.startMs}`}
--            className={part.kind === 'work' ? `track-band-part track-tone--${toneIndexOf(totals.rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
-+            className={part.kind !== 'gap' ? `track-band-part track-tone--${toneIndexOf(totals.rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
+-            className={part.kind === 'work' ? `track-band-part track-tone--${toneIndexOf(rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
++            className={part.kind !== 'gap' ? `track-band-part track-tone--${toneIndexOf(rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
              style={{ '--share': part.ms } as CSSProperties}
            />
          ))}

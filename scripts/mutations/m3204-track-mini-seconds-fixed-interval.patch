@@ -1,0 +1,23 @@
+# 変異 3204: track-mini-seconds-fixed-interval
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 ミニ表示の経過を、秒の境目でなく固定の 1 秒の間隔で描き直す。受け取った時刻とずれて、秒が飛んだり止まったりする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3204-*.patch
+# 復元: git apply -R scripts/mutations/m3204-*.patch
+diff --git a/apps/track-web/src/components/MiniView.tsx b/apps/track-web/src/components/MiniView.tsx
+index 700f5300..e78eb194 100644
+--- a/apps/track-web/src/components/MiniView.tsx
++++ b/apps/track-web/src/components/MiniView.tsx
+@@ -41,7 +41,7 @@ function MiniBody({ container, view, getNow, canOperate, onStop, onBreak, onResu
+     // 窓のタイマーを使う（元のページが裏でも、窓は表に出ている）。次に表示の秒が変わる境目まで待つ
+     const win = container.ownerDocument.defaultView ?? window;
+     const elapsed = durationOf(running, getNow());
+-    const id = win.setTimeout(() => setTick((n) => n + 1), MS_PER_SEC - (elapsed % MS_PER_SEC) + MARGIN_MS);
++    const id = win.setTimeout(() => setTick((n) => n + 1), MS_PER_SEC);
+     return () => win.clearTimeout(id);
+     // 描くたびに（`tick` が進むたびに）次の境目を組み直す
+   });
