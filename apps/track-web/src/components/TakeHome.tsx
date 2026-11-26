@@ -18,9 +18,11 @@ interface Props {
   hasRecord: boolean;
   canOperate: boolean;
   onClear: () => void;
+  /** 消した後。消すと記録が空になり「記録を消す」が押せなくなるので、フォーカスを次に押すもの（開始）へ移す */
+  onCleared: () => void;
 }
 
-export function TakeHome({ markdown, hasRecord, canOperate, onClear }: Props) {
+export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared }: Props) {
   const { copy, state } = useCopyText(markdown, { keepFailure: true });
   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。記録が変わって state が idle に戻っても開いたまま残す
   // （選んでいる途中で欄が消えない。中身はそのときの文に差し替わる）
@@ -34,7 +36,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear }: Props) {
   return (
     <section className="track-takehome ui-stack">
       <div className="track-takehome-actions">
-        <ClearControl enabled={hasRecord} canOperate={canOperate} onClear={onClear} />
+        <ClearControl enabled={hasRecord} canOperate={canOperate} onClear={onClear} onCleared={onCleared} />
         <button type="button" className="ui-button ui-button--secondary" onClick={() => void copy()}>
           {COPY_BUTTON}
         </button>
@@ -60,7 +62,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear }: Props) {
   );
 }
 
-function ClearControl({ enabled, canOperate, onClear }: { enabled: boolean; canOperate: boolean; onClear: () => void }) {
+function ClearControl({ enabled, canOperate, onClear, onCleared }: { enabled: boolean; canOperate: boolean; onClear: () => void; onCleared: () => void }) {
   const [asking, setAsking] = useState(false);
   const [returnFocus, setReturnFocus] = useState(false);
   const noRef = useRef<HTMLButtonElement>(null);
@@ -107,8 +109,9 @@ function ClearControl({ enabled, canOperate, onClear }: { enabled: boolean; canO
           disabled={!canOperate}
           onClick={() => {
             setAsking(false);
-            setReturnFocus(true);
+            // 元のボタンは、記録が空になると押せなくなる。フォーカスは開始のボタンへ移す
             onClear();
+            onCleared();
           }}
         >
           {CLEAR_CONFIRM_YES}

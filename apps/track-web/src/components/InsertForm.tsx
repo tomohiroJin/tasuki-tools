@@ -16,6 +16,7 @@ import {
   INSERT_ERROR_LENGTH,
   INSERT_ERROR_ORDER,
   INSERT_ERROR_TIME,
+  INSERT_ERROR_YESTERDAY,
   INSERT_HEADING,
   INSERT_LENGTH_FIELD,
   INSERT_MODE_END,
@@ -34,6 +35,7 @@ const ERROR_TEXT: Record<InsertRangeError, string> = {
   length: INSERT_ERROR_LENGTH,
   order: INSERT_ERROR_ORDER,
   future: INSERT_ERROR_FUTURE,
+  yesterday: INSERT_ERROR_YESTERDAY,
 };
 
 interface Props {

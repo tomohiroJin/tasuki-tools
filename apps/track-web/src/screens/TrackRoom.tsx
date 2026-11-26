@@ -8,7 +8,7 @@
  * 玄関のそのルームへ送り返す。切断中（`!sync.joined`）は操作を押させない。
  * **誰が操作したかは、画面のどこにも出さない**（写しに無い。設計 §6）。
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   LONG_RUNNING_NOTICE_MS,
   candidatesOf,
@@ -96,6 +96,7 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
   const [backMin, setBackMin] = useState<BackMinutes | null>(null);
   const tzOffsetMin = localTzOffsetMin();
   const canOperate = sync.joined;
+  const startButtonRef = useRef<HTMLButtonElement>(null);
 
   const running = runningSegmentOf(view);
   const candidates = candidatesOf(view, sync.topic?.topic?.title ?? null);
@@ -157,12 +158,13 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
             canOperate={canOperate}
             onStart={startWork}
             onPin={sync.pin}
+            submitRef={startButtonRef}
           />
         </div>
         <div className="ui-workspace-main track-column">
           <TotalsPanel totals={totals} />
           <Timeline view={view} nowMs={nowMs} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
-          <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} />
+          <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} onCleared={() => startButtonRef.current?.focus()} />
         </div>
       </div>
       {/* 読み上げの領域は常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある） */}

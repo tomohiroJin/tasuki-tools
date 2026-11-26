@@ -97,6 +97,7 @@ export const INSERT_ERROR_TIME = '時刻を入れてください。';
 export const INSERT_ERROR_LENGTH = '長さは 1 分以上の整数で入れてください。';
 export const INSERT_ERROR_ORDER = '終わりは始まりより後にしてください。';
 export const INSERT_ERROR_FUTURE = 'いまより先の時間は足せません。';
+export const INSERT_ERROR_YESTERDAY = '終わりはいまより後なので前日の時刻として読みましたが、始まりより後になりません。';
 
 // 持ち帰り
 export const COPY_BUTTON = 'Markdown でコピー';

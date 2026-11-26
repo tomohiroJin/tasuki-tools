@@ -6,7 +6,7 @@
  * 「いつから」の選択は止める・休憩にするにも効くので、値は画面（`TrackRoom`）が持つ。
  * 作業名の長さの上限は、サーバーが文で返す（正規化した後の長さで数えるので、ここでは粗い上限だけを付ける）。
  */
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type Ref } from 'react';
 import { BACK_MINUTES, MAX_LABEL_INPUT, type BackMinutes, type Candidate } from '@tasuki/track-core';
 import {
   BACK_FIELD,
@@ -33,9 +33,11 @@ interface Props {
   /** 作業名で開始・切り替え（空は名前なし） */
   onStart: (label: string) => void;
   onPin: (label: string, pinned: boolean) => void;
+  /** 主のボタン（開始・切り替え）。「記録を消す」の後にフォーカスを移す先 */
+  submitRef?: Ref<HTMLButtonElement>;
 }
 
-export function SwitchPanel({ running, candidates, backMin, onBackMinChange, canOperate, onStart, onPin }: Props) {
+export function SwitchPanel({ running, candidates, backMin, onBackMinChange, canOperate, onStart, onPin, submitRef }: Props) {
   const headingId = useId();
   const labelId = useId();
   const backId = useId();
@@ -84,7 +86,7 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
             ))}
           </select>
         </div>
-        <button type="submit" className={running ? 'ui-button' : 'ui-button ui-button--lg'} disabled={!canOperate}>
+        <button ref={submitRef} type="submit" className={running ? 'ui-button' : 'ui-button ui-button--lg'} disabled={!canOperate}>
           {running ? SWITCH_BUTTON : START_BUTTON}
         </button>
       </form>

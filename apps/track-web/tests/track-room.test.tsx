@@ -34,6 +34,7 @@ import {
   INSERT_END_FIELD,
   INSERT_ERROR_ORDER,
   INSERT_ERROR_TIME,
+  INSERT_ERROR_YESTERDAY,
   INSERT_LENGTH_FIELD,
   INSERT_MODE_FIELD,
   INSERT_START_FIELD,
@@ -231,20 +232,26 @@ describe('候補', () => {
     renderRoom(runningTrack(60 * MIN, { pinned: ['Plan'] }));
     act(() => latestSocket().deliver(TOPIC));
     const items = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem');
-    expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['FizzBuzz', 'Plan', 'Build', 'Review']);
-    expect(items.map((li) => li.querySelector('.track-candidate-number')?.textContent)).toEqual(['1', '2', '3', '4']);
+    expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['FizzBuzz', 'Plan', 'Review']);
+    expect(items.map((li) => li.querySelector('.track-candidate-number')?.textContent)).toEqual(['1', '2', '3']);
     expect(within(items[0]!).getByText(TOPIC_MARK)).toBeInTheDocument();
     expect(within(items[1]!).queryByText(TOPIC_MARK)).toBeNull();
   });
 
   it('Given 候補 / When 押す / Then その名前へ切り替える', () => {
     renderRoom(runningTrack());
-    fireEvent.click(button(/^2\s*Review$/));
+    fireEvent.click(button(/^1\s*Review$/));
     expect(sentCommands()).toEqual([{ command: 'track.start', label: 'Review', kind: 'work' }]);
   });
 
+  it('Given 計測中の作業名が候補にもある / When 画面を描く / Then その名前は候補から外れる（押しても何も起きない）', () => {
+    renderRoom(runningTrack(60 * MIN, { pinned: ['Build', 'Review'] }));
+    const labels = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem').map((li) => li.querySelector('.track-candidate-label')?.textContent);
+    expect(labels).toEqual(['Review']);
+  });
+
   it('Given 定番とそうでない候補 / When 星を押す / Then 固定・解除を送り、押した状態を aria-pressed で示す', () => {
-    renderRoom(runningTrack(60 * MIN, { pinned: ['Review'] }));
+    renderRoom(stoppedTrack(60 * MIN, { pinned: ['Review'] }));
     const pinned = button(pinLabel('Review'));
     const unpinned = button(pinLabel('Build'));
     expect(pinned).toHaveAttribute('aria-pressed', 'true');
@@ -447,6 +454,16 @@ describe('時系列と手直し', () => {
     expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
   });
 
+  it('Given 最初の区切りの始まり / When 終わりより後に見える時刻（前日なら 24 時間の内）を入れる / Then 前日へ読まず、送らずに知らせる', () => {
+    // Review 0〜30 分・いま 60 分。61 分の時刻は終わりより後。前日として読めば 23 時間の区切りになる
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 61 * MIN) } });
+    fireEvent.click(within(timeline.getByRole('group', { name: EDGE_START })).getByRole('button', { name: EDGE_SET_BUTTON }));
+    expect(sentCommands()).toEqual([]);
+    expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
+  });
+
   it('Given 名前のない区切りが 2 つ / When 画面を描く / Then 件数を添えて、名前を付けるよう促す', () => {
     const view = trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', '', 0, 10 * MIN), seg('g-2', 'work', 'Build', 10 * MIN, 20 * MIN), seg('g-3', 'work', '', 20 * MIN, 30 * MIN)] });
     renderRoom(view);
@@ -504,6 +521,16 @@ describe('抜けを足す', () => {
     fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
     expect(sentCommands()).toEqual([{ command: 'track.segment.insert', startMs: 10 * MIN, endMs: 20 * MIN, label: 'Call', kind: 'work' }]);
     expect(timeline.queryByRole('button', { name: INSERT_SUBMIT })).toBeNull();
+  });
+
+  it('Given 終わりがいまより後（前日として読むと始まりより後にならない） / When 足す / Then 送らずに、前日として読んだと示す', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 61 * MIN) } });
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toHaveTextContent(INSERT_ERROR_YESTERDAY);
+    expect(sentCommands()).toEqual([]);
   });
 
   it('Given 始まりと長さ・種類は休憩 / When 足す / Then 終わりは始まりに長さを足した位置で、名前は空になる', () => {
@@ -585,6 +612,20 @@ describe('持ち帰り', () => {
     fireEvent.click(button(CLEAR_BUTTON));
     fireEvent.click(button(CLEAR_CONFIRM_YES));
     expect(sentCommands()).toEqual([{ command: 'track.clear' }]);
+  });
+
+  it('Given 確かめを開いた / When 消すを押す / Then フォーカスは開始のボタンへ移る（空の写しが届くと元のボタンは押せなくなる）', () => {
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    expect(button(START_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 計測中 / When 記録を消す / Then フォーカスは主のボタン（切り替える）へ移る', () => {
+    renderRoom(trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', 'Build', 0, null)] }));
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    expect(button(SWITCH_BUTTON)).toHaveFocus();
   });
 
   it('Given 空の記録 / When 画面を描く / Then 記録を消すは押せない', () => {
@@ -680,14 +721,14 @@ describe('キーボード', () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key, ...init });
   };
 
-  it('Given 入力欄にフォーカスが無い / When 2 を押す / Then 2 番目の候補へ切り替える', () => {
-    // 候補: 1 Build・2 Review
+  it('Given 入力欄にフォーカスが無い / When 1 を押す / Then 1 番目の候補へ切り替える', () => {
+    // 候補: 1 Review（計測中の Build は外れる）
     renderRoom(runningTrack());
-    press('2');
+    press('1');
     expect(sentCommands()).toEqual([{ command: 'track.start', label: 'Review', kind: 'work' }]);
   });
 
-  it('Given 候補が 2 件 / When 9 を押す / Then 何もしない', () => {
+  it('Given 候補が 1 件 / When 9 を押す / Then 何もしない', () => {
     renderRoom(runningTrack());
     press('9');
     expect(sentCommands()).toEqual([]);
@@ -774,7 +815,7 @@ describe('切断中', () => {
     expect(button(STOP_BUTTON)).toBeDisabled();
     expect(button(BREAK_BUTTON)).toBeDisabled();
     expect(button(SWITCH_BUTTON)).toBeDisabled();
-    expect(button(/^2\s*Review$/)).toBeDisabled();
+    expect(button(/^1\s*Review$/)).toBeDisabled();
     const sentBefore = latestSocket().sent.length;
     fireEvent.keyDown(document.body, { key: 's' });
     expect(latestSocket().sent.length).toBe(sentBefore);
