@@ -222,10 +222,14 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
   });
 
   test('Given 計測中のうちわけ / When ページが非表示になってすぐ表に戻る / Then 計測は続いて離れていたときの問いかけは出ず、通知の設定は切のまま', async ({ page }) => {
-    // Given: 計測中（90 分と 10 分の実時間は待てない。条件に当たる側は `apps/track-web` の単体が持つ）
+    // Given: 計測中（90 分と 10 分の実時間は待てない。条件に当たる側は `apps/track-web` の単体が持つ）。
+    // 受信フレームの記録は、玄関へ入る前に始める（最初のハンドシェイクの後に始めても、取り直しの返事は拾えるが、揃えておく）
+    const received = watchWebSocketFrames(page);
     await openTrackTool(page, 'e2e-track-away');
     await startWork(page, '調べもの');
     await expect(nowName(page)).toHaveText('調べもの');
+    const framesBefore = trackStates(received).length;
+
     // When: ページの状態を偽装して、非表示 → 表示の順に変える
     const setVisibility = (state: 'hidden' | 'visible') =>
       page.evaluate((next) => {
@@ -235,11 +239,20 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await setVisibility('hidden');
     await setVisibility('visible');
 
-    // Then: 計測は続き、問いかけは出ない
+    // Then: 戻ったときの取り直し（track.sync）の写しが届いた＝判定が済んだ後で、問いかけが 0 件であることを測る
+    await expect
+      .poll(() => trackStates(received).length, { message: '表に戻ったら写しを取り直し、新しい写しが届く' })
+      .toBeGreaterThan(framesBefore);
     await expect(page.getByRole('button', { name: 'そのまま残す' })).toHaveCount(0);
     await expect(nowName(page)).toHaveText('調べもの');
-    // 通知の設定は既定で切（押すまで許可を求めない）
+
+    // 通知の設定は既定で切（押すまで許可を求めない）。ブラウザが通知に対応するかで、期待を分けて必ず確かめる
+    const supportsNotification = await page.evaluate(() => typeof Notification !== 'undefined');
     const toggle = page.getByRole('button', { name: '長く続いたら通知する' });
-    if ((await toggle.count()) > 0) await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    if (supportsNotification) {
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    } else {
+      await expect(toggle).toHaveCount(0);
+    }
   });
 });
