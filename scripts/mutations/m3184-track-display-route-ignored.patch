@@ -1,0 +1,23 @@
+# 変異 3184: track-display-route-ignored
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/router.test.ts
+#
+# #476 ?view=display を映す画面の印として読まない（反転）。D1。映す画面が開かず、ふつうの画面が開く。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3184-*.patch
+# 復元: git apply -R scripts/mutations/m3184-*.patch
+diff --git a/apps/track-web/src/router.ts b/apps/track-web/src/router.ts
+index dabee441..788d2d62 100644
+--- a/apps/track-web/src/router.ts
++++ b/apps/track-web/src/router.ts
+@@ -15,7 +15,7 @@ const DISPLAY_VIEW = 'display';
+ 
+ export function parseRoute(pathname: string, search = ''): Route {
+   const route = parseRoomRoute(BASE, pathname, search);
+-  if (route.name === 'room' && new URLSearchParams(search).get('view') === DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
++  if (route.name === 'room' && new URLSearchParams(search).get('view') !== DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
+   return route;
+ }
+ 

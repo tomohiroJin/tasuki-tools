@@ -1,0 +1,23 @@
+# 変異 3183: track-display-route-is-operable-room
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 映す画面が、操作できるルームの画面を出す。D1。会議室の画面を触ると操作が飛ぶ。押せる部品が出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3183-*.patch
+# 復元: git apply -R scripts/mutations/m3183-*.patch
+diff --git a/apps/track-web/src/App.tsx b/apps/track-web/src/App.tsx
+index 3ecb1cdd..2fc8ebf9 100644
+--- a/apps/track-web/src/App.tsx
++++ b/apps/track-web/src/App.tsx
+@@ -13,7 +13,7 @@ export function App() {
+     if (route.name === 'redirect') redirectTo(route.to);
+   }, [route]);
+ 
+-  if (route.name === 'display') return <TrackDisplay roomCode={route.roomCode} />;
++  if (route.name === 'display') return <TrackRoom roomCode={route.roomCode} />;
+   if (route.name === 'room') return <TrackRoom roomCode={route.roomCode} />;
+   return <LoadingView />;
+ }

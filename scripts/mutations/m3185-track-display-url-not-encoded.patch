@@ -1,0 +1,23 @@
+# 変異 3185: track-display-url-not-encoded
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/router.test.ts
+#
+# #476 映す画面の URL が、ルームのコードを符号化しない。D1。記号を含むコードで別のルームを指す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3185-*.patch
+# 復元: git apply -R scripts/mutations/m3185-*.patch
+diff --git a/apps/track-web/src/router.ts b/apps/track-web/src/router.ts
+index dabee441..6e0db353 100644
+--- a/apps/track-web/src/router.ts
++++ b/apps/track-web/src/router.ts
+@@ -21,7 +21,7 @@ export function parseRoute(pathname: string, search = ''): Route {
+ 
+ /** 映す画面の URL（ルームの画面から新しいタブで開く）。 */
+ export function displayPathFor(roomCode: string): string {
+-  return `${BASE}/?room=${encodeURIComponent(roomCode)}&view=${DISPLAY_VIEW}`;
++  return `${BASE}/?room=${roomCode}&view=${DISPLAY_VIEW}`;
+ }
+ 
+ /**

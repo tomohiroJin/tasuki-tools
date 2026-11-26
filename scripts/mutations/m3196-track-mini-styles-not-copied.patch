@@ -1,0 +1,22 @@
+# 変異 3196: track-mini-styles-not-copied
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#
+# #476 開いた小さな窓へ、元のページの見た目を写さない。D3。窓が素のまま（ボタンも文字も整わない）で出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3196-*.patch
+# 復元: git apply -R scripts/mutations/m3196-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+index c66dbf6a..47cc3836 100644
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -52,7 +52,6 @@ export function useMiniWindow(): MiniWindow {
+         win.close();
+         return;
+       }
+-      copyStylesInto(document, win.document);
+       const target = win.document.createElement('div');
+       target.className = 'track-mini-root';
+       win.document.body.appendChild(target);

@@ -1,0 +1,24 @@
+# 変異 3181: track-band-now-not-stepped
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/band.test.ts
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 時系列の帯の計測中の終わりを、1 分の刻みに切り下げない。D5。帯が毎秒動く。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3181-*.patch
+# 復元: git apply -R scripts/mutations/m3181-*.patch
+diff --git a/packages/track-core/src/band.ts b/packages/track-core/src/band.ts
+index 6c36c77a..69fae4f5 100644
+--- a/packages/track-core/src/band.ts
++++ b/packages/track-core/src/band.ts
+@@ -39,7 +39,7 @@ export function bandOf(view: TrackView, nowMs: number): Band | null {
+   const last = view.segments.at(-1);
+   if (first === undefined || last === undefined) return null;
+   const running = runningSegmentOf(view);
+-  const endMs = running === null ? last.endMs! : Math.max(stepDown(nowMs), running.startMs + 1);
++  const endMs = running === null ? last.endMs! : Math.max(nowMs, running.startMs + 1);
+   const parts: BandPart[] = [];
+   let cursor = first.startMs;
+   for (const segment of view.segments) {

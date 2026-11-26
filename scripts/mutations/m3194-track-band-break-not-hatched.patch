@@ -1,0 +1,23 @@
+# 変異 3194: track-band-break-not-hatched
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 時系列の帯の休憩に、縞の印を付けず作業と同じ色にする。D4。色だけに頼れない決まりの破れ（休憩と作業が見分けられない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3194-*.patch
+# 復元: git apply -R scripts/mutations/m3194-*.patch
+diff --git a/apps/track-web/src/components/TimeBand.tsx b/apps/track-web/src/components/TimeBand.tsx
+index aeb57c2e..85fe8ff0 100644
+--- a/apps/track-web/src/components/TimeBand.tsx
++++ b/apps/track-web/src/components/TimeBand.tsx
+@@ -27,7 +27,7 @@ export function TimeBand({ view, nowMs, totals, tzOffsetMin }: Props) {
+         {band.parts.map((part) => (
+           <span
+             key={`${part.kind}:${part.startMs}`}
+-            className={part.kind === 'work' ? `track-band-part track-tone--${toneIndexOf(totals.rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
++            className={part.kind !== 'gap' ? `track-band-part track-tone--${toneIndexOf(totals.rows, part.label)}` : `track-band-part track-band-part--${part.kind}`}
+             style={{ '--share': part.ms } as CSSProperties}
+           />
+         ))}

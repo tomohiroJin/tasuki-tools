@@ -1,0 +1,23 @@
+# 変異 3187: track-mini-support-always-true
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/mini-window-platform.test.ts
+#
+# #476 ミニ表示の対応の有無を、API を見ずに「対応」と答える。D3。非対応のブラウザで窓の入口が出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3187-*.patch
+# 復元: git apply -R scripts/mutations/m3187-*.patch
+diff --git a/apps/track-web/src/platform/mini-window.ts b/apps/track-web/src/platform/mini-window.ts
+index be8c98b3..db4e817d 100644
+--- a/apps/track-web/src/platform/mini-window.ts
++++ b/apps/track-web/src/platform/mini-window.ts
+@@ -21,7 +21,7 @@ const apiOf = (): DocumentPictureInPicture | null => {
+ 
+ /** 小さな窓を出せるブラウザか。 */
+ export function isMiniWindowSupported(): boolean {
+-  return apiOf() !== null;
++  return true;
+ }
+ 
+ /** 小さな窓を開く。非対応・利用者が許さなかった・開けなかったときは null（理由は問わない・ログも書かない）。 */

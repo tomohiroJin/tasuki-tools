@@ -1,0 +1,23 @@
+# 変異 3189: track-mini-closed-window-kept
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 利用者が窓を閉じても、描画先を手放さない。D3。閉じた窓へ描き続け、もう一度開けない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3189-*.patch
+# 復元: git apply -R scripts/mutations/m3189-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+index c66dbf6a..b3e41fc6 100644
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -56,7 +56,6 @@ export function useMiniWindow(): MiniWindow {
+       const target = win.document.createElement('div');
+       target.className = 'track-mini-root';
+       win.document.body.appendChild(target);
+-      win.addEventListener('pagehide', release, { once: true });
+       windowRef.current = win;
+       setContainer(target);
+     } finally {
