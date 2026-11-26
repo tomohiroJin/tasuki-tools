@@ -7,7 +7,7 @@
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
-import { MAX_SAVED_RECORDS, csvFileName, formatClock, formatDate, formatDuration, toCsv, toMarkdown, totalsOf } from '@tasuki/track-core';
+import { csvFileName, formatClock, formatDate, formatDuration, toCsv, toMarkdown, totalsOf } from '@tasuki/track-core';
 import { TotalsPanel } from '../components/TotalsPanel';
 import {
   AUTO_CLOSED_MARK,
@@ -24,6 +24,7 @@ import {
   SAVED_DELETE_ALL_NO,
   SAVED_DELETE_ALL_YES,
   SAVED_DELETE_BUTTON,
+  SAVED_DELETE_FAILED,
   SAVED_EMPTY,
   SAVED_HEADING,
   SAVED_LOADING,
@@ -37,7 +38,7 @@ import {
 import { downloadTextFile } from '../platform/download';
 import { localTzOffsetMin } from '../platform/timezone';
 import { hubPathFor } from '../router';
-import { viewOfRecord, type SavedRecord } from '../storage/saved-record';
+import { MAX_SAVED_RECORDS, viewOfRecord, type SavedRecord } from '../storage/saved-record';
 import { clearSaved, deleteSaved, loadSaved } from '../storage/saved-store';
 import { isUnnamed, nameOf, rangeTextOf } from '../track-view';
 
@@ -47,6 +48,8 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
   const tzOffsetMin = localTzOffsetMin();
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [openId, setOpenId] = useState<string | null>(null);
+  // 消せなかったときの知らせ。一覧は残す（読めた記録を隠さない）
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -65,9 +68,10 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
     try {
       await deleteSaved(id);
     } catch {
-      setLoaded({ kind: 'failed' });
+      setDeleteFailed(true);
       return;
     }
+    setDeleteFailed(false);
     setLoaded({ kind: 'ready', records: records.filter((r) => r.id !== id) });
     setOpenId(null);
     // 消した記録の欄は外れるので、見出しへフォーカスを移す
@@ -77,9 +81,10 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
     try {
       await clearSaved();
     } catch {
-      setLoaded({ kind: 'failed' });
+      setDeleteFailed(true);
       return;
     }
+    setDeleteFailed(false);
     setLoaded({ kind: 'ready', records: [] });
     setOpenId(null);
     headingRef.current?.focus();
@@ -100,6 +105,11 @@ export function SavedRecords({ roomCode }: { roomCode: string | null }) {
         {loaded.kind === 'failed' && (
           <p className="ui-note ui-note--error" role="alert">
             {SAVED_LOAD_FAILED}
+          </p>
+        )}
+        {deleteFailed && (
+          <p className="ui-note ui-note--error" role="alert">
+            {SAVED_DELETE_FAILED}
           </p>
         )}
         {loaded.kind === 'ready' && records.length === 0 && <p className="ui-note">{SAVED_EMPTY}</p>}

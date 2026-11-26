@@ -10,7 +10,6 @@
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
-import { MAX_SAVED_RECORDS } from '@tasuki/track-core';
 import {
   CLEAR_BUTTON,
   CLEAR_CONFIRM_NO,
@@ -29,6 +28,7 @@ import {
   saveFullNote,
 } from '../copy';
 import type { SaveStatus } from '../hooks/use-saved-count';
+import { MAX_SAVED_RECORDS } from '../storage/saved-record';
 
 interface Props {
   markdown: string;

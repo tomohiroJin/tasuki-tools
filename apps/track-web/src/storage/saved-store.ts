@@ -71,9 +71,15 @@ export function deleteSaved(id: string): Promise<void> {
   });
 }
 
-/** 全部消す。 */
+/**
+ * 読める記録をすべて消す。**読めない記録（新しい版・壊れた値）は消さない**（一覧に出ない記録を、
+ * 利用者が見ないまま消さない。後の版が読めるかもしれない・B7）。
+ */
 export function clearSaved(): Promise<void> {
   return write((store) => {
-    store.clear();
+    const all = store.getAll();
+    all.onsuccess = () => {
+      for (const record of recordsFromStore(all.result as unknown[])) store.delete(record.id);
+    };
   });
 }

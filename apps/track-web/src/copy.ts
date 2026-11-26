@@ -117,7 +117,8 @@ export const CLEAR_CONFIRM_NO = 'やめる';
 // 端末に残す・CSV（第 2 段 B）
 export const SAVE_BUTTON = 'この端末に残す';
 export const CSV_BUTTON = 'CSV で保存';
-export const SAVE_NOTE = 'この端末のブラウザにだけ残ります。ブラウザのデータを消すと消えます。ほかの人には見えません。';
+export const SAVE_NOTE =
+  'この端末のブラウザにだけ残ります。ほかの人には見えません。ブラウザのデータを消すと消えます。Safari では、しばらく開かないと消えることがあります。';
 export const saveFullNote = (max: number): string => `残せるのは ${max} 件までです。残すと、最初に残した 1 件が消えます。`;
 export const SAVE_DONE = 'この端末に残しました';
 export const SAVE_FAILED = 'この端末に残せませんでした';
@@ -129,6 +130,7 @@ export const SAVED_BACK_ROOM = 'うちわけへ戻る';
 export const SAVED_BACK_HOME = '最初の画面へ戻る';
 export const SAVED_LOADING = '読み込んでいます';
 export const SAVED_LOAD_FAILED = 'この端末の記録を読めませんでした';
+export const SAVED_DELETE_FAILED = 'この端末の記録を消せませんでした';
 export const SAVED_EMPTY = 'まだ残した記録はありません。ルームの画面の「この端末に残す」で残せます。';
 export const savedCountNote = (count: number, max: number): string => `${count} 件（残せるのは ${max} 件まで）`;
 export const savedItemText = (when: string, total: string, count: number): string => `${when} 全体 ${total} 作業 ${count} 件`;

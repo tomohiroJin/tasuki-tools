@@ -2,29 +2,38 @@
  * 端末に残す記録の形（#476 第 2 段 B2・B3）。残すものと残さないもの・境界の検証・上限。
  */
 import { describe, expect, it } from 'vitest';
-import { MAX_LABEL, MAX_SAVED_RECORDS, MAX_SEGMENTS, toCsv, toMarkdown, type TrackView } from '@tasuki/track-core';
-import { evictedIds, normalizeStoredRecord, recordFromView, recordsFromStore, viewOfRecord } from '../src/storage/saved-record';
+import { MAX_LABEL, MAX_SEGMENTS, toCsv, toMarkdown, type TrackView } from '@tasuki/track-core';
+import {
+  MAX_SAVED_RECORDS,
+  evictedIds,
+  normalizeStoredRecord,
+  recordFromView,
+  recordsFromStore,
+  viewOfRecord,
+} from '../src/storage/saved-record';
 import { MIN, runningTrack, trackView, seg } from './support/track-states';
 
 describe('recordFromView: 残すものを選ぶ', () => {
   it('区切り・epochWallMs・残した時刻・ID だけを残す（ルーム名・コード・定番・取り消しの写しは残さない）', () => {
     const view: TrackView = { ...runningTrack(60 * MIN), pinned: ['定番の作業'] };
-    const record = recordFromView(view, 60 * MIN, 1_700_000_000_000, 'id-1');
-    expect(Object.keys(record).sort()).toEqual(['epochWallMs', 'id', 'savedAtMs', 'segments']);
+    const record = recordFromView(view, 60 * MIN, 'id-1');
+    expect(Object.keys(record).sort()).toEqual(['epochWallMs', 'id', 'savedAtMs', 'segments', 'version']);
+    expect(record.version).toBe(1);
     expect(JSON.stringify(record)).not.toContain('定番の作業');
-    expect(record.savedAtMs).toBe(1_700_000_000_000);
+    // 残した時刻は、端末の時計でなく時刻軸から求める（epochWallMs + nowMs）
+    expect(record.savedAtMs).toBe(view.epochWallMs + 60 * MIN);
     expect(record.epochWallMs).toBe(view.epochWallMs);
     for (const s of record.segments) expect(Object.keys(s).sort()).toEqual(['autoClosed', 'endMs', 'kind', 'label', 'startMs']);
   });
 
   it('計測中の区切りは、残す時点で切る', () => {
-    const record = recordFromView(runningTrack(60 * MIN), 60 * MIN, 1, 'id-1');
+    const record = recordFromView(runningTrack(60 * MIN), 60 * MIN, 'id-1');
     expect(record.segments.at(-1)).toMatchObject({ label: 'Build', startMs: 45 * MIN, endMs: 60 * MIN });
   });
 
   it('残した記録を写しへ戻すと、残した時点で切った CSV と同じになる（計測中の印だけが無い）', () => {
     const view = runningTrack(60 * MIN);
-    const record = recordFromView(view, 60 * MIN, 1, 'id-1');
+    const record = recordFromView(view, 60 * MIN, 'id-1');
     const restored = viewOfRecord(record);
     expect(toCsv(restored, restored.nowMs, 540)).toBe(toCsv(view, 60 * MIN, 540));
     expect(toMarkdown(restored, restored.nowMs, 540)).toContain('10:45–11:00 Build');
@@ -32,7 +41,7 @@ describe('recordFromView: 残すものを選ぶ', () => {
 });
 
 describe('normalizeStoredRecord: 読み戻しの境界', () => {
-  const good = () => recordFromView(runningTrack(60 * MIN), 60 * MIN, 1_700_000_000_000, 'id-1');
+  const good = () => recordFromView(runningTrack(60 * MIN), 60 * MIN, 'id-1');
 
   it('正しい形はそのまま通す', () => {
     expect(normalizeStoredRecord(good())).toEqual(good());
@@ -47,6 +56,8 @@ describe('normalizeStoredRecord: 読み戻しの境界', () => {
   it.each([
     ['オブジェクトでない', 'x'],
     ['null', null],
+    ['版が無い（古い形）', { ...good(), version: undefined }],
+    ['知らない版（新しい形）', { ...good(), version: 2 }],
     ['id が無い', { ...good(), id: undefined }],
     ['id が空', { ...good(), id: '' }],
     ['savedAtMs が数でない', { ...good(), savedAtMs: '1' }],
@@ -69,7 +80,7 @@ describe('normalizeStoredRecord: 読み戻しの境界', () => {
 });
 
 describe('evictedIds: 上限', () => {
-  const rec = (n: number) => ({ id: `r${n}`, savedAtMs: n, epochWallMs: 0, segments: [] });
+  const rec = (n: number) => ({ version: 1 as const, id: `r${n}`, savedAtMs: n, epochWallMs: 0, segments: [] });
 
   it('上限までは何も消さない', () => {
     expect(evictedIds(Array.from({ length: MAX_SAVED_RECORDS }, (_, i) => rec(i)))).toEqual([]);
@@ -87,7 +98,7 @@ describe('evictedIds: 上限', () => {
 
 describe('viewOfRecord', () => {
   it('区切りに通し番号の ID を振り、計測中は無い', () => {
-    const view = viewOfRecord({ id: 'x', savedAtMs: 1, epochWallMs: 5, segments: [{ kind: 'work', label: 'a', startMs: 0, endMs: MIN, autoClosed: false }] });
+    const view = viewOfRecord({ version: 1, id: 'x', savedAtMs: 1, epochWallMs: 5, segments: [{ kind: 'work', label: 'a', startMs: 0, endMs: MIN, autoClosed: false }] });
     expect(view.segments).toEqual([seg('g-1', 'work', 'a', 0, MIN)]);
     expect(view.nowMs).toBe(MIN);
     expect(trackView().segments).toEqual([]);

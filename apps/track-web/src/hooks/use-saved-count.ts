@@ -1,6 +1,7 @@
 /**
  * 「この端末に残す」の状態（#476 第 2 段 B1・B3）。残した件数（上限の手前の知らせに使う）と、残す操作。
- * 残すのは利用者が押したときだけ。時刻と ID は端末のものを、ここで 1 度だけ作る。
+ * 残すのは利用者が押したときだけ。時刻は手元の時計の時刻軸（`getNow`）から、ID はここで 1 度だけ作る。
+ * 保存・読み出しの失敗は例外にせず、状態（`failed`）で返す（画面を落とさない）。
  */
 import { useCallback, useEffect, useState } from 'react';
 import type { TrackView } from '@tasuki/track-core';
@@ -33,7 +34,7 @@ export function useSaveToDevice(view: TrackView, getNow: () => number): SaveToDe
 
   const save = useCallback(async () => {
     try {
-      await saveRecord(recordFromView(view, getNow(), Date.now(), crypto.randomUUID()));
+      await saveRecord(recordFromView(view, getNow(), crypto.randomUUID()));
     } catch {
       setStatus('failed');
       return;

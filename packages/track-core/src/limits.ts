@@ -13,8 +13,6 @@ export const MAX_LABEL_INPUT = MAX_LABEL * 4;
 export const MAX_POSITION_MS = 100_000_000_000;
 /** 区切りの最大数（5 分ごとに切り替えて 16 時間分） */
 export const MAX_SEGMENTS = 200;
-/** 端末に残せる記録の最大数（#476 第 2 段 B3）。超える保存では、いちばん古い 1 件を消す */
-export const MAX_SAVED_RECORDS = 50;
 /** 定番に固定できる作業名の最大数 */
 export const MAX_PINNED = 9;
 /** 候補の最大数（数字キー 1〜9 に合わせる） */

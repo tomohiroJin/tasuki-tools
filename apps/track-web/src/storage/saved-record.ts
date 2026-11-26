@@ -7,16 +7,12 @@
  * - 読み戻しは境界で検証する（原則 IV）。壊れた値・古い形は捨てる。スキーマは `v.object` なので、余計な項目は読み戻さない
  */
 import * as v from 'valibot';
-import {
-  MAX_LABEL,
-  MAX_POSITION_MS,
-  MAX_SAVED_RECORDS,
-  MAX_SEGMENTS,
-  hasControlChars,
-  type SegmentView,
-  type TrackView,
-} from '@tasuki/track-core';
+import { MAX_LABEL, MAX_POSITION_MS, MAX_SEGMENTS, hasControlChars, type SegmentView, type TrackView } from '@tasuki/track-core';
 
+/** 端末に残せる記録の最大数（B3）。超える保存では、いちばん古い 1 件を消す */
+export const MAX_SAVED_RECORDS = 50;
+/** 記録の版。**形を変えるときは上げ、古い版は読むときに畳む**（`docs/adr/0005`）。読めない版は一覧から外すだけで、上書きも削除もしない */
+export const SAVED_RECORD_VERSION = 1;
 const MAX_ID_LENGTH = 64;
 
 const position = v.pipe(v.number(), v.finite(), v.minValue(-MAX_POSITION_MS), v.maxValue(MAX_POSITION_MS));
@@ -37,8 +33,9 @@ const SavedSegmentSchema = v.pipe(
 );
 
 export const SavedRecordSchema = v.object({
+  version: v.literal(SAVED_RECORD_VERSION),
   id: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_ID_LENGTH)),
-  /** 残した時刻（壁時計の ms） */
+  /** 残した時刻（壁時計の ms。時刻軸から求める: `epochWallMs + nowMs`） */
   savedAtMs: v.pipe(v.number(), v.finite()),
   /** 時刻軸の 0 に当たる壁時計の ms */
   epochWallMs: v.pipe(v.number(), v.finite()),
@@ -48,11 +45,15 @@ export const SavedRecordSchema = v.object({
 export type SavedSegment = v.InferOutput<typeof SavedSegmentSchema>;
 export type SavedRecord = v.InferOutput<typeof SavedRecordSchema>;
 
-/** ルームの写しから、残す記録を作る。計測中の区切りは `nowMs`（時刻軸の位置）で切る。 */
-export function recordFromView(view: TrackView, nowMs: number, savedAtMs: number, id: string): SavedRecord {
+/**
+ * ルームの写しから、残す記録を作る。計測中の区切りは `nowMs`（残す時点の、手元の時計の時刻軸の位置）で閉じた形で残す
+ * （開くたびに伸びない）。残した時刻は `epochWallMs + nowMs`（端末の時計を別に読まない）。
+ */
+export function recordFromView(view: TrackView, nowMs: number, id: string): SavedRecord {
   return {
+    version: SAVED_RECORD_VERSION,
     id,
-    savedAtMs,
+    savedAtMs: view.epochWallMs + nowMs,
     epochWallMs: view.epochWallMs,
     segments: view.segments.map((g) => ({
       kind: g.kind,

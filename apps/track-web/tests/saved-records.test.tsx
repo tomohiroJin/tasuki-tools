@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { outsideBase } from '@tasuki/test-css/font-base';
-import { MAX_SAVED_RECORDS, csvFileName, toCsv, toMarkdown, type TrackView } from '@tasuki/track-core';
+import { csvFileName, toCsv, toMarkdown, type TrackView } from '@tasuki/track-core';
 import { App } from '../src/App';
 import {
   COPY_BUTTON,
@@ -30,7 +30,7 @@ import {
 } from '../src/copy';
 import { localTzOffsetMin } from '../src/platform/timezone';
 import { parseRoute, savedPathFor } from '../src/router';
-import { recordFromView, viewOfRecord, type SavedRecord } from '../src/storage/saved-record';
+import { MAX_SAVED_RECORDS, recordFromView, viewOfRecord, type SavedRecord } from '../src/storage/saved-record';
 import { EMPTY_TRACK, JOINED, MIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningTrack, stoppedTrack, trackFrame } from './support/track-states';
 import { installFakeIndexedDb, type FakeIndexedDb } from './support/fake-indexeddb';
 
@@ -97,6 +97,7 @@ function captureDownloads(): { name: string; text: Promise<string> }[] {
 }
 
 const rec = (n: number, label = `w${n}`): SavedRecord => ({
+  version: 1,
   id: `r${n}`,
   savedAtMs: Date.UTC(2026, 10, 23, 1, n, 0),
   epochWallMs: Date.UTC(2026, 10, 23, 1, 0, 0),
@@ -125,7 +126,9 @@ describe('ルームの持ち帰り: 端末に残す・CSV', () => {
     });
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(SAVE_DONE));
     const [record] = [...stored().values()] as SavedRecord[];
-    expect(Object.keys(record!).sort()).toEqual(['epochWallMs', 'id', 'savedAtMs', 'segments']);
+    expect(Object.keys(record!).sort()).toEqual(['epochWallMs', 'id', 'savedAtMs', 'segments', 'version']);
+    // 残した時刻は時刻軸から求める（端末の時計は読まない）
+    expect(record!.savedAtMs).toBe(view.epochWallMs + 60 * MIN);
     expect(record!.epochWallMs).toBe(view.epochWallMs);
     expect(record!.segments.map((g) => g.label)).toEqual(['Review', 'Build']);
     // ルームのコード・定番は残さない
@@ -235,6 +238,8 @@ describe('この端末の記録の画面', () => {
     openSaved('?view=saved&room=R1');
     await screen.findByText(SAVED_EMPTY);
     expect(screen.getByRole('link', { name: SAVED_BACK_ROOM })).toHaveAttribute('href', '/?room=R1');
+    // 見ているだけの人がルームの名簿に現れない（`room.join` を送らない・接続しない）
+    expect(ScriptedWebSocket.instances).toHaveLength(0);
   });
 
   it('Given 3 件と壊れた値 / When 開く / Then 新しい順に並べ、壊れた値は出さない', async () => {
@@ -327,7 +332,7 @@ describe('この端末の記録の画面', () => {
 describe('残した記録を写しへ', () => {
   it('Given 残した記録 / When 写しに戻す / Then ルームで見ていた CSV と同じ', () => {
     const view = stoppedTrack();
-    const record = recordFromView(view, 60 * MIN, 1, 'x');
+    const record = recordFromView(view, 60 * MIN, 'x');
     const restored = viewOfRecord(record);
     expect(toCsv(restored, restored.nowMs, tz)).toBe(toCsv(view, 60 * MIN, tz));
   });
