@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - apps/track-web/tests/use-mini-window.test.tsx
 #
-# #476 古い窓の pagehide が、閉じてすぐ開いた新しい窓の描画先を外す。
+# #476 古い窓の pagehide が、閉じてすぐ開いた新しい窓の描画先を外す（聞き手を外さず、窓の同一性も見ない）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m3253-*.patch
@@ -11,7 +11,15 @@
 diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
 --- a/apps/track-web/src/hooks/use-mini-window.ts
 +++ b/apps/track-web/src/hooks/use-mini-window.ts
-@@ -71,7 +71,7 @@
+@@ -34,7 +34,6 @@
+ 
+   const release = useCallback((): void => {
+     const hide = hideListenerRef.current;
+-    if (hide !== null) hide.win.removeEventListener('pagehide', hide.listener);
+     hideListenerRef.current = null;
+     windowRef.current = null;
+     stopWatchRef.current?.();
+@@ -71,7 +70,7 @@
        win.document.body.appendChild(target);
        // 閉じ終わっていない古い窓の `pagehide` が、あとから開いた窓の描画先を外さないよう、その窓のときだけ手放す
        const onHide = (): void => {
