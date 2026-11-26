@@ -1,22 +1,22 @@
-# 変異 3103: track-clear-no-focus-move
+# 変異 3103: track-clear-focus-before-reply
 #
 # 検出を期待するテスト:
 #   - apps/track-web/tests/track-room.test.tsx
 #
-# #476 「記録を消す」の後、フォーカスを開始のボタンへ移さない。
+# #476 「記録を消す」の後、空の写しが届く前にフォーカスを開始のボタンへ移す（拒まれても戻らない）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m3103-*.patch
 # 復元: git apply -R scripts/mutations/m3103-*.patch
 diff --git a/apps/track-web/src/components/TakeHome.tsx b/apps/track-web/src/components/TakeHome.tsx
-index 65b82a82..dc07744c 100644
+index 06955ba3..fd2ab1c6 100644
 --- a/apps/track-web/src/components/TakeHome.tsx
 +++ b/apps/track-web/src/components/TakeHome.tsx
-@@ -111,7 +111,6 @@ function ClearControl({ enabled, canOperate, onClear, onCleared }: { enabled: bo
-             setAsking(false);
-             // 元のボタンは、記録が空になると押せなくなる。フォーカスは開始のボタンへ移す
+@@ -141,6 +141,7 @@ function ClearControl({
+             // フォーカスは、空の写しが届いてから開始のボタンへ移す（届かなければ元のボタンへ戻す）
+             setPending(true);
              onClear();
--            onCleared();
++            onCleared();
            }}
          >
            {CLEAR_CONFIRM_YES}

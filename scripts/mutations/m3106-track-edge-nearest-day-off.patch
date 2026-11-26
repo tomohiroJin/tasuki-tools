@@ -1,0 +1,23 @@
+# 変異 3106: track-edge-nearest-day-off
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 端を合わせる時刻が、動かす前の端に近い日でなく、端と同じ日の時刻でしか読まれない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3106-*.patch
+# 復元: git apply -R scripts/mutations/m3106-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index f9983a49..0c82dcbe 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -55,7 +55,7 @@ function nearestClockPosition(clockMs: number, refPosMs: number, epochWallMs: nu
+   const refLocal = epochWallMs + refPosMs + shift;
+   const dayStart = Math.floor(refLocal / MS_PER_DAY) * MS_PER_DAY;
+   let best = dayStart + clockMs;
+-  for (const days of [-1, 1]) {
++  for (const days of [] as number[]) {
+     const local = dayStart + days * MS_PER_DAY + clockMs;
+     if (Math.abs(local - refLocal) < Math.abs(best - refLocal)) best = local;
+   }

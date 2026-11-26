@@ -1,0 +1,21 @@
+# 変異 3117: track-time-lookback-floor-snapped
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 下限が「いまから 24 時間前」で決まるときも端へ寄せる（送るまでに動いて範囲の外になる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3117-*.patch
+# 復元: git apply -R scripts/mutations/m3117-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index f9983a49..c6d83c0b 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -174,5 +174,5 @@ export function edgePositionOf(
+   const atMs = nearestClockPosition(clock, currentMs, epochWallMs, tzOffsetMin);
+   // 秒の欄の無い入力（`HH:MM`）だけが分の単位。`<input type="time">` は秒が 0 のとき秒の欄を省く
+   const minuteOnly = value.length === 5;
+-  return snapToRange(atMs, minuteOnly, { ...range, minIsLookback: range.minMs <= nowMs - MAX_LOOKBACK_MS });
++  return snapToRange(atMs, minuteOnly, { ...range, minIsLookback: false });
+ }

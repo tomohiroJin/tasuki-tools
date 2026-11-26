@@ -1,23 +1,23 @@
-# 変異 3102: track-candidates-keep-running
+# 変異 3102: track-candidates-drop-running
 #
 # 検出を期待するテスト:
 #   - packages/track-core/tests/projection.test.ts
 #
-# #476 候補が、計測中の作業と同じ名前も並べる（押しても何も起きない）。
+# #476 候補が、計測中の作業と同じ名前を一覧から外す（星で定番にする・外す道が消える）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m3102-*.patch
 # 復元: git apply -R scripts/mutations/m3102-*.patch
 diff --git a/packages/track-core/src/projection.ts b/packages/track-core/src/projection.ts
-index 49e22564..16cced8d 100644
+index d0e57233..a6dd8d84 100644
 --- a/packages/track-core/src/projection.ts
 +++ b/packages/track-core/src/projection.ts
-@@ -94,7 +94,7 @@ export function candidatesOf(view: TrackView, topicTitle: string | null): Candid
-   const running = runningSegmentOf(view);
+@@ -98,7 +98,7 @@ export function candidatesOf(view: TrackView, topicTitle: string | null): Candid
    const runningLabel = running !== null && running.kind === "work" ? running.label : "";
+   let pressable = 0;
    const push = (label: string, source: Candidate["source"]): void => {
--    if (label === runningLabel || seen.has(label) || out.length >= MAX_CANDIDATES) return;
-+    if (seen.has(label) || out.length >= MAX_CANDIDATES) return;
+-    if (seen.has(label)) return;
++    if (seen.has(label) || (label !== "" && label === runningLabel)) return;
+     const isRunning = label !== "" && label === runningLabel;
+     if (!isRunning && pressable >= MAX_CANDIDATES) return;
      seen.add(label);
-     out.push({ label, source, pinned: pinned.has(label) });
-   };
