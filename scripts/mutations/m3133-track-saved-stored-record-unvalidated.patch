@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..b80f0d3b 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -92,7 +92,7 @@ export function evictedIds(records: readonly SavedRecord[]): string[] {
+ /** 端末から読んだ 1 件を検証する。読めなければ null。 */
+ export function normalizeStoredRecord(raw: unknown): SavedRecord | null {
+   const result = v.safeParse(SavedRecordSchema, raw);
+-  return result.success ? result.output : null;
++  return raw as SavedRecord;
+ }
+ 
+ /** 端末から読んだ値の列を、読める記録だけに畳む。 */

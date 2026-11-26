@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-store.ts b/apps/track-web/src/storage/saved-store.ts
+index 572df91b..d334d59a 100644
+--- a/apps/track-web/src/storage/saved-store.ts
++++ b/apps/track-web/src/storage/saved-store.ts
+@@ -59,7 +59,7 @@ export function saveRecord(record: SavedRecord): Promise<void> {
+     store.put(record);
+     const all = store.getAll();
+     all.onsuccess = () => {
+-      for (const id of evictedIds(recordsFromStore(all.result as unknown[]))) store.delete(id);
++      void evictedIds;
+     };
+   });
+ }

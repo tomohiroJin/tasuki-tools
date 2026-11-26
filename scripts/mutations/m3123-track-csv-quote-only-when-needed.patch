@@ -1,0 +1,13 @@
+diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
+index fee38671..da074b55 100644
+--- a/packages/track-core/src/csv.ts
++++ b/packages/track-core/src/csv.ts
+@@ -27,7 +27,7 @@ const FORMULA_LEAD = /^[=+\-@\t\r\n]/;
+  */
+ export function csvField(value: string): string {
+   const safe = FORMULA_LEAD.test(value) ? `'${value}` : value;
+-  return `"${safe.replace(/"/g, '""')}"`;
++  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+ }
+ 
+ /** うちわけを CSV にする。`tzOffsetMin` は UTC からの進み（分。日本時間は 540）。 */

@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-store.ts b/apps/track-web/src/storage/saved-store.ts
+index 572df91b..f3b10b1e 100644
+--- a/apps/track-web/src/storage/saved-store.ts
++++ b/apps/track-web/src/storage/saved-store.ts
+@@ -79,7 +79,7 @@ export function clearSaved(): Promise<void> {
+   return write((store) => {
+     const all = store.getAll();
+     all.onsuccess = () => {
+-      for (const record of recordsFromStore(all.result as unknown[])) store.delete(record.id);
++      store.clear();
+     };
+   });
+ }

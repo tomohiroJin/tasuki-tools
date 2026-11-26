@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..585bd249 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -81,7 +81,7 @@ export function viewOfRecord(record: SavedRecord): TrackView {
+ 
+ /** 保存したあとに上限を超えているぶんの ID（残した時刻の古い順。並びには依らない）。 */
+ export function evictedIds(records: readonly SavedRecord[]): string[] {
+-  const excess = records.length - MAX_SAVED_RECORDS;
++  const excess = records.length - MAX_SAVED_RECORDS - 1;
+   if (excess <= 0) return [];
+   return [...records]
+     .sort((a, b) => a.savedAtMs - b.savedAtMs)
