@@ -34,3 +34,6 @@ export { TrackCommandSchema, TrackFrameSchema, TrackErrorFrameSchema, TRACK_ERRO
 export type { TrackCommand, TrackErrorCode } from "./schemas.js";
 
 export { trackErrorMessageFor } from "./error-messages.js";
+
+export { BAND_STEP_MS, stepDown, bandOf } from "./band.js";
+export type { Band, BandPart } from "./band.js";
