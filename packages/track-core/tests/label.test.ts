@@ -19,6 +19,10 @@ describe("normalizeLabel", () => {
     expect(normalizeLabel("\ufeff実装")).toBe("実装");
     expect(normalizeLabel("実\u2060装\u200c")).toBe("実装");
   });
+  it("見えない字を落としてから NFKC を掛ける（基底字と結合文字の間に挟まっても、同じ見た目は同じ名前になる）", () => {
+    expect(normalizeLabel("e​́")).toBe(normalizeLabel("é"));
+    expect(normalizeLabel("e​́")).toBe("é");
+  });
   it("見えない字だけなら空になる（名前なしと同じ）", () => {
     expect(normalizeLabel("\u200b\u202e\ufeff")).toBe("");
     expect(normalizeLabel(" \u200b ")).toBe("");

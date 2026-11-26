@@ -24,9 +24,15 @@ export function hasControlChars(s: string): boolean {
  */
 const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u180e]/g;
 
-/** NFKC を掛け、見えない書式の字を落とし、前後の空白を除く。空白と見えない字だけなら空（名前なし）になる。 */
+/**
+ * 見えない書式の字を落とし、NFKC を掛け、前後の空白を除く。空白と見えない字だけなら空（名前なし）になる。
+ *
+ * **落としてから NFKC を掛ける。** 逆の順では、基底字と結合文字の間に挟まった見えない字（`e` U+200B U+0301）が
+ * NFKC の合成を妨げたまま落ち、分解形が残って、同じ見た目の名前が別の名前になる（PR #697 の /code-review）。
+ * NFKC が見えない書式の字を生むことは無いので、後で落とし直す必要は無い。
+ */
 export function normalizeLabel(raw: string): string {
-  return raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").trim();
+  return raw.replace(INVISIBLE_FORMAT, "").normalize("NFKC").trim();
 }
 
 /** 正規化済みの作業名が受け取れる形か（空は名前なしとして通す）。 */

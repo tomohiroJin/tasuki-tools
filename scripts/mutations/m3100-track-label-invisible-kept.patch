@@ -2,7 +2,6 @@
 #
 # 検出を期待するテスト:
 #   - packages/track-core/tests/label.test.ts
-#   - packages/track-core/tests/track.test.ts
 #
 # #476 作業名の正規化が、見えない書式の字（ゼロ幅の空白・向きを変える字・BOM）を落とさない。
 #
@@ -10,14 +9,13 @@
 #       git apply scripts/mutations/m3100-*.patch
 # 復元: git apply -R scripts/mutations/m3100-*.patch
 diff --git a/packages/track-core/src/label.ts b/packages/track-core/src/label.ts
-index 7c070286..7621b052 100644
 --- a/packages/track-core/src/label.ts
 +++ b/packages/track-core/src/label.ts
-@@ -26,7 +26,7 @@ const INVISIBLE_FORMAT = /[\u200b\u200c\u202a-\u202e\u2060-\u2064\u2066-\u2069\u
- 
- /** NFKC を掛け、見えない書式の字を落とし、前後の空白を除く。空白と見えない字だけなら空（名前なし）になる。 */
+@@ -32,7 +32,7 @@
+  * NFKC が見えない書式の字を生むことは無いので、後で落とし直す必要は無い。
+  */
  export function normalizeLabel(raw: string): string {
--  return raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").trim();
+-  return raw.replace(INVISIBLE_FORMAT, "").normalize("NFKC").trim();
 +  return raw.normalize("NFKC").trim();
  }
  

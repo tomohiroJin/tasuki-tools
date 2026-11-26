@@ -14232,4 +14232,12 @@ export const MUTATIONS = [
     tests: ["tests/track-room.test.tsx"],
     note: RESERVED_3270_3289 + " " + "#476 の A4 回目の直し (5)。0 時をまたぐと「前日」の添えが古くなる。",
   },
+  {
+    id: 3284,
+    label: "作業名の正規化が、NFKC を掛けてから見えない字を落とす",
+    patch: "m3284-track-label-nfkc-before-strip.patch",
+    pkg: "packages/track-core",
+    tests: ["tests/label.test.ts"],
+    note: RESERVED_3270_3289 + " " + "#476 の A1（PR #697 の /code-review の nit）。基底字と結合文字の間の見えない字で、同じ見た目の作業名が別の名前になる。",
+  },
 ];
