@@ -1,12 +1,13 @@
 diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 2a8e2af7..dbe4bab4 100644
 --- a/apps/poker-web/src/room-view.ts
 +++ b/apps/poker-web/src/room-view.ts
-@@ -82,7 +82,7 @@
-   if (agreement === 'unanimous') return 'unanimous';
+@@ -83,7 +83,7 @@ export function resultsEffectOf(
+   if (agreement !== null) return agreement;
    if (findSpread(round.votes) !== null) return 'split';
    if (judgeNearAgreement(round.votes)) return 'near';
--  return agreement ?? 'complete';
-+  return agreement ?? null;
+-  return 'complete';
++  return null;
  }
  
  /**
