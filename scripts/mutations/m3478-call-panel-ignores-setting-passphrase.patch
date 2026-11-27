@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/screens/RoomChoice.tsx b/apps/landing/src/screens/RoomChoice.tsx
+index e5d7495d..bae43a75 100644
+--- a/apps/landing/src/screens/RoomChoice.tsx
++++ b/apps/landing/src/screens/RoomChoice.tsx
+@@ -117,7 +117,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
+                 </li>
+               ))}
+             </ul>
+-            <RoomCallPanel connection={connection} calling={calling || settingPassphrase} error={callError} onCall={onCall} />
++            <RoomCallPanel connection={connection} calling={calling} error={callError} onCall={onCall} />
+           </section>
+           <section className="hub-panel ui-panel" aria-labelledby="hub-invite-heading">
+             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>

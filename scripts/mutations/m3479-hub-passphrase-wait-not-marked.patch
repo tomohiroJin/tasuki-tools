@@ -1,0 +1,12 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 294d6bff..8e6369c6 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -534,7 +534,6 @@ export function useHubSync(): HubSync {
+       if (pendingCallRef.current !== null || pendingPassphraseRef.current) return;
+       setPassphraseError(null);
+       pendingPassphraseRef.current = true;
+-      setSettingPassphrase(true);
+       // 溜められた・捨てられた送信の応答は、この接続には来ない。繋ぎ直しで降ろす（溜めたものは流れるので、応答は来る）
+       if (send(passphraseCommand(passphrase)) === 'dropped') settlePassphrase();
+     },
