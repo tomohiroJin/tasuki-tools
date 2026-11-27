@@ -1,5 +1,5 @@
 diff --git a/packages/sync-client/src/connection.ts b/packages/sync-client/src/connection.ts
-index 3b005c6..0d2bda9 100644
+index 45931d02..59460fce 100644
 --- a/packages/sync-client/src/connection.ts
 +++ b/packages/sync-client/src/connection.ts
 @@ -117,7 +117,7 @@ export class SyncConnection {
@@ -10,4 +10,4 @@ index 3b005c6..0d2bda9 100644
 +    return "sent";
    }
  
-   dispose(): void {
+   /**

@@ -1,10 +1,10 @@
 diff --git a/packages/web-kit/src/sync/use-tool-room-sync.ts b/packages/web-kit/src/sync/use-tool-room-sync.ts
-index 3d43e82b..389ee9e6 100644
+index b861cdad..8256e3e9 100644
 --- a/packages/web-kit/src/sync/use-tool-room-sync.ts
 +++ b/packages/web-kit/src/sync/use-tool-room-sync.ts
-@@ -215,7 +215,6 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
+@@ -227,7 +227,6 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
+       const roomCall = optionsRef.current.parseCall(raw);
        if (roomCall !== null) {
-         setSyncStale(false);
          setCall(roomCall);
 -        return;
        }
