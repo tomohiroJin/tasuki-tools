@@ -262,13 +262,60 @@ describe('useToolRoomSync の呼びかけの知らせ（#677）', () => {
     expect(parsed).toHaveLength(1);
   });
 
-  it('Given 契約に合わないフレームで同期が古い / When 呼びかけの知らせが届く / Then 同期の告知は下りる', () => {
+  it('Given 契約に合わないフレームで同期が古い / When 呼びかけの知らせが届く / Then 同期の告知は下ろさず、呼びかけは持つ（状態は古いまま）', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { hook } = open();
     act(() => latestSocket().deliver({ nope: true }));
     expect(hook.result.current.syncStale).toBe(true);
     act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.syncStale).toBe(true);
+    expect(hook.result.current.notice).not.toBe('none');
+    expect(hook.result.current.call).toEqual(CALL.call);
+  });
+
+  it('Given 同期が古くない / When 呼びかけの知らせが届く / Then 告知を立てない', () => {
+    const { hook } = open();
+    act(() => latestSocket().deliver(CALL));
     expect(hook.result.current.syncStale).toBe(false);
-    expect(hook.result.current.notice).toBe('none');
+  });
+
+  it.each([
+    ['ROOM_NOT_FOUND'],
+    ['LEFT_ROOM'],
+    ['REMOVED_FROM_ROOM'],
+  ] as const)('Given 呼びかけを持っている / When %s が届く / Then 呼びかけを消す（消えたルーム・抜けたルームの「移る」を残さない）', (code) => {
+    saveResumeIdentity(RESUME);
+    const { hook } = setup();
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.call).toEqual(CALL.call);
+
+    act(() => latestSocket().deliver({ type: 'error', code, message: 'x' }));
+
+    expect(hook.result.current.call).toBeNull();
+  });
+
+  it('Given 呼びかけを持っている / When 別のルームに変わる / Then 前のルームの呼びかけを消す', () => {
+    saveResumeIdentity(RESUME);
+    saveResumeIdentity({ ...RESUME, code: 'R2' });
+    const hook = renderHook(
+      ({ roomCode }: { roomCode: string }) =>
+        useToolRoomSync<Frame>({
+          roomCode,
+          syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+          parseCall,
+          parse: (raw) => JSON.parse(raw) as Frame,
+          onFrame: () => undefined,
+          texts: TEXTS,
+        }),
+      { initialProps: { roomCode: 'R1' } },
+    );
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.call).toEqual(CALL.call);
+
+    hook.rerender({ roomCode: 'R2' });
+
+    expect(hook.result.current.call).toBeNull();
   });
 });

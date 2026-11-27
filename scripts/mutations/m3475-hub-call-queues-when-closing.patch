@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 294d6bff..0bf95552 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -551,7 +551,7 @@ export function useHubSync(): HubSync {
+       setCalling(true);
+       // **その場で送れたときだけ送ったことにする**（溜めない）。閉じかけ・確立前の接続へ送ると溜められ、繋ぎ直しで
+       // `room.join` より先に流れて NOT_IN_ROOM になる（呼んだ人は移らず、ほかの人にだけ知らせが届く順にもなる）。
+-      const sent = connRef.current?.sendIfOpen(callCommand(tool) as unknown as Record<string, unknown>) ?? false;
++      const sent = (connRef.current?.send(callCommand(tool) as unknown as Record<string, unknown>) ?? 'dropped') !== 'dropped';
+       if (!sent) {
+         settleCall();
+         setCallError('接続し直しています。もう一度押してください。');

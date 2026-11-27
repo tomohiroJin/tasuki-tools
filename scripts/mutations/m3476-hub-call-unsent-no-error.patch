@@ -1,0 +1,12 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 294d6bff..537b9f6e 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -554,7 +554,6 @@ export function useHubSync(): HubSync {
+       const sent = connRef.current?.sendIfOpen(callCommand(tool) as unknown as Record<string, unknown>) ?? false;
+       if (!sent) {
+         settleCall();
+-        setCallError('接続し直しています。もう一度押してください。');
+       }
+     },
+     [settleCall],

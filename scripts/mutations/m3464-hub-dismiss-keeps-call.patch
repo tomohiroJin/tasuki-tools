@@ -1,9 +1,9 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 0c3e622b..e95bffe7 100644
+index 294d6bff..79319c25 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -533,7 +533,7 @@ export function useHubSync(): HubSync {
-     [send, settleCall],
+@@ -560,7 +560,7 @@ export function useHubSync(): HubSync {
+     [settleCall],
    );
  
 -  const dismissRoomCall = useCallback(() => setRoomCall(null), []);

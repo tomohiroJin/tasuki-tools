@@ -1,11 +1,12 @@
 diff --git a/packages/web-kit/src/sync/use-tool-room-sync.ts b/packages/web-kit/src/sync/use-tool-room-sync.ts
+index b861cdad..4110c36d 100644
 --- a/packages/web-kit/src/sync/use-tool-room-sync.ts
 +++ b/packages/web-kit/src/sync/use-tool-room-sync.ts
-@@ -219,7 +219,6 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>(
-       // （渡すと「契約に合わないフレーム」として同期の告知が出る）。正しいフレームなので告知は下ろす。最新の 1 つだけ持つ。
+@@ -226,6 +226,7 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
+       // 状態のフレームを捨てて出ている告知（状態は古いまま）を、呼びかけの知らせで消してはいけない。
        const roomCall = optionsRef.current.parseCall(raw);
        if (roomCall !== null) {
--        setSyncStale(false);
++        setSyncStale(false);
          setCall(roomCall);
          return;
        }

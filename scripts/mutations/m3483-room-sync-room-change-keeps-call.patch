@@ -1,0 +1,12 @@
+diff --git a/packages/web-kit/src/sync/use-tool-room-sync.ts b/packages/web-kit/src/sync/use-tool-room-sync.ts
+index b861cdad..9bfbeb3b 100644
+--- a/packages/web-kit/src/sync/use-tool-room-sync.ts
++++ b/packages/web-kit/src/sync/use-tool-room-sync.ts
+@@ -138,7 +138,6 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
+ 
+   useEffect(() => {
+     // ルームが変わったら、前のルームの呼びかけの知らせは消す（新しいルームの「移る」として残さない・#677 の /code-review）
+-    setCall(null);
+     // 初期化子と効果の間に、別のタブが組を捨てていることがある。**ここでも玄関へ戻す印を立てる**
+     // （立てずに return すると、接続も送り返しもしないまま「参加しています」で止まる）。
+     // ⚠ この窓はテストで作れない（初期化子と効果の間に `localStorage` を変える手立てが無い）。

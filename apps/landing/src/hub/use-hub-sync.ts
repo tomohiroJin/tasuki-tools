@@ -94,6 +94,8 @@ export interface HubSync {
   readonly passphraseProtected: boolean | null;
   /** 合言葉の設定の失敗の文言（無ければ null）。 */
   readonly passphraseError: string | null;
+  /** 合言葉の設定の応答を待っているか（待つ間は呼びかけを送らせない・#677 の /code-review）。 */
+  readonly settingPassphrase: boolean;
   /** 受け取った呼びかけ（最新の 1 つ。無ければ null・#677）。閉じるまで、新しいものが来るまで残る。 */
   readonly roomCall: RoomCall | null;
   /** 呼びかけを送って、受け付けを待っているか（#677）。待つ間は次を送らない。 */
@@ -197,6 +199,17 @@ export function useHubSync(): HubSync {
   }, []);
   /** 合言葉の設定の失敗（入ったあとのエラーは、設定の送信でしか起きない）。次の送信か名簿（成功）で消す。 */
   const [passphraseError, setPassphraseError] = useState<string | null>(null);
+  /**
+   * 合言葉の設定の応答（名簿かエラー）を待っているか（#677 の /code-review）。エラーのフレームは相関の手がかりを持たないので、
+   * **呼びかけと合言葉の設定を同時に待たない**ことで、入ったあとのエラーの持ち主を 1 つに決める
+   * （どちらかを待つ間は、もう一方を送らせない。画面のボタンも止める）。サーバーは設定に必ず名簿かエラーを返す。
+   */
+  const pendingPassphraseRef = useRef(false);
+  const [settingPassphrase, setSettingPassphrase] = useState(false);
+  const settlePassphrase = useCallback(() => {
+    pendingPassphraseRef.current = false;
+    setSettingPassphrase(false);
+  }, []);
   const joinedRef = useRef(false);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
@@ -313,6 +326,7 @@ export function useHubSync(): HubSync {
         if (msg.type === 'roster') {
           setRoster(msg.room);
           setPassphraseError(null);
+          settlePassphrase();
           return;
         }
         if (msg.type === 'room.called') {
@@ -375,6 +389,7 @@ export function useHubSync(): HubSync {
         // **呼びかけの待ちも終わらせる**（#677）。弾かれたら送り直せるようにし、失敗は呼ぶ操作の近くへ出す。
         const callWasPending = pendingCallRef.current !== null;
         settleCall();
+        settlePassphrase();
         // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
         const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
           currentCode: codeRef.current,
@@ -445,6 +460,7 @@ export function useHubSync(): HubSync {
         if (pendingCreateConnRef.current !== openCountRef.current) settleCreate();
         // 呼びかけの受け付けも、前の接続と一緒に失われた（#677）。待ちを降ろして送り直せるようにする
         settleCall();
+        settlePassphrase();
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
@@ -474,7 +490,7 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, initialHref, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName, settleCreate, settleCall]);
+  }, [initialCode, initialHref, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName, settleCreate, settleCall, settlePassphrase]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
@@ -514,23 +530,34 @@ export function useHubSync(): HubSync {
 
   const setPassphrase = useCallback(
     (passphrase: string) => {
+      // 呼びかけの受け付けを待つ間と、設定の応答を待つ間は送らない（エラーの持ち主を取り違えない）
+      if (pendingCallRef.current !== null || pendingPassphraseRef.current) return;
       setPassphraseError(null);
-      send(passphraseCommand(passphrase));
+      pendingPassphraseRef.current = true;
+      setSettingPassphrase(true);
+      // 溜められた・捨てられた送信の応答は、この接続には来ない。繋ぎ直しで降ろす（溜めたものは流れるので、応答は来る）
+      if (send(passphraseCommand(passphrase)) === 'dropped') settlePassphrase();
     },
-    [send],
+    [send, settlePassphrase],
   );
 
   const callRoom = useCallback(
     (tool: string) => {
       // 待っている呼びかけがあれば送らない（画面のボタンも止めるが、クリック以外の送信経路はここで止める）
-      if (pendingCallRef.current !== null) return;
+      // 合言葉の設定の応答を待つ間も送らない（エラーの持ち主を取り違えない）
+      if (pendingCallRef.current !== null || pendingPassphraseRef.current) return;
       setCallError(null);
       pendingCallRef.current = tool;
       setCalling(true);
-      // 閉じかけ・確立前の接続は送信を溜める。溜めた呼びかけは繋ぎ直しの後に流れるが、受け付けを待つ接続が変わるので待たない
-      if (send(callCommand(tool)) !== 'sent') settleCall();
+      // **その場で送れたときだけ送ったことにする**（溜めない）。閉じかけ・確立前の接続へ送ると溜められ、繋ぎ直しで
+      // `room.join` より先に流れて NOT_IN_ROOM になる（呼んだ人は移らず、ほかの人にだけ知らせが届く順にもなる）。
+      const sent = connRef.current?.sendIfOpen(callCommand(tool) as unknown as Record<string, unknown>) ?? false;
+      if (!sent) {
+        settleCall();
+        setCallError('接続し直しています。もう一度押してください。');
+      }
     },
-    [send, settleCall],
+    [settleCall],
   );
 
   const dismissRoomCall = useCallback(() => setRoomCall(null), []);
@@ -550,6 +577,7 @@ export function useHubSync(): HubSync {
     // 名簿が届くまで・印の無い名簿（古いサーバー）は null（まだ分からない）。false と取り違えると、付いている合言葉を黙って上書きする。
     passphraseProtected: roster?.passphraseProtected ?? null,
     passphraseError,
+    settingPassphrase,
     roomCall,
     calling,
     callError,

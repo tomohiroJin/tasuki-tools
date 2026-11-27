@@ -11,6 +11,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { App } from '../../src/App.js';
 import { navigateTo } from '../../src/hub/navigate.js';
 import { ScriptedWebSocket } from '@tasuki/test-css/scripted-web-socket';
+import { outsideBase } from '@tasuki/test-css/font-base';
 
 vi.mock('../../src/hub/navigate.js', () => ({ navigateTo: vi.fn() }));
 
@@ -166,6 +167,57 @@ describe('玄関のみんなを呼ぶ（呼ぶ側）', () => {
     act(() => socket().deliver({ type: 'error', code: 'NOT_IN_ROOM', message: 'ルームに入っていません。' }));
 
     expect(screen.getByLabelText('呼ぶ道具').closest('form')).not.toHaveTextContent('ルームに入っていません。');
+  });
+
+  it('Given 接続は online のままソケットが閉じかけ / When 呼んで移るを押す / Then 呼びかけを溜めず、繋ぎ直しても流れず、呼ぶ操作の近くに失敗が出る', () => {
+    vi.useFakeTimers();
+    try {
+      joinedRoom();
+      socket().readyState = 2; // CLOSING（SyncConnection は送信を溜める）
+
+      chooseAndCall('poker');
+
+      expect(screen.getByLabelText('呼ぶ道具').closest('form')).toHaveTextContent('接続し直しています。もう一度押してください。');
+      expect(screen.getByRole('button', { name: '呼んで移る' })).toBeEnabled();
+      expect(outsideBase(['接続し直しています。もう一度押してください。'])).toEqual([]);
+      act(() => socket().drop());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => ScriptedWebSocket.instances.at(-1)!.open());
+      const joinedAgain = ScriptedWebSocket.instances.flatMap((s) => s.sentJson());
+      expect(joinedAgain.filter((c) => c['command'] === 'room.call')).toEqual([]);
+      expect(navigateTo).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 合言葉の設定の応答を待っている / When 設定が失敗する / Then 失敗は合言葉の欄に出て、呼ぶ操作には出ない。待つ間は呼んで移るを押せない', () => {
+    joinedRoom();
+    fireEvent.change(screen.getByLabelText('新しい合言葉'), { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定', hidden: true }));
+    fireEvent.change(screen.getByLabelText('呼ぶ道具'), { target: { value: 'poker' } });
+
+    expect(screen.getByRole('button', { name: '呼んで移る' })).toBeDisabled();
+    fireEvent.submit(screen.getByLabelText('呼ぶ道具').closest('form')!);
+    expect(sentCalls()).toHaveLength(0);
+
+    act(() => socket().deliver({ type: 'error', code: 'NOT_IN_ROOM', message: 'ルームに入っていません。' }));
+
+    expect(screen.getByLabelText('呼ぶ道具').closest('form')).not.toHaveTextContent('ルームに入っていません。');
+    expect(screen.getByLabelText('新しい合言葉').closest('section')).toHaveTextContent('ルームに入っていません。');
+    expect(screen.getByRole('button', { name: '呼んで移る' })).toBeEnabled();
+  });
+
+  it('Given 呼びかけの受け付けを待っている / When 合言葉の欄を見る / Then 設定は押せず、送れない', () => {
+    joinedRoom();
+    fireEvent.change(screen.getByLabelText('新しい合言葉'), { target: { value: 'abc' } });
+    chooseAndCall('poker');
+
+    expect(screen.getByRole('button', { name: '設定', hidden: true })).toBeDisabled();
+    fireEvent.submit(screen.getByLabelText('新しい合言葉').closest('form')!);
+    expect(socket().sentJson().filter((c) => c['command'] === 'room.passphrase.set')).toHaveLength(0);
   });
 
   it('Given 受け付けを待っている / When 接続が切れる / Then 再接続の間は押せない', () => {

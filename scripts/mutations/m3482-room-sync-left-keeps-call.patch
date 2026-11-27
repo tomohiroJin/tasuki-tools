@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/sync/use-tool-room-sync.ts b/packages/web-kit/src/sync/use-tool-room-sync.ts
+index b861cdad..a56c8041 100644
+--- a/packages/web-kit/src/sync/use-tool-room-sync.ts
++++ b/packages/web-kit/src/sync/use-tool-room-sync.ts
+@@ -199,8 +199,6 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
+             cancelRetry();
+             clearResumeIdentity(roomCode);
+             conn.dispose();
+-            // 抜けたルームの呼びかけの「移る」を残さない（#677 の /code-review）
+-            setCall(null);
+             setJoined(false);
+             setDeparted(plan.reason);
+             return;

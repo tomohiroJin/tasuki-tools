@@ -312,6 +312,8 @@ export function usePokerSync(): PokerSync & PokerRoomCall {
       inviteUrl: (roomId: string) => buildInviteUrl(location.origin, roomId),
       joinRoom: (roomId: string, name: string, token?: string) => {
         pendingNameRef.current = name;
+        // 別のルームへ入り直すなら、前のルームの呼びかけの「移る」は残さない（#677 の /code-review）
+        if (currentRoomRef.current !== roomId) setRoomCall(null);
         currentRoomRef.current = roomId;
         setError(null);
         send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });

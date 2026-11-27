@@ -120,6 +120,18 @@ export class SyncConnection {
     return "queued";
   }
 
+  /**
+   * その場で送れるときだけ送る（溜めない）。送れたら true。
+   *
+   * 溜めた送信は繋ぎ直しの後に流れ、順が前後する（先に `room.join` を送るべき復帰より早く流れうる）。
+   * 順に依らない・溜めてはいけない呼び手（玄関の呼びかけ・#677）が使う。
+   */
+  sendIfOpen(payload: Record<string, unknown>): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify(payload));
+    return true;
+  }
+
   dispose(): void {
     this.disposed = true;
     if (this.reconnectTimer !== null) {

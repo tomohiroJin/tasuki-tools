@@ -1,12 +1,12 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 0c3e622b..fdd8656a 100644
+index 294d6bff..8829ca43 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -529,6 +529,7 @@ export function useHubSync(): HubSync {
-       setCalling(true);
-       // 閉じかけ・確立前の接続は送信を溜める。溜めた呼びかけは繋ぎ直しの後に流れるが、受け付けを待つ接続が変わるので待たない
-       if (send(callCommand(tool)) !== 'sent') settleCall();
+@@ -556,6 +556,7 @@ export function useHubSync(): HubSync {
+         settleCall();
+         setCallError('接続し直しています。もう一度押してください。');
+       }
 +      else navigateTo(`${toolDestination(tool)?.href ?? '/'}?room=${encodeURIComponent(codeRef.current ?? '')}`);
      },
-     [send, settleCall],
+     [settleCall],
    );
