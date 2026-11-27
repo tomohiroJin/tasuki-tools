@@ -1,0 +1,11 @@
+diff --git a/apps/track-web/src/platform/download.ts b/apps/track-web/src/platform/download.ts
+index 712bdc27..c8738037 100644
+--- a/apps/track-web/src/platform/download.ts
++++ b/apps/track-web/src/platform/download.ts
+@@ -14,5 +14,5 @@ export function downloadTextFile(fileName: string, text: string, mime = 'text/cs
+   link.click();
+   link.remove();
+   // ダウンロードが URL を読み終える前に手放すと、ブラウザによっては空のファイルになる。少し待ってから手放す
+-  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
++  URL.revokeObjectURL(url);
+ }

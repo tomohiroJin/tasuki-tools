@@ -1,0 +1,22 @@
+# 変異 3198: track-band-part-min-width
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-css.test.ts
+#
+# #476 時系列の帯の部分が、最小の幅（min-width）を持つ。区切りが多いと、最小の幅の合計で帯が親の幅を超え、右端が切れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3198-*.patch
+# 復元: git apply -R scripts/mutations/m3198-*.patch
+diff --git a/apps/track-web/src/index.css b/apps/track-web/src/index.css
+index 05da3a43..344216d6 100644
+--- a/apps/track-web/src/index.css
++++ b/apps/track-web/src/index.css
+@@ -493,6 +493,7 @@
+ /* 幅は割合だけ（min-width・gap は部分の数だけ幅を足して溢れる）。区切りの線は内側の影で、幅を取らない */
+ .track-band-part {
+   flex: var(--share) 1 0;
++  min-width: 2px;
+   box-shadow: inset -1px 0 var(--felt-sink);
+ }
+ .track-band-part--break {

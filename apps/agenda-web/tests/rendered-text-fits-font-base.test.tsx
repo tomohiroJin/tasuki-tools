@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
+import { SoundSettings } from '../src/components/SoundSettings';
 import { PROJECT_BUTTON, RESET_BUTTON, SAMPLE_MENU_BUTTON, SAMPLE_REPLACE_CONFIRM } from '../src/copy';
 import { SAMPLE_GROUPS } from '../src/sample-scenarios';
 import { Driver } from './support/agenda-states';
@@ -102,6 +103,23 @@ describe('描いた進行タイマーの文字は書体の常用の層に収ま�
     fireEvent.click(screen.getByRole('button', { name: SAMPLE_MENU_BUTTON }));
     fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
     expect(renderedText()).toContain(SAMPLE_REPLACE_CONFIRM);
+    expect(outsideBase([checkedText()])).toEqual([]);
+  });
+
+  it.each(['on', 'off', 'locked'] as const)('Given 時間切れの音の欄（音の状態 %s・全ての音の名前） / When 描く / Then 外れる字は無い', (state) => {
+    const labels = ['時打ち', '呼び出しチャイム', 'メロディ', '持続トーン', '上昇 2 音', '下降 2 音', 'ベル', '音声（男声）', '音声（女声）', '音声（にせ）', '音声（まい）'];
+    render(
+      <SoundSettings
+        state={state}
+        onToggle={() => {}}
+        chimes={labels.map((label, i) => ({ id: `c${i}`, label }))}
+        chimeId="c0"
+        onChimeChange={() => {}}
+        onPreview={() => {}}
+      />,
+    );
+    expect(renderedText()).toContain('時間切れの音');
+    expect(renderedText()).toContain('試しに鳴らす');
     expect(outsideBase([checkedText()])).toEqual([]);
   });
 

@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { AGENDA_ERROR_CODES, agendaErrorMessageFor } from '@tasuki/agenda-core';
 import * as copy from '../src/copy';
+import { CHIMES } from '../src/platform/sound';
 import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
@@ -19,7 +20,8 @@ function allTexts(): string[] {
     if (typeof value === 'function') return [(value as (...args: unknown[]) => string)('Ab', 2, 3)];
     return [];
   });
-  return [...fromCopy, ...AGENDA_ERROR_CODES.map(agendaErrorMessageFor)];
+  // 時間切れの音の名前（#669。画面の `<select>` に並ぶ）
+  return [...fromCopy, ...AGENDA_ERROR_CODES.map(agendaErrorMessageFor), ...CHIMES.map((c) => c.label)];
 }
 
 /**
@@ -41,5 +43,8 @@ describe('UI の文言は書体の常用の層に収まる', () => {
     // Then（件数も固定する。`copy.ts` の import が空振りしても緑にしない）
     expect(failures).toEqual([]);
     expect(texts.length).toBeGreaterThan(30);
+    // 音の名前を足し忘れても緑にしない（11 種）
+    for (const chime of CHIMES) expect(texts).toContain(chime.label);
+    expect(CHIMES).toHaveLength(11);
   });
 });

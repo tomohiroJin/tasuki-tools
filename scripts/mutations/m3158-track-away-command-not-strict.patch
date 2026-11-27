@@ -1,0 +1,22 @@
+# 変異 3158: track-away-command-not-strict
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/schemas.test.ts
+#
+# #476 track.away が余計な項目（誰が押したか）を通す。ADR 0038 決定 2・8。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3158-*.patch
+# 復元: git apply -R scripts/mutations/m3158-*.patch
+diff --git a/packages/track-core/src/schemas.ts b/packages/track-core/src/schemas.ts
+--- a/packages/track-core/src/schemas.ts
++++ b/packages/track-core/src/schemas.ts
+@@ -37,7 +37,7 @@
+     v.check((c) => c.backMin === undefined || c.atMs === undefined, "backMin and atMs must not be given together"),
+   ),
+   // 離れていた間（`fromMs` からいままで）を休憩にする
+-  v.strictObject({ command: v.literal("track.away"), fromMs: positionMs }),
++  v.object({ command: v.literal("track.away"), fromMs: positionMs }),
+   v.strictObject({ command: v.literal("track.undo"), rev: v.pipe(v.number(), v.integer(), v.minValue(0)) }),
+   v.strictObject({ command: v.literal("track.segment.set"), id: segmentId, label: labelStr, kind }),
+   v.strictObject({ command: v.literal("track.segment.adjust"), id: segmentId, edge: v.picklist(["start", "end"]), atMs: positionMs }),

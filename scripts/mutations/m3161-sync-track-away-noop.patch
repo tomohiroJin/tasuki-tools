@@ -1,0 +1,22 @@
+# 変異 3161: sync-track-away-noop
+#
+# 検出を期待するテスト:
+#   - test/track-handlers.test.ts
+#
+# #476 同期サーバーが track.away を受けても何もしない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3161-*.patch
+# 復元: git apply -R scripts/mutations/m3161-*.patch
+diff --git a/apps/tasuki-sync/src/application/track-handlers.ts b/apps/tasuki-sync/src/application/track-handlers.ts
+--- a/apps/tasuki-sync/src/application/track-handlers.ts
++++ b/apps/tasuki-sync/src/application/track-handlers.ts
+@@ -88,7 +88,7 @@
+     case "track.stop":
+       return stop(state, { ...backOf(cmd.backMin), ...(cmd.atMs === undefined ? {} : { atMs: cmd.atMs }), now });
+     case "track.away":
+-      return away(state, { fromMs: cmd.fromMs, now });
++      return ok(state);
+     case "track.undo":
+       return ok(undo(state, { rev: cmd.rev, now }));
+     case "track.segment.set":

@@ -1,0 +1,23 @@
+# 変異 3273: track-insert-preview-invalid-shown
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 「読み取った時間」が、順が逆・いまより先・長さの誤りの入力にも出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3273-*.patch
+# 復元: git apply -R scripts/mutations/m3273-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..fc106919 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -164,7 +164,7 @@ function clockOfPosition(posMs: number, nowMs: number, epochWallMs: number, tzOf
+  */
+ export function insertPreviewOf(input: InsertInput, nowMs: number, epochWallMs: number, tzOffsetMin: number): InsertPreview | null {
+   const range = insertRangeOf(input, nowMs, epochWallMs, tzOffsetMin);
+-  if (!range.ok) return null;
++  if (!range.ok && range.error === 'time') return null;
+   const start = clockOfPosition(range.startMs, nowMs, epochWallMs, tzOffsetMin);
+   const end = clockOfPosition(range.endMs, nowMs, epochWallMs, tzOffsetMin);
+   return {

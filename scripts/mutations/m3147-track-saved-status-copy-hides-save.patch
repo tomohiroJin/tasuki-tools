@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/components/TakeHome.tsx b/apps/track-web/src/components/TakeHome.tsx
+index 26ac5fcd..7f1d6362 100644
+--- a/apps/track-web/src/components/TakeHome.tsx
++++ b/apps/track-web/src/components/TakeHome.tsx
+@@ -73,7 +73,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, savedCount,
+       </div>
+       <p role="status" className="track-copy-status">
+         {/* 知らせの領域は 1 つ。最後に動かした操作（コピーか保存か）の結果を出す */}
+-        {last === 'copy'
++        {state !== 'idle'
+           ? state === 'done'
+             ? COPY_DONE
+             : state === 'failed'

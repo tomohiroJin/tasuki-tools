@@ -1,0 +1,23 @@
+# 変異 3202: track-axis-end-stepped
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-view.test.ts
+#
+# #476 時系列の帯の右端の時刻を、「いま」でなく切り下げた位置から求める。右端の時刻が最大 1 分遅れて見える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3202-*.patch
+# 復元: git apply -R scripts/mutations/m3202-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+index 75fa9695..ea84c285 100644
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -124,7 +124,7 @@ export function toneIndexOf(rows: readonly { readonly label: string }[], label:
+  */
+ export function axisLabelsOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): { start: string; end: string } {
+   const startWall = view.epochWallMs + band.startMs;
+-  const endWall = view.epochWallMs + Math.max(band.endMs, band.running ? nowMs : band.endMs);
++  const endWall = view.epochWallMs + band.endMs;
+   const spans = formatMonthDay(startWall, tzOffsetMin) !== formatMonthDay(endWall, tzOffsetMin);
+   const label = (wall: number): string => (spans ? `${formatMonthDay(wall, tzOffsetMin)} ${formatClock(wall, tzOffsetMin)}` : formatClock(wall, tzOffsetMin));
+   return { start: label(startWall), end: label(endWall) };

@@ -1,0 +1,22 @@
+# 変異 3167: web-away-prompt-lookback-unchecked
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#
+# #476 非表示になった位置が 24 時間より前でも問いかけを出す（押してもサーバーが拒む）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3167-*.patch
+# 復元: git apply -R scripts/mutations/m3167-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -138,7 +138,7 @@
+  */
+ function awayTargetOf(view: TrackView, nowMs: number, fromMs: number, runningId: string | null): SegmentView | null {
+   const hiddenMs = nowMs - fromMs;
+-  if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
++  if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS)) return null;
+   const running = longRunningOf(view, nowMs);
+   if (running === null || running.kind !== 'work' || running.id !== runningId || running.startMs >= fromMs) return null;
+   return running;

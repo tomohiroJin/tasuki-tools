@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/components/SoundSettings.tsx b/apps/agenda-web/src/components/SoundSettings.tsx
+index 497a07b0..2fe7afa0 100644
+--- a/apps/agenda-web/src/components/SoundSettings.tsx
++++ b/apps/agenda-web/src/components/SoundSettings.tsx
+@@ -27,7 +27,7 @@ export function SoundSettings({ state, onToggle, chimes, chimeId, onChimeChange,
+       <h2 id={headingId}>{SOUND_SETTINGS_HEADING}</h2>
+       <div className="builder-rounds">
+         <label htmlFor={selectId}>{CHIME_LABEL}</label>
+-        <select id={selectId} className="ui-select" value={chimeId} onChange={(event) => onChimeChange(event.target.value)}>
++        <select id={selectId} className="ui-select" value={chimeId} onChange={(event) => onChimeChange(chimes[0]?.id ?? event.target.value)}>
+           {chimes.map((chime) => (
+             <option key={chime.id} value={chime.id}>{chime.label}</option>
+           ))}

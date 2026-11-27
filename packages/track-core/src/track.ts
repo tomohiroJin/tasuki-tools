@@ -9,7 +9,7 @@
 import { err, ok, type Result } from "neverthrow";
 import type { TrackError } from "./errors.js";
 import { isValidLabel, normalizeLabel } from "./label.js";
-import { MAX_PINNED, MAX_SEGMENTS, MIN_SEGMENT_MS, UNDO_WINDOW_MS, type BackMinutes } from "./limits.js";
+import { MAX_LOOKBACK_MS, MAX_PINNED, MAX_SEGMENTS, MIN_SEGMENT_MS, UNDO_WINDOW_MS, type BackMinutes } from "./limits.js";
 import type { Segment, SegmentKind, TrackState, TrackView, UndoKind } from "./types.js";
 
 const MS_PER_MIN = 60_000;
@@ -49,7 +49,7 @@ export function labelFor(kind: SegmentKind, raw: string): string | null {
  * 時間を動かす操作の後の状態。直前の区切りの列を写しに残す（取り消しのため）。
  * 区切りの番号（`nextSeq`）は写しに入れない（取り消しても番号を使い回さない。古い画面の操作が別の区切りに当たらないように）。
  */
-function timed(s: TrackState, kind: UndoKind, now: number, patch: { segments: readonly Segment[]; nextSeq?: number }): TrackState {
+export function timed(s: TrackState, kind: UndoKind, now: number, patch: { segments: readonly Segment[]; nextSeq?: number }): TrackState {
   const rev = s.rev + 1;
   return {
     ...s,
@@ -96,12 +96,30 @@ export function start(
   return ok(timed(s, "start", input.now, { segments: [...kept, segment], nextSeq: s.nextSeq + 1 }));
 }
 
-/** 停止。計測中の区切りを閉じる。計測していなければ何もしない。 */
-export function stop(s: TrackState, input: { backMin?: BackMinutes; now: number }): R<"TRACK_BACKDATE_TOO_FAR"> {
+/**
+ * 時刻軸の位置 `t` が、計測中の区切りを閉じる（または休憩で上書きし始める）位置として置けるか。
+ * **区切りの始まりより後・いまから最短の長さ（`MIN_SEGMENT_MS`）以上前・いまから `MAX_LOOKBACK_MS` 以内。**
+ * `stop` の `backMin`・`atMs` と `away` が同じこの判定を通す（外れたら `TRACK_BACKDATE_TOO_FAR`）。
+ * `backMin`（15 分まで）にとっては、始まりより後かどうかだけが効く。
+ */
+export function isBackdatePosition(running: Segment, t: number, nowMs: number): boolean {
+  return t > running.startMs && nowMs - t >= MIN_SEGMENT_MS && nowMs - t <= MAX_LOOKBACK_MS;
+}
+
+/**
+ * 停止。計測中の区切りを閉じる。計測していなければ何もしない。
+ *
+ * 閉じる位置は、いま（既定）・`backMin` 分前・時刻軸の位置 `atMs` のどれか。
+ * **`atMs` は「離れていた時刻で切る」ための位置**（FR-27）。`backMin` とは同時に受けない（境界のスキーマも拒むが、ここでも拒む）。
+ * どちらも {@link isBackdatePosition} を通り、外れたら `TRACK_BACKDATE_TOO_FAR`。
+ */
+export function stop(s: TrackState, input: { backMin?: BackMinutes; atMs?: number; now: number }): R<"TRACK_BACKDATE_TOO_FAR"> {
   const running = runningOf(s.segments);
   if (running === undefined) return ok(s);
-  const t = input.now - s.epochMono - (input.backMin ?? 0) * MS_PER_MIN;
-  if (input.backMin !== undefined && t <= running.startMs) return fail("TRACK_BACKDATE_TOO_FAR");
+  if (input.atMs !== undefined && input.backMin !== undefined) return fail("TRACK_BACKDATE_TOO_FAR");
+  const nowMs = input.now - s.epochMono;
+  const t = input.atMs ?? nowMs - (input.backMin ?? 0) * MS_PER_MIN;
+  if ((input.backMin !== undefined || input.atMs !== undefined) && !isBackdatePosition(running, t, nowMs)) return fail("TRACK_BACKDATE_TOO_FAR");
   return ok(timed(s, "stop", input.now, { segments: closeRunning(s.segments, running, t, false) }));
 }
 

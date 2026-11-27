@@ -1,0 +1,22 @@
+# 変異 3213: web-notify-break-uses-work-title
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 休憩が長く続いたときも、通知の題が「同じ作業が…」になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3213-*.patch
+# 復元: git apply -R scripts/mutations/m3213-*.patch
+diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
+--- a/apps/track-web/src/hooks/use-long-running-notify.ts
++++ b/apps/track-web/src/hooks/use-long-running-notify.ts
+@@ -47,7 +47,7 @@
+     if (enabledRef.current && pageHidden()) {
+       notifiedRef.current.add(longRunningId);
+       const minutes = LONG_RUNNING_NOTICE_MS / MS_PER_MIN;
+-      const title = kindRef.current === 'break' ? longRunningBreakNotifyTitle(minutes) : longRunningNotifyTitle(minutes);
++      const title = false ? longRunningBreakNotifyTitle(minutes) : longRunningNotifyTitle(minutes);
+       // 通知を作れない端末（Android の Chrome ほか）では、設定を切に戻して知らせる
+       if (notifyWhenHidden(title, LONG_RUNNING_NOTIFY_BODY) === 'failed') unavailableRef.current();
+     }

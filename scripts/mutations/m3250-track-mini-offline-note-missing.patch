@@ -1,0 +1,23 @@
+# 変異 3250: track-mini-offline-note-missing
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 ミニ表示が、切断中であることを示さない。3 つのボタンが押せない理由が分からない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3250-*.patch
+# 復元: git apply -R scripts/mutations/m3250-*.patch
+diff --git a/apps/track-web/src/components/MiniView.tsx b/apps/track-web/src/components/MiniView.tsx
+index 700f5300..8795df03 100644
+--- a/apps/track-web/src/components/MiniView.tsx
++++ b/apps/track-web/src/components/MiniView.tsx
+@@ -56,7 +56,7 @@ function MiniBody({ container, view, getNow, canOperate, onStop, onBreak, onResu
+           <p className="track-mini-elapsed track-digits">{formatElapsed(durationOf(running, getNow()))}</p>
+         </>
+       )}
+-      {!canOperate && <p className="ui-note track-mini-offline">{MINI_OFFLINE}</p>}
++      {false && <p className="ui-note track-mini-offline">{MINI_OFFLINE}</p>}
+       <div className="track-mini-actions">
+         <button type="button" className="ui-button ui-button--sm" disabled={!canOperate || running === null} onClick={onStop}>
+           {STOP_BUTTON}

@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -216,7 +216,7 @@ function fetchBytes(id: ChimeId): Promise<ArrayBuffer | null> {
+  */
+ function decodeBytes(ctx: AudioContext, bytes: ArrayBuffer): Promise<AudioBuffer> {
+   return new Promise<AudioBuffer>((resolve, reject) => {
+-    const result = ctx.decodeAudioData(bytes, resolve, reject) as Promise<AudioBuffer> | undefined;
++    const result = ctx.decodeAudioData(bytes) as Promise<AudioBuffer> | undefined;
+     if (result && typeof result.then === 'function') result.then(resolve, reject);
+   });
+ }

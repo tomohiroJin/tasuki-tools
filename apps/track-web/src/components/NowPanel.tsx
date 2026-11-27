@@ -16,6 +16,7 @@ import {
   NOW_IDLE,
   STOP_BUTTON,
   UNDO_BUTTON,
+  UNDO_NOTE_AWAY,
   UNDO_NOTE_CLEAR,
   UNDO_NOTE_START,
   UNDO_NOTE_STOP,
@@ -23,7 +24,7 @@ import {
 } from '../copy';
 import { formatElapsed, isUnnamed, nameOf } from '../track-view';
 
-const UNDO_NOTES: Record<UndoKind, string> = { start: UNDO_NOTE_START, stop: UNDO_NOTE_STOP, clear: UNDO_NOTE_CLEAR };
+const UNDO_NOTES: Record<UndoKind, string> = { start: UNDO_NOTE_START, stop: UNDO_NOTE_STOP, clear: UNDO_NOTE_CLEAR, away: UNDO_NOTE_AWAY };
 
 interface Props {
   view: TrackView;

@@ -1,0 +1,22 @@
+# 変異 3159: track-undo-kind-away-folded
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/schemas.test.ts
+#
+# #476 写しの取り消しの種類 away を読めず、開始として畳む（帯の文が違う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3159-*.patch
+# 復元: git apply -R scripts/mutations/m3159-*.patch
+diff --git a/packages/track-core/src/schemas.ts b/packages/track-core/src/schemas.ts
+--- a/packages/track-core/src/schemas.ts
++++ b/packages/track-core/src/schemas.ts
+@@ -61,7 +61,7 @@
+ );
+ const frameUndoKind = v.pipe(
+   v.string(),
+-  v.transform((s): UndoKind => (s === "stop" || s === "clear" || s === "away" ? s : "start")),
++  v.transform((s): UndoKind => (s === "stop" || s === "clear" ? s : "start")),
+ );
+ 
+ // 受けるフレームは**非 strict**（サーバーが項目を足しても古い web がフレームごと捨てない）。後から足す項目は任意にする。

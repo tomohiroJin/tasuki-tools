@@ -25,7 +25,7 @@ export interface Segment {
 }
 
 /** 取り消せる操作の種類 */
-export type UndoKind = "start" | "stop" | "clear";
+export type UndoKind = "start" | "stop" | "clear" | "away";
 
 /** 直前の 1 操作ぶんの写し。定番は含めない（取り消しても定番は戻らない） */
 export interface UndoSlot {

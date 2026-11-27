@@ -1,0 +1,22 @@
+# 変異 3207: track-mini-close-keeps-ref
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#
+# #476 ミニ表示を閉じるとき、窓の参照を手放さない。閉じ終わる前に「出す」を押すと、閉じかけの窓を前に出して空振りする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3207-*.patch
+# 復元: git apply -R scripts/mutations/m3207-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+index 340bbe5c..7ea8a2b1 100644
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -40,7 +40,6 @@ export function useMiniWindow(): MiniWindow {
+   /** 窓の参照は閉じる前に手放す（閉じ終わる前に「出す」を押されても、閉じかけの窓を前に出さない） */
+   const close = useCallback((): void => {
+     const win = windowRef.current;
+-    release();
+     win?.close();
+   }, [release]);
+ 

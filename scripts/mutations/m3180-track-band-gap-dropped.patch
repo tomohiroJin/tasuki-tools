@@ -1,0 +1,23 @@
+# 変異 3180: track-band-gap-dropped
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/band.test.ts
+#
+# #476 時系列の帯が、区切りの間の隙間（計測していなかった時間）を並べない。隙間が詰まり、いつ何をしていたかの時刻の位置がずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3180-*.patch
+# 復元: git apply -R scripts/mutations/m3180-*.patch
+diff --git a/packages/track-core/src/band.ts b/packages/track-core/src/band.ts
+index 6c36c77a..aabe8e70 100644
+--- a/packages/track-core/src/band.ts
++++ b/packages/track-core/src/band.ts
+@@ -43,7 +43,7 @@ export function bandOf(view: TrackView, nowMs: number): Band | null {
+   const parts: BandPart[] = [];
+   let cursor = first.startMs;
+   for (const segment of view.segments) {
+-    if (segment.startMs > cursor) {
++    if (segment.startMs < cursor) {
+       parts.push({ kind: "gap", label: "", startMs: cursor, endMs: segment.startMs, ms: segment.startMs - cursor });
+     }
+     const segmentEnd = segment.endMs ?? endMs;

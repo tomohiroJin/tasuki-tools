@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/hooks/use-run-signals.ts b/apps/agenda-web/src/hooks/use-run-signals.ts
+index 5aff699d..0633bc63 100644
+--- a/apps/agenda-web/src/hooks/use-run-signals.ts
++++ b/apps/agenda-web/src/hooks/use-run-signals.ts
+@@ -126,7 +126,7 @@ export function useRunSignals(
+     if (struck && key !== null && prev !== null && prev.currentId !== null) struckKeyRef.current = { key, stepId: prev.currentId };
+     if (struckKeyRef.current?.stepId !== view.currentId) struckKeyRef.current = null;
+     if (struck) {
+-      if (settings.current.soundOn) playChime(settings.current.chimeId);
++      if (settings.current.soundOn) playChime('strike');
+       if (!settings.current.reducedMotion) setStriking(true);
+     }
+     if (prev === null) return;

@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+index 088adb84..ebd37d00 100644
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -262,7 +262,7 @@ export function preloadChime(id: ChimeId): void {
+ 
+ /** 選んだ音を鳴らす。ファイルの音がデコード済みでなければ時打ちで代える（D8） */
+ function playNow(ctx: AudioContext, id: ChimeId, track?: Stoppable[]): void {
+-  if (id === 'chime-up' || id === 'chime-down') {
++  if (false && (id === 'chime-up' || id === 'chime-down')) {
+     const freqs = id === 'chime-up' ? [660, 990] : [990, 660];
+     void scheduleTones(ctx, freqs, CHIME_VOLUME, { track });
+     return;

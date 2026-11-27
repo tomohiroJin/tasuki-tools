@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import type { TimeoutBehavior } from '@tasuki/agenda-core';
 import { App } from '../src/App';
+import { ScenarioBuilder } from '../src/components/ScenarioBuilder';
+import { SAVED_HEADING } from '../src/copy';
 import {
   ADD_STEP_BUTTON,
   CLEAR_DRAFT_BUTTON,
@@ -1038,5 +1040,39 @@ describe('下書きを空にする', () => {
     fireEvent.click(clearButton());
     expect(clearConfirm()).toHaveLength(0);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: ADD_STEP_BUTTON }));
+  });
+});
+
+describe('時間切れの音の欄の置き場所（#669 D4）', () => {
+  const view = { ...IDLE_AGENDA, phase: 'idle' } as unknown as Parameters<typeof ScenarioBuilder>[0]['view'];
+  const SLOT = 'sound-settings-slot';
+
+  function renderBuilder(withSlot: boolean): void {
+    render(
+      <ScenarioBuilder
+        view={view}
+        canOperate
+        onLoad={vi.fn()}
+        onStart={vi.fn()}
+        soundSettings={withSlot ? <section data-testid={SLOT}>音の欄</section> : undefined}
+      />,
+    );
+  }
+
+  it('Given soundSettings を渡す / When 右の欄を見る / Then プレビューの盤の後・保存の一覧の前に出る', () => {
+    renderBuilder(true);
+    const slot = screen.getByTestId(SLOT);
+    const preview = document.querySelector('.builder-preview');
+    const saved = screen.getByRole('heading', { name: SAVED_HEADING }).closest('section');
+    expect(preview).not.toBeNull();
+    expect(saved).not.toBeNull();
+    expect(preview!.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(slot.compareDocumentPosition(saved!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('Given soundSettings を渡さない / When 右の欄を見る / Then 音の欄は出ない', () => {
+    renderBuilder(false);
+    expect(screen.queryByTestId(SLOT)).toBeNull();
+    expect(screen.getByRole('heading', { name: SAVED_HEADING })).toBeInTheDocument();
   });
 });

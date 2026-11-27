@@ -1,0 +1,23 @@
+# 変異 3115: track-pin-running-disabled
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 計測中の名前の星（定番の固定・解除）が押せない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3115-*.patch
+# 復元: git apply -R scripts/mutations/m3115-*.patch
+diff --git a/apps/track-web/src/components/SwitchPanel.tsx b/apps/track-web/src/components/SwitchPanel.tsx
+index 74108c04..ff2a58fc 100644
+--- a/apps/track-web/src/components/SwitchPanel.tsx
++++ b/apps/track-web/src/components/SwitchPanel.tsx
+@@ -110,7 +110,7 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
+                   className="track-pin"
+                   aria-pressed={candidate.pinned}
+                   aria-label={pinLabel(candidate.label)}
+-                  disabled={!canOperate}
++                  disabled={!canOperate || candidate.running}
+                   onClick={() => onPin(candidate.label, !candidate.pinned)}
+                 >
+                   {/* 星は字にしない（書体に頼らない）。固定は塗り、解除は線で示す（色だけに頼らない） */}

@@ -1,0 +1,23 @@
+# 変異 3107: track-keys-count-running
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 数字キーが、計測中の名前にも番号を振る（画面の番号とずれる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3107-*.patch
+# 復元: git apply -R scripts/mutations/m3107-*.patch
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index 2b1602b6..fe56c910 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -120,7 +120,7 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
+     // キーは「いまから」で送る（「いつから」の選択は画面の操作のためのもの）
+     onCandidate: (index) => {
+       // 数字キーは押せる候補だけに振る（計測中の名前は飛ばす。`SwitchPanel` の番号と同じ並び）
+-      const candidate = candidates.filter((c) => !c.running)[index];
++      const candidate = candidates[index];
+       if (candidate !== undefined) sync.start(candidate.label, 'work');
+     },
+     onStop: () => {

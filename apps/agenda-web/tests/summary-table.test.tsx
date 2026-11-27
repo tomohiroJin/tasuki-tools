@@ -15,10 +15,12 @@ vi.mock('../src/router', async (importOriginal) => ({
   redirectTo: vi.fn(),
 }));
 
-vi.mock('../src/platform/sound', () => ({
+vi.mock('../src/platform/sound', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/platform/sound')>()),
+  preloadChime: vi.fn(),
   installAudioUnlock: vi.fn(),
   unlockAudio: vi.fn(),
-  playStrike: vi.fn(),
+  playChime: vi.fn(),
   isAudioUnlocked: () => false,
   subscribeAudioState: () => () => undefined,
 }));

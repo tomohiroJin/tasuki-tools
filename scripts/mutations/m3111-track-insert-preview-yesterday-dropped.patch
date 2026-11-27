@@ -1,0 +1,24 @@
+# 変異 3111: track-insert-preview-yesterday-dropped
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 抜けを足す欄の「読み取った時間」が、前日に読んだ端に前日を添えない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3111-*.patch
+# 復元: git apply -R scripts/mutations/m3111-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..1956ef58 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -154,7 +154,7 @@ function clockOfPosition(posMs: number, nowMs: number, epochWallMs: number, tzOf
+   const pad = (n: number): string => String(n).padStart(2, '0');
+   return {
+     clock: `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`,
+-    yesterday: dayIndex < Math.floor((epochWallMs + nowMs + shift) / MS_PER_DAY),
++    yesterday: false,
+   };
+ }
+ 

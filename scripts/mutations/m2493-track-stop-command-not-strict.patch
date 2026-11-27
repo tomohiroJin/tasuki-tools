@@ -11,12 +11,12 @@
 diff --git a/packages/track-core/src/schemas.ts b/packages/track-core/src/schemas.ts
 --- a/packages/track-core/src/schemas.ts
 +++ b/packages/track-core/src/schemas.ts
-@@ -31,7 +31,7 @@
- // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
- export const TrackCommandSchema = v.variant("command", [
+@@ -33,7 +33,7 @@
    v.strictObject({ command: v.literal("track.start"), label: labelStr, kind, backMin }),
--  v.strictObject({ command: v.literal("track.stop"), backMin }),
-+  v.object({ command: v.literal("track.stop"), backMin }),
-   v.strictObject({ command: v.literal("track.undo"), rev: v.pipe(v.number(), v.integer(), v.minValue(0)) }),
-   v.strictObject({ command: v.literal("track.segment.set"), id: segmentId, label: labelStr, kind }),
-   v.strictObject({ command: v.literal("track.segment.adjust"), id: segmentId, edge: v.picklist(["start", "end"]), atMs: positionMs }),
+   // 停止の位置は `backMin`（分前）か `atMs`（時刻軸の位置）のどちらか。同時に送ると拒む（離れていたときの問いかけ・FR-27）
+   v.pipe(
+-    v.strictObject({ command: v.literal("track.stop"), backMin, atMs: v.optional(positionMs) }),
++    v.object({ command: v.literal("track.stop"), backMin, atMs: v.optional(positionMs) }),
+     v.check((c) => c.backMin === undefined || c.atMs === undefined, "backMin and atMs must not be given together"),
+   ),
+   // 離れていた間（`fromMs` からいままで）を休憩にする
