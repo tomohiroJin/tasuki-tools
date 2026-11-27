@@ -1,0 +1,22 @@
+# 変異 3110: track-insert-wrap-12h-cap-returns
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 抜けを足す欄が、始まりだけを前日に読み替えた 12 時間より長い抜け（08:00 の 18:00〜07:30 など）を拒む。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3110-*.patch
+# 復元: git apply -R scripts/mutations/m3110-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..7e468756 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -128,6 +128,7 @@ export function insertRangeOf(input: InsertInput, nowMs: number, epochWallMs: nu
+     const end = readClock(endClock, nowMs, epochWallMs, tzOffsetMin);
+     endMs = end.posMs;
+     yesterday = start.wrapped || end.wrapped;
++    if (start.wrapped && !end.wrapped && endMs - startMs > 12 * 60 * MS_PER_MIN) return fail('order', yesterday);
+   }
+   if (endMs - startMs < MIN_SEGMENT_MS) return fail('order', yesterday);
+   return { ok: true, startMs, endMs };

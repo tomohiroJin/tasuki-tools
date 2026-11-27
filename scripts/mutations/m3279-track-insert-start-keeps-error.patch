@@ -1,0 +1,22 @@
+# 変異 3279: track-insert-start-keeps-error
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 抜けを足す欄で、始まりを直しても前の誤りを下ろさない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3279-*.patch
+# 復元: git apply -R scripts/mutations/m3279-*.patch
+diff --git a/apps/track-web/src/components/InsertForm.tsx b/apps/track-web/src/components/InsertForm.tsx
+index e7c71b9c..9db0574a 100644
+--- a/apps/track-web/src/components/InsertForm.tsx
++++ b/apps/track-web/src/components/InsertForm.tsx
+@@ -130,7 +130,6 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
+           <label htmlFor={startId}>{INSERT_START_FIELD}</label>
+           <input id={startId} className="ui-input" type="time" value={start} aria-describedby={error ? errorId : undefined} onChange={(event) => {
+               setStart(event.target.value);
+-              setError(null);
+             }} />
+         </div>
+         {mode === 'end' ? (

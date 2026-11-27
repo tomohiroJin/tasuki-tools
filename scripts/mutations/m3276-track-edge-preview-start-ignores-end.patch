@@ -1,0 +1,22 @@
+# 変異 3276: track-edge-preview-start-ignores-end
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 始まりの欄の「読み取った時間」が、区切りの終わりでなく「いま」までの長さを出す（動かした後の区切りの長さと食い違う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3276-*.patch
+# 復元: git apply -R scripts/mutations/m3276-*.patch
+diff --git a/apps/track-web/src/components/SegmentEditor.tsx b/apps/track-web/src/components/SegmentEditor.tsx
+--- a/apps/track-web/src/components/SegmentEditor.tsx
++++ b/apps/track-web/src/components/SegmentEditor.tsx
+@@ -109,7 +109,7 @@
+     const current = positionOf(edge);
+     if (current === null || edgeTime[edge] === '') return null;
+     const now = getNow();
+-    const other = edge === 'start' ? (segment.endMs ?? now) : segment.startMs;
++    const other = edge === 'start' ? now : segment.startMs;
+     return edgePreviewOf(edge, edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, now), current, other, now, view.epochWallMs, tzOffsetMin);
+   };
+

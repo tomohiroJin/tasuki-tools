@@ -1,0 +1,23 @@
+# 変異 3272: track-edge-first-reading-only
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 端を合わせる時刻が、範囲に収まる読み方を探さず、動かす前の端に最も近い読み方だけを見る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3272-*.patch
+# 復元: git apply -R scripts/mutations/m3272-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..f72281c9 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -215,7 +215,7 @@ export function edgePositionOf(
+   // 秒の欄の無い入力（`HH:MM`）だけが分の単位。`<input type="time">` は秒が 0 のとき秒の欄を省く
+   const minuteOnly = value.length === 5;
+   const edgeRange = { ...range, minIsLookback: range.minMs <= nowMs - MAX_LOOKBACK_MS };
+-  for (const atMs of clockPositionsByDistance(clock, currentMs, epochWallMs, tzOffsetMin)) {
++  for (const atMs of clockPositionsByDistance(clock, currentMs, epochWallMs, tzOffsetMin).slice(0, 1)) {
+     const snapped = snapToRange(atMs, minuteOnly, edgeRange);
+     if (snapped !== null) return snapped;
+   }

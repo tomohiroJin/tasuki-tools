@@ -13,6 +13,24 @@ describe("normalizeLabel", () => {
   it("空白だけなら空になる（名前なし）", () => {
     expect(normalizeLabel(" 　 ")).toBe("");
   });
+  it("見えない書式の字（ゼロ幅の空白・向きを変える字・BOM ほか）を落とす", () => {
+    expect(normalizeLabel("実\u200b装")).toBe("実装");
+    expect(normalizeLabel("\u202e実装\u202c")).toBe("実装");
+    expect(normalizeLabel("\ufeff実装")).toBe("実装");
+    expect(normalizeLabel("実\u2060装\u200c")).toBe("実装");
+  });
+  it("見えない字を落としてから NFKC を掛ける（基底字と結合文字の間に挟まっても、同じ見た目は同じ名前になる）", () => {
+    expect(normalizeLabel("e​́")).toBe(normalizeLabel("é"));
+    expect(normalizeLabel("e​́")).toBe("é");
+  });
+  it("見えない字だけなら空になる（名前なしと同じ）", () => {
+    expect(normalizeLabel("\u200b\u202e\ufeff")).toBe("");
+    expect(normalizeLabel(" \u200b ")).toBe("");
+  });
+  it("ZWJ と字形選択子は落とさない（絵文字が崩れる）", () => {
+    expect(normalizeLabel("👨\u200d👩\u200d👧")).toBe("👨\u200d👩\u200d👧");
+    expect(normalizeLabel("❤\ufe0f")).toBe("❤\ufe0f");
+  });
 });
 
 describe("isValidLabel", () => {

@@ -18,9 +18,13 @@ interface Props {
   hasRecord: boolean;
   canOperate: boolean;
   onClear: () => void;
+  /** 消した結果の写し（記録が空）が届いたとき。「記録を消す」は押せなくなるので、フォーカスを次に押すもの（開始）へ移す */
+  onCleared: () => void;
+  /** 画面の上に出ているサーバーの拒否の文（消す操作が拒まれたら、元のボタンへフォーカスを戻す） */
+  error: string | null;
 }
 
-export function TakeHome({ markdown, hasRecord, canOperate, onClear }: Props) {
+export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, error }: Props) {
   const { copy, state } = useCopyText(markdown, { keepFailure: true });
   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。記録が変わって state が idle に戻っても開いたまま残す
   // （選んでいる途中で欄が消えない。中身はそのときの文に差し替わる）
@@ -34,7 +38,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear }: Props) {
   return (
     <section className="track-takehome ui-stack">
       <div className="track-takehome-actions">
-        <ClearControl enabled={hasRecord} canOperate={canOperate} onClear={onClear} />
+        <ClearControl enabled={hasRecord} canOperate={canOperate} onClear={onClear} onCleared={onCleared} error={error} />
         <button type="button" className="ui-button ui-button--secondary" onClick={() => void copy()}>
           {COPY_BUTTON}
         </button>
@@ -60,8 +64,22 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear }: Props) {
   );
 }
 
-function ClearControl({ enabled, canOperate, onClear }: { enabled: boolean; canOperate: boolean; onClear: () => void }) {
+function ClearControl({
+  enabled,
+  canOperate,
+  onClear,
+  onCleared,
+  error,
+}: {
+  enabled: boolean;
+  canOperate: boolean;
+  onClear: () => void;
+  onCleared: () => void;
+  error: string | null;
+}) {
   const [asking, setAsking] = useState(false);
+  // 消すを送ってから、結果の写しを待っている間
+  const [pending, setPending] = useState(false);
   const [returnFocus, setReturnFocus] = useState(false);
   const noRef = useRef<HTMLButtonElement>(null);
   const openRef = useRef<HTMLButtonElement>(null);
@@ -71,11 +89,25 @@ function ClearControl({ enabled, canOperate, onClear }: { enabled: boolean; canO
     if (asking) noRef.current?.focus();
   }, [asking]);
   useEffect(() => {
+    // 押せないボタンにはフォーカスが乗らない。すぐに受けられないときは戻すのをやめる
+    // （待ち続けると、つながり直した後に、使っていない人の「記録を消す」へフォーカスが飛ぶ）
     if (!asking && returnFocus) {
-      openRef.current?.focus();
+      if (openRef.current !== null && !openRef.current.disabled) openRef.current.focus();
       setReturnFocus(false);
     }
   }, [asking, returnFocus]);
+  useEffect(() => {
+    if (!pending) return;
+    if (!enabled) {
+      // 空の写しが届いた。元のボタンは押せなくなったので、次に押すもの（開始）へ
+      setPending(false);
+      onCleared();
+    } else if (error !== null || !canOperate) {
+      // 拒まれた・切れた。元のボタンへ戻す
+      setPending(false);
+      setReturnFocus(true);
+    }
+  }, [pending, enabled, canOperate, error, onCleared]);
 
   if (!asking) {
     return (
@@ -107,7 +139,8 @@ function ClearControl({ enabled, canOperate, onClear }: { enabled: boolean; canO
           disabled={!canOperate}
           onClick={() => {
             setAsking(false);
-            setReturnFocus(true);
+            // フォーカスは、空の写しが届いてから開始のボタンへ移す（届かなければ元のボタンへ戻す）
+            setPending(true);
             onClear();
           }}
         >

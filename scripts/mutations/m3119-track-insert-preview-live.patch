@@ -1,0 +1,22 @@
+# 変異 3119: track-insert-preview-live
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 「読み取った時間」（抜けを足す欄・端を合わせる欄で共通の部品）を読み上げの対象にする（入力のたびに読み上げが走る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3119-*.patch
+# 復元: git apply -R scripts/mutations/m3119-*.patch
+diff --git a/apps/track-web/src/components/ReadRangeHint.tsx b/apps/track-web/src/components/ReadRangeHint.tsx
+--- a/apps/track-web/src/components/ReadRangeHint.tsx
++++ b/apps/track-web/src/components/ReadRangeHint.tsx
+@@ -7,7 +7,7 @@
+
+ export function ReadRangeHint({ preview }: { preview: InsertPreview }) {
+   return (
+-    <p className="track-hint">
++    <p className="track-hint" aria-live="polite">
+       {insertPreviewText(insertPreviewEdgeText(preview.startClock, preview.startYesterday), insertPreviewEdgeText(preview.endClock, preview.endYesterday), lengthHm(preview.lengthMin))}
+     </p>
+   );

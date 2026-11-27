@@ -16,6 +16,9 @@ export function nameOf(segment: Pick<SegmentView, 'kind' | 'label'>): string {
   return segment.label === '' ? UNNAMED_NAME : segment.label;
 }
 
+/** 欄を開いている間の描き直しの間隔。止まっている間は画面が描き直さないので、押せる・押せないや「前日」の添えを古いまま残さない（手直しの欄・抜けを足す欄） */
+export const OPEN_TICK_MS = 1000;
+
 /** 目立たせる名前なしの作業か。 */
 export const isUnnamed = (segment: Pick<SegmentView, 'kind' | 'label'>): boolean => segment.kind === 'work' && segment.label === '';
 

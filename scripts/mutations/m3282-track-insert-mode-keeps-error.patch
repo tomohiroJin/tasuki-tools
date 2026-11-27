@@ -1,0 +1,22 @@
+# 変異 3282: track-insert-mode-keeps-error
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 抜けを足す欄で、指定のしかたを変えても前の誤りを下ろさない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3282-*.patch
+# 復元: git apply -R scripts/mutations/m3282-*.patch
+diff --git a/apps/track-web/src/components/InsertForm.tsx b/apps/track-web/src/components/InsertForm.tsx
+index e7c71b9c..bf334e23 100644
+--- a/apps/track-web/src/components/InsertForm.tsx
++++ b/apps/track-web/src/components/InsertForm.tsx
+@@ -120,7 +120,6 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
+           <label htmlFor={modeId}>{INSERT_MODE_FIELD}</label>
+           <select id={modeId} className="ui-select" value={mode} onChange={(event) => {
+               setMode(event.target.value === 'length' ? 'length' : 'end');
+-              setError(null);
+             }}>
+             <option value="end">{INSERT_MODE_END}</option>
+             <option value="length">{INSERT_MODE_LENGTH}</option>
