@@ -6,7 +6,7 @@
  * 同じ `error` の形（コードは非空文字列）に収まるので、ハブの応答として受ける（agenda-web と同じ形）。
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubServerMsg } from '@tasuki/room-core';
+import { HubServerMsgSchema, RoomCallFrameSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
 import { TopicFrameSchema, type TopicState } from '@tasuki/topic-core';
 import { TrackFrameSchema, type TrackView } from '@tasuki/track-core';
 
@@ -20,4 +20,10 @@ export function parseTrackWebMessage(raw: string): TrackWebMessage | null {
   if (track.isOk()) return track.value;
   const hub = parseBoundaryMessage(HubServerMsgSchema, raw);
   return hub.isOk() ? hub.value : null;
+}
+
+/** 呼びかけの知らせ（`room.call`・#677）なら中身を返す。そうでなければ `null`（同期フックが契約より先に呼ぶ）。 */
+export function parseTrackRoomCall(raw: string): RoomCall | null {
+  const parsed = parseBoundaryMessage(RoomCallFrameSchema, raw);
+  return parsed.isOk() ? parsed.value.call : null;
 }

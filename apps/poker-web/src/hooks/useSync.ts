@@ -32,8 +32,7 @@ import {
   type RoomStateMessage,
 } from '@tasuki/poker-core';
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import type { DepartureReason, RoomCall } from '@tasuki/room-core';
-import { parseRoomCallFrame } from '@tasuki/web-kit/sync';
+import { RoomCallFrameSchema, type DepartureReason, type RoomCall } from '@tasuki/room-core';
 import { TopicFrameSchema, type Topic } from '@tasuki/topic-core';
 
 /** 接続状態（正本は `@tasuki/sync-client`。#369）。 */
@@ -154,7 +153,7 @@ export interface PokerSync {
  * 呼びかけの知らせ（#677）。**poker は出すだけ**で、画面（`RoomPage` ほか）は読まない。出すのは `App` だけなので、
  * {@link PokerSync} には足さず、{@link usePokerSync} の戻り値にだけ重ねる（`PokerSync` を組み立てる画面の検査を巻き込まない）。
  *
- * `room.call` フレームは poker の契約をまたぐ（`@tasuki/web-kit/sync` の `parseRoomCallFrame` で見分ける）ので、
+ * `room.call` フレームは poker の契約をまたぐ（`RoomCallFrameSchema` で見分ける）ので、
  * `snapshot` とは別に持つ。閉じるか新しいものが来るまで残る。
  */
 export interface PokerRoomCall {
@@ -229,9 +228,9 @@ export function usePokerSync(): PokerSync & PokerRoomCall {
     // **呼びかけの知らせも poker の契約より先に見分ける**（#677）。お題と同じ置き方で、順を逆にすると
     // 未知の `type` として落とし、#212 の告知（同期できていません）が立つ。
     // 知らせは契約を満たすフレームの数に入れない（`syncStale` を下ろさない。お題のフレームと同じ）。
-    const call = parseRoomCallFrame(raw);
-    if (call !== null) {
-      setRoomCall(call);
+    const call = parseBoundaryMessage(RoomCallFrameSchema, raw);
+    if (call.isOk()) {
+      setRoomCall(call.value.call);
       return;
     }
 

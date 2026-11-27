@@ -40,7 +40,7 @@ import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import { roundsOf, type AgendaCommand, type AgendaView, type ExtendMinutes, type ScenarioInput } from '@tasuki/agenda-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseAgendaWebMessage } from '../server-message';
+import { parseAgendaRoomCall, parseAgendaWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function agendaSyncUrl(location: { protocol: string; host: string }): string {
@@ -112,6 +112,7 @@ export function useAgendaSync(roomCode: string): AgendaSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: agendaSyncUrl,
+    parseCall: parseAgendaRoomCall,
     parse: parseAgendaWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {

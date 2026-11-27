@@ -1,12 +1,11 @@
 /**
- * 呼びかけの知らせ（#677）。行き先の表・知らせの部品・知らせの見分け。
+ * 呼びかけの知らせ（#677）。行き先の表・知らせの部品（見分けは各画面の純粋な層が持つ）。
  *
  * **オラクルは文字列と公開パスを手で書く**（実装の定数を引かない）。
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RoomCallNotice, TOOL_DESTINATIONS, toolDestination } from '../src/room/index.js';
-import { parseRoomCallFrame } from '../src/sync/index.js';
 
 afterEach(cleanup);
 
@@ -63,22 +62,5 @@ describe('RoomCallNotice', () => {
   it('Given 知らない道具 / When 描く / Then 何も描かない', () => {
     const { container } = render(<RoomCallNotice call={{ ...call, tool: 'unknown' }} roomCode="ABC" onDismiss={() => undefined} />);
     expect(container.firstChild).toBeNull();
-  });
-});
-
-describe('parseRoomCallFrame', () => {
-  it('Given 呼びかけの知らせ / When 見分ける / Then RoomCall を返す', () => {
-    const raw = JSON.stringify({ type: 'room.call', call: { tool: 'poker', fromParticipantId: 'p2', fromName: 'あや' } });
-    expect(parseRoomCallFrame(raw)).toEqual({ tool: 'poker', fromParticipantId: 'p2', fromName: 'あや' });
-  });
-
-  it.each([
-    ['お題のフレーム', JSON.stringify({ type: 'topic', topic: { text: 'x' } })],
-    ['ハブの受け付け', JSON.stringify({ type: 'room.called', tool: 'poker' })],
-    ['中身が欠けた知らせ', JSON.stringify({ type: 'room.call', call: { tool: 'poker' } })],
-    ['壊れた JSON', '{"type":'],
-    ['JSON ではない文字', 'room.call'],
-  ])('Given %s / When 見分ける / Then null', (_label, raw) => {
-    expect(parseRoomCallFrame(raw)).toBeNull();
   });
 });

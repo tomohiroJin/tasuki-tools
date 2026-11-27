@@ -7,7 +7,7 @@
  * 非空文字列）に収まるので、ハブの応答として受ける（ルーレット・topic-web と同じ形）。
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubServerMsg } from '@tasuki/room-core';
+import { HubServerMsgSchema, RoomCallFrameSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
 import { AgendaFrameSchema, type AgendaView } from '@tasuki/agenda-core';
 import { TopicFrameSchema, type TopicState } from '@tasuki/topic-core';
 
@@ -24,4 +24,10 @@ export function parseAgendaWebMessage(raw: string): AgendaWebMessage | null {
   if (agenda.isOk()) return agenda.value;
   const hub = parseBoundaryMessage(HubServerMsgSchema, raw);
   return hub.isOk() ? hub.value : null;
+}
+
+/** 呼びかけの知らせ（`room.call`・#677）なら中身を返す。そうでなければ `null`（同期フックが契約より先に呼ぶ）。 */
+export function parseAgendaRoomCall(raw: string): RoomCall | null {
+  const parsed = parseBoundaryMessage(RoomCallFrameSchema, raw);
+  return parsed.isOk() ? parsed.value.call : null;
 }

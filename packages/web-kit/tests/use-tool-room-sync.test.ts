@@ -30,6 +30,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** 呼びかけの知らせの見分け（本物は各画面の純粋な層。ここは web-kit が wire を読まない形の代役）。 */
+function parseCall(raw: string): { tool: string; fromName: string } | null {
+  try {
+    const value = JSON.parse(raw) as { type?: unknown; call?: { tool?: unknown; fromName?: unknown } };
+    if (value.type !== 'room.call' || typeof value.call?.tool !== 'string' || typeof value.call.fromName !== 'string') return null;
+    return value.call as { tool: string; fromName: string };
+  } catch {
+    return null;
+  }
+}
+
 function setup() {
   const states: number[] = [];
   const onFrame = (frame: Frame, handlers: ToolRoomFrameHandlers): void => {
@@ -50,6 +61,7 @@ function setup() {
     useToolRoomSync<Frame>({
       roomCode: 'R1',
       syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+      parseCall,
       parse: (raw) => {
         const value = JSON.parse(raw) as { type?: unknown };
         return typeof value.type === 'string' ? (value as Frame) : null;
@@ -201,6 +213,7 @@ describe('useToolRoomSync の呼びかけの知らせ（#677）', () => {
       useToolRoomSync<Frame>({
         roomCode: 'R1',
         syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+        parseCall,
         parse: (raw) => {
           parsed.push(raw);
           const value = JSON.parse(raw) as { type?: unknown };

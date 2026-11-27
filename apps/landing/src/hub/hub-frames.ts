@@ -5,10 +5,9 @@
  * 実行は `use-hub-sync.ts` が受け持つ。
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
+import { HubServerMsgSchema, RoomCallFrameSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
 import type { JoinErrorPlan } from '@tasuki/sync-client';
 import { TopicFrameSchema } from '@tasuki/topic-core';
-import { parseRoomCallFrame } from '@tasuki/web-kit/sync';
 
 /** 受信した 1 通の分類。 */
 export type HubFrame =
@@ -27,8 +26,8 @@ export type HubFrame =
 export function classifyHubFrame(raw: string): HubFrame {
   const topic = parseBoundaryMessage(TopicFrameSchema, raw);
   if (topic.isOk()) return { kind: 'topic', title: topic.value.state.topic?.title ?? null };
-  const call = parseRoomCallFrame(raw);
-  if (call !== null) return { kind: 'call', call };
+  const call = parseBoundaryMessage(RoomCallFrameSchema, raw);
+  if (call.isOk()) return { kind: 'call', call: call.value.call };
   const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);
   if (parsed.isErr()) return { kind: 'drop' };
   return { kind: 'hub', msg: parsed.value };

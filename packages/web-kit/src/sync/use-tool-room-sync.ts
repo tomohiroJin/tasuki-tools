@@ -28,8 +28,7 @@ import {
   type JoinErrorPlan,
   type SyncUrlLocation,
 } from '@tasuki/sync-client';
-import type { RoomCall } from '@tasuki/room-core';
-import { parseRoomCallFrame } from './parse-room-call-frame.js';
+import type { RoomCallView } from '../room/room-call-view.js';
 import { useJoinRetry } from './use-join-retry.js';
 
 /** 抜けた理由（`planForJoinError` の `left`）。 */
@@ -56,6 +55,11 @@ export interface ToolRoomSyncOptions<Frame> {
   readonly roomCode: string;
   /** 同期サーバーへの URL（ツールの宣言つき。組み立ては `@tasuki/sync-client` の `buildSyncUrl`）。 */
   readonly syncUrl: (location: SyncUrlLocation) => string;
+  /**
+   * 受けた文字列が呼びかけの知らせ（`room.call`・#677）なら、その中身を返す。そうでなければ null。
+   * 道具の `parse` より先に呼ぶ。見分けは道具の画面の純粋な層が持つ（web-kit は wire を読まない）。
+   */
+  readonly parseCall: (raw: string) => RoomCallView | null;
   /** 受けた文字列をフレームにする。契約に合わなければ null（同期が古い印を立てる）。 */
   readonly parse: (raw: string) => Frame | null;
   /** 契約に合ったフレーム。`room.joined` と `error` は `handlers` へ戻す。 */
@@ -93,7 +97,7 @@ export interface ToolRoomSync {
   /** 混雑のやり直しの知らせ。 */
   readonly retryNotice: string | null;
   /** 受け取った呼びかけ（最新の 1 つ。#677）。新しい呼びかけは前のを置き換える。 */
-  readonly call: RoomCall | null;
+  readonly call: RoomCallView | null;
   /** 呼びかけの知らせを閉じる。 */
   dismissCall(): void;
   clearError(): void;
@@ -114,7 +118,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   const [departed, setDeparted] = useState<ToolRoomDeparture | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [call, setCall] = useState<RoomCall | null>(null);
+  const [call, setCall] = useState<RoomCallView | null>(null);
 
   const retry = useJoinRetry({ waiting: options.texts.retryWaiting, exhausted: options.texts.retryExhausted });
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = retry;
@@ -211,7 +215,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
     const handleMessage = (raw: string): void => {
       // 呼びかけの知らせ（#677）は道具ごとの契約より先に見分ける。道具の `parse` には渡さない
       // （渡すと「契約に合わないフレーム」として同期の告知が出る）。正しいフレームなので告知は下ろす。最新の 1 つだけ持つ。
-      const roomCall = parseRoomCallFrame(raw);
+      const roomCall = optionsRef.current.parseCall(raw);
       if (roomCall !== null) {
         setSyncStale(false);
         setCall(roomCall);

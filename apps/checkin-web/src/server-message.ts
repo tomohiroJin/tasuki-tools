@@ -10,7 +10,7 @@
  * ここは形を検めるだけで、見せる・隠す判断は持たない。
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubServerMsg } from '@tasuki/room-core';
+import { HubServerMsgSchema, RoomCallFrameSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
 import { CheckinFrameSchema, type CheckinView } from '@tasuki/checkin-core';
 import { TopicFrameSchema, type TopicState } from '@tasuki/topic-core';
 
@@ -29,4 +29,10 @@ export function parseCheckinWebMessage(raw: string): CheckinWebMessage | null {
   if (checkin.isOk()) return { type: 'checkin', state: checkin.value.state as CheckinView };
   const hub = parseBoundaryMessage(HubServerMsgSchema, raw);
   return hub.isOk() ? hub.value : null;
+}
+
+/** 呼びかけの知らせ（`room.call`・#677）なら中身を返す。そうでなければ `null`（同期フックが契約より先に呼ぶ）。 */
+export function parseCheckinRoomCall(raw: string): RoomCall | null {
+  const parsed = parseBoundaryMessage(RoomCallFrameSchema, raw);
+  return parsed.isOk() ? parsed.value.call : null;
 }

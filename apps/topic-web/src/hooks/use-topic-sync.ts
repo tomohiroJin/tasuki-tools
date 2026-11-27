@@ -27,7 +27,7 @@ import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { Category, Difficulty, Language, TopicCommand, TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseTopicWebMessage } from '../server-message';
+import { parseTopicRoomCall, parseTopicWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function topicSyncUrl(location: { protocol: string; host: string }): string {
@@ -78,6 +78,7 @@ export function useTopicSync(roomCode: string): TopicSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: topicSyncUrl,
+    parseCall: parseTopicRoomCall,
     parse: parseTopicWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {

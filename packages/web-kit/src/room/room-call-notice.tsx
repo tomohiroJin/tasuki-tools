@@ -1,10 +1,10 @@
-import type { RoomCall } from '@tasuki/room-core';
 import { ClampedName } from './clamped-name.js';
+import type { RoomCallView } from './room-call-view.js';
 import { toolDestination } from './tool-destinations.js';
 
 export interface RoomCallNoticeProps {
   /** 受け取った呼びかけ（最新の 1 つ）。 */
-  readonly call: RoomCall;
+  readonly call: RoomCallView;
   /** いまのルームのコード。「移る」で同じルームへ入るのに使う。 */
   readonly roomCode: string;
   /** 「閉じる」を押した。呼ぶ側が知らせの状態を下ろす。 */
