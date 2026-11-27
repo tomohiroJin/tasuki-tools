@@ -254,6 +254,11 @@ describe("呼びかけの知らせの wire", () => {
     expect(v.safeParse(RoomCallFrameSchema, { ...frame, type: "roster" }).success).toBe(false);
   });
 
+  it("Given 呼んだ人への受け付け / When ハブの言葉として検証する / Then 通り、道具が空なら落ちる", () => {
+    expect(v.safeParse(HubServerMsgSchema, { type: "room.called", tool: "poker" }).success).toBe(true);
+    expect(v.safeParse(HubServerMsgSchema, { type: "room.called", tool: "" }).success).toBe(false);
+  });
+
   it("Given 呼びかけの知らせ / When ハブの言葉として検証する / Then 落ちる（古い玄関は黙って捨てる）", () => {
     expect(v.safeParse(HubServerMsgSchema, frame).success).toBe(false);
   });

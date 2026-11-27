@@ -192,6 +192,11 @@ export type HubServerMsg =
   | { type: "room.created"; code: string; participantId: string; resumeToken: string }
   | { type: "room.joined"; code: string; participantId: string; resumeToken: string }
   | { type: "roster"; room: RosterRoom }
+  /**
+   * 呼びかけを受け付けた（#677）。**呼んだ本人の接続にだけ**返る。玄関はこれを受けてから、呼んだ道具へ移る
+   * （送ってすぐ移ると、ページを離れる時にコマンドが届かないことがある）。
+   */
+  | { type: "room.called"; tool: string }
   | { type: "error"; code: string; message: string };
 
 const identityFields = {
@@ -204,6 +209,7 @@ export const HubServerMsgSchema: v.GenericSchema<HubServerMsg> = v.variant("type
   v.object({ type: v.literal("room.created"), ...identityFields }),
   v.object({ type: v.literal("room.joined"), ...identityFields }),
   v.object({ type: v.literal("roster"), room: RosterRoomSchema }),
+  v.object({ type: v.literal("room.called"), tool: nonEmptyString }),
   v.object({ type: v.literal("error"), code: nonEmptyString, message: v.string() }),
 ]);
 
