@@ -1,0 +1,13 @@
+diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
+index fee38671..a1832304 100644
+--- a/packages/track-core/src/csv.ts
++++ b/packages/track-core/src/csv.ts
+@@ -26,7 +26,7 @@ const FORMULA_LEAD = /^[=+\-@\t\r\n]/;
+  * 全角の記号は、作業名の正規化（NFKC）で半角になっているので別に扱わない。
+  */
+ export function csvField(value: string): string {
+-  const safe = FORMULA_LEAD.test(value) ? `'${value}` : value;
++  const safe = value;
+   return `"${safe.replace(/"/g, '""')}"`;
+ }
+ 

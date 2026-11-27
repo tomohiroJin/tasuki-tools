@@ -10,7 +10,26 @@
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
-import { CLEAR_BUTTON, CLEAR_CONFIRM_NO, CLEAR_CONFIRM_TEXT, CLEAR_CONFIRM_YES, COPY_BUTTON, COPY_DONE, COPY_FAILED, COPY_MANUAL_FIELD } from '../copy';
+import {
+  CLEAR_BUTTON,
+  CLEAR_CONFIRM_NO,
+  CLEAR_CONFIRM_TEXT,
+  CLEAR_CONFIRM_YES,
+  COPY_BUTTON,
+  COPY_DONE,
+  COPY_FAILED,
+  COPY_MANUAL_FIELD,
+  CSV_BUTTON,
+  SAVED_LINK,
+  SAVED_LINK_LABEL,
+  SAVE_BUTTON,
+  SAVE_DONE,
+  SAVE_FAILED,
+  SAVE_NOTE,
+  saveFullNote,
+} from '../copy';
+import type { SaveStatus } from '../hooks/use-saved-count';
+import { MAX_SAVED_RECORDS } from '../storage/saved-record';
 
 interface Props {
   markdown: string;
@@ -22,9 +41,18 @@ interface Props {
   onCleared: () => void;
   /** 画面の上に出ているサーバーの拒否の文（消す操作が拒まれたら、元のボタンへフォーカスを戻す） */
   error: string | null;
+  /** 端末に残っている件数（読めるまでは null） */
+  savedCount: number | null;
+  saveStatus: SaveStatus;
+  /** 保存中（残すボタンを押せなくする） */
+  saving: boolean;
+  onSave: () => void;
+  onCsv: () => void;
+  /** 「この端末の記録」の画面への道 */
+  savedHref: string;
 }
 
-export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, error }: Props) {
+export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, error, savedCount, saveStatus, saving, onSave, onCsv, savedHref }: Props) {
   const { copy, state } = useCopyText(markdown, { keepFailure: true });
   // 手で選ぶ欄は、失敗した試みで開き、成功した試みで閉じる。記録が変わって state が idle に戻っても開いたまま残す
   // （選んでいる途中で欄が消えない。中身はそのときの文に差し替わる）
@@ -33,19 +61,53 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, onCleared, 
     if (state === 'failed') setManualKept(true);
     else if (state === 'done') setManualKept(false);
   }, [state]);
+  // 知らせの欄に出す結果の持ち主（最後に押した方）
+  const [last, setLast] = useState<'copy' | 'save'>('copy');
   const manualOpen = state === 'failed' || (manualKept && state === 'idle');
 
   return (
     <section className="track-takehome ui-stack">
       <div className="track-takehome-actions">
         <ClearControl enabled={hasRecord} canOperate={canOperate} onClear={onClear} onCleared={onCleared} error={error} />
-        <button type="button" className="ui-button ui-button--secondary" onClick={() => void copy()}>
+        <button type="button" className="ui-button ui-button--secondary" onClick={() => {
+            setLast('copy');
+            void copy();
+          }}>
           {COPY_BUTTON}
         </button>
       </div>
       <p role="status" className="track-copy-status">
-        {state === 'done' ? COPY_DONE : state === 'failed' ? COPY_FAILED : ''}
+        {/* 知らせの領域は 1 つ。最後に動かした操作（コピーか保存か）の結果を出す */}
+        {last === 'copy'
+          ? state === 'done'
+            ? COPY_DONE
+            : state === 'failed'
+              ? COPY_FAILED
+              : ''
+          : saveStatus === 'done'
+            ? SAVE_DONE
+            : saveStatus === 'failed'
+              ? SAVE_FAILED
+              : ''}
       </p>
+      <div className="track-takehome-actions">
+        <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord || saving}
+          onClick={() => {
+            setLast('save');
+            onSave();
+          }}>
+          {SAVE_BUTTON}
+        </button>
+        <button type="button" className="ui-button ui-button--secondary" disabled={!hasRecord} onClick={onCsv}>
+          {CSV_BUTTON}
+        </button>
+        <a className="track-saved-link ui-button ui-button--quiet" href={savedHref} target="_blank" rel="noopener" aria-label={SAVED_LINK_LABEL}>
+          {SAVED_LINK}
+        </a>
+      </div>
+      <p className="ui-note track-save-note">{SAVE_NOTE}</p>
+      {/* 上限に達していれば、押す前に、いちばん古い 1 件が消えることを示す */}
+      {savedCount !== null && savedCount >= MAX_SAVED_RECORDS && <p className="ui-note track-save-note">{saveFullNote(MAX_SAVED_RECORDS)}</p>}
       {manualOpen && (
         <textarea
           aria-label={COPY_MANUAL_FIELD}

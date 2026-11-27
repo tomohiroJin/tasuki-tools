@@ -1,0 +1,13 @@
+diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
+index 17c88fca..cfec6a57 100644
+--- a/packages/track-core/src/csv.ts
++++ b/packages/track-core/src/csv.ts
+@@ -18,7 +18,7 @@ const EOL = "\r\n";
+ export const CSV_COLUMNS = ["start_date", "start", "end_date", "end", "minutes", "kind", "label", "auto_closed"] as const;
+ 
+ /** 表計算が数式として読む字で始まる値（`=` `+` `-` `@` タブ CR LF） */
+-const FORMULA_LEAD = /^[=+\-@\t\r\n]/;
++const FORMULA_LEAD = /^[=+\-@]/;
+ 
+ /**
+  * CSV の 1 欄にする。数式として読まれる字で始まる値は先頭に `'` を付けて無害にし（CSV インジェクション）、

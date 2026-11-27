@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..d5cd755b 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -59,7 +59,7 @@ export function recordFromView(view: TrackView, nowMs: number, id: string): Save
+       kind: g.kind,
+       label: g.label,
+       startMs: g.startMs,
+-      endMs: Math.max(g.startMs, g.endMs ?? nowMs),
++      endMs: Math.max(g.startMs, g.endMs ?? g.startMs),
+       autoClosed: g.autoClosed,
+     })),
+   };

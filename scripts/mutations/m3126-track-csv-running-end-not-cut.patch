@@ -1,0 +1,13 @@
+diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
+index fee38671..785cb6bf 100644
+--- a/packages/track-core/src/csv.ts
++++ b/packages/track-core/src/csv.ts
+@@ -34,7 +34,7 @@ export function csvField(value: string): string {
+ export function toCsv(view: TrackView, nowMs: number, tzOffsetMin: number): string {
+   const rows = view.segments.map((g) => {
+     const startWall = view.epochWallMs + g.startMs;
+-    const endWall = view.epochWallMs + Math.max(g.startMs, g.endMs ?? nowMs);
++    const endWall = view.epochWallMs + Math.max(g.startMs, g.endMs ?? g.startMs);
+     return [
+       formatDate(startWall, tzOffsetMin),
+       formatClock(startWall, tzOffsetMin),

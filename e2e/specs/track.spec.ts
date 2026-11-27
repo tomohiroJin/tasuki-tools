@@ -11,6 +11,7 @@
  * 受けた WS のフレームを JSON として読み、構造で判定する（文字列の含みでは見ない）。
  * 実時間の待ち（90 分の知らせ・全員切断の猶予）は待たない。`apps/tasuki-sync` と `packages/track-core` の偽の時計の検査が持つ。
  */
+import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectScreenAcrossWidths } from '../support/a11y';
@@ -144,6 +145,59 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(segments(b)).toHaveCount(0);
     await nowPanel(b).getByRole('button', { name: '取り消す', exact: true }).click();
     await expect(segments(page)).toHaveCount(closedCount);
+  });
+
+  test('Given 記録のあるルーム / When 端末に残す・CSV で保存・ルームなしで記録の画面を開く / Then 一覧に出て読め、CSV が落ち、接続しない', async ({ page }) => {
+    // Given: 1 区切り（作業 → 停止）
+    await openTrackTool(page, 'e2e-track-saved');
+    await startWork(page, '残す作業');
+    await expect(nowName(page)).toHaveText('残す作業');
+    // 1 秒（MIN_SEGMENT_MS）に満たない区切りは残さない（track-core の stop）。経過が 2 秒を超えてから止める
+    await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '', { message: '経過が 2 秒を超える' }).toMatch(/0:00:0[2-9]/);
+    await nowPanel(page).getByRole('button', { name: '止める', exact: true }).click();
+    await expect(segments(page)).toHaveCount(1);
+
+    // (3) CSV で保存: ダウンロードが起き、名前は track-…csv、先頭は BOM（EF BB BF）と見出しの行
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV で保存', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^track-\d{8}-\d{4}\.csv$/);
+    const path = await download.path();
+    const bytes = await readFile(path);
+    expect([...bytes.subarray(0, 3)], 'UTF-8 の BOM').toEqual([0xef, 0xbb, 0xbf]);
+    expect(bytes.subarray(3).toString('utf8').split('\r\n')[0]).toBe('start_date,start,end_date,end,minutes,kind,label,auto_closed');
+
+    // (1) この端末に残す
+    await page.getByRole('button', { name: 'この端末に残す', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'この端末に残しました' })).toBeVisible();
+
+    // ルームの画面からのリンクは新しいタブで開く（元のタブのルームの接続を切らない）
+    const popupPromise = page.context().waitForEvent('page');
+    await page.getByRole('link', { name: 'この端末の記録（新しいタブで開きます）', exact: true }).click();
+    const popup = await popupPromise;
+    await expect(popup.getByRole('heading', { level: 1, name: 'この端末の記録', exact: true })).toBeVisible();
+    expect(new URL(popup.url()).searchParams.get('view')).toBe('saved');
+    await expect(page.getByRole('heading', { level: 1, name: 'うちわけ', exact: true })).toBeVisible();
+    await expect(nowPanel(page)).toBeVisible();
+    await popup.close();
+
+    // (2) ルームのコードなしで開く（同じ文脈＝名乗りは端末にある。それでも玄関へ送らず、接続しない）
+    const saved = await page.context().newPage();
+    let sockets = 0;
+    saved.on('websocket', () => (sockets += 1));
+    await saved.goto('/track/?view=saved');
+    await expect(saved.getByRole('heading', { level: 1, name: 'この端末の記録', exact: true })).toBeVisible();
+    expect(new URL(saved.url()).pathname + new URL(saved.url()).search).toBe('/track/?view=saved');
+
+    // (1) 一覧に 1 件。開くと表と時系列が読める
+    await expect(saved.locator('[data-saved]')).toHaveCount(1);
+    await saved.getByRole('button', { name: /の記録を開く/ }).click();
+    await expect(saved.getByRole('region', { name: 'ここまでのうちわけ' }).getByRole('row').filter({ hasText: '残す作業' })).toBeVisible();
+    await expect(saved.getByRole('region', { name: '時系列' }).locator('.track-segment')).toHaveCount(1);
+    // 記録の画面も、4 つの幅で溢れず、押せる大きさを保つ（一覧・開いた記録・全部消す）
+    await expectScreenAcrossWidths(saved, 'この端末の記録（開いた記録）', 6);
+    expect(sockets, 'ルームに接続しない（名簿に載らない）').toBe(0);
+    await saved.close();
   });
 
   test('Given うちわけの画面 / When 再読み込みする / Then 計測中の区切りと経過がサーバーの時計から戻る', async ({ page }) => {

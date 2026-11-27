@@ -1,0 +1,13 @@
+diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
+index fee38671..2f43d874 100644
+--- a/packages/track-core/src/csv.ts
++++ b/packages/track-core/src/csv.ts
+@@ -42,7 +42,7 @@ export function toCsv(view: TrackView, nowMs: number, tzOffsetMin: number): stri
+       (durationOf(g, nowMs) / MS_PER_MIN).toFixed(2),
+       g.kind,
+       g.label,
+-      g.autoClosed ? "true" : "false",
++      "false",
+     ]
+       .map(csvField)
+       .join(",");

@@ -14,7 +14,9 @@ import {
   candidatesOf,
   longRunningOf,
   previousLabelOf,
+  csvFileName,
   runningSegmentOf,
+  toCsv,
   toMarkdown,
   totalsOf,
   type BackMinutes,
@@ -30,13 +32,15 @@ import { Timeline } from '../components/Timeline';
 import { TotalsPanel } from '../components/TotalsPanel';
 import { CLOSE_BUTTON, FOOTNOTE, PAGE_HEADING, longRunningText } from '../copy';
 import { useAnnouncement } from '../hooks/use-announcement';
+import { useSaveToDevice } from '../hooks/use-saved-count';
 import { useTabTitle } from '../hooks/use-tab-title';
 import { useTrackClock } from '../hooks/use-track-clock';
 import { useTrackKeys } from '../hooks/use-track-keys';
 import { useTrackSync, type TrackSync } from '../hooks/use-track-sync';
 import { useUndoSeconds } from '../hooks/use-undo-seconds';
+import { downloadTextFile } from '../platform/download';
 import { localTzOffsetMin } from '../platform/timezone';
-import { hubPathFor, redirectTo } from '../router';
+import { hubPathFor, redirectTo, savedPathFor } from '../router';
 import { nameOf, tabTitleOf } from '../track-view';
 
 const MS_PER_MIN = 60_000;
@@ -79,7 +83,7 @@ export function TrackRoom({ roomCode }: { roomCode: string }) {
               </button>
             </p>
           )}
-          {view !== null && <RoomBody view={view} sync={sync} />}
+          {view !== null && <RoomBody view={view} sync={sync} roomCode={roomCode} />}
           <p className="track-footnote ui-note">{FOOTNOTE}</p>
         </div>
       </main>
@@ -88,9 +92,10 @@ export function TrackRoom({ roomCode }: { roomCode: string }) {
 }
 
 /** 写しが届いた後の中身。時計・キーボード・タブの題・読み上げはここで持つ（写しが要るフックをまとめる）。 */
-function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
+function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync; roomCode: string }) {
   const reducedMotion = usePrefersReducedMotion();
   const { nowMs, getNow } = useTrackClock(view, sync.receivedAt, reducedMotion);
+  const saved = useSaveToDevice(view, getNow);
   const undoSeconds = useUndoSeconds(view.undo, sync.receivedAt);
   // 「いつから」は止める・休憩にする・切り替えるのどれにも効く。1 回使ったら「いまから」へ戻す（次の操作まで持ち越さない）
   const [backMin, setBackMin] = useState<BackMinutes | null>(null);
@@ -166,7 +171,20 @@ function RoomBody({ view, sync }: { view: TrackView; sync: TrackSync }) {
         <div className="ui-workspace-main track-column">
           <TotalsPanel totals={totals} />
           <Timeline view={view} nowMs={nowMs} getNow={getNow} tzOffsetMin={tzOffsetMin} canOperate={canOperate} actions={sync} />
-          <TakeHome markdown={toMarkdown(view, nowMs, tzOffsetMin)} hasRecord={view.segments.length > 0} canOperate={canOperate} onClear={sync.clear} onCleared={focusStart} error={sync.error} />
+          <TakeHome
+            markdown={toMarkdown(view, nowMs, tzOffsetMin)}
+            hasRecord={view.segments.length > 0}
+            canOperate={canOperate}
+            onClear={sync.clear}
+            onCleared={focusStart}
+            error={sync.error}
+            savedCount={saved.count}
+            saveStatus={saved.status}
+            saving={saved.saving}
+            onSave={() => void saved.save()}
+            onCsv={() => downloadTextFile(csvFileName(view.epochWallMs + getNow(), tzOffsetMin), toCsv(view, getNow(), tzOffsetMin))}
+            savedHref={savedPathFor(roomCode)}
+          />
         </div>
       </div>
       {/* 読み上げの領域は常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある） */}

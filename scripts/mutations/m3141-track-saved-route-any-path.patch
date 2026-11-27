@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/router.ts b/apps/track-web/src/router.ts
+index a60ab56e..bf56bb74 100644
+--- a/apps/track-web/src/router.ts
++++ b/apps/track-web/src/router.ts
+@@ -16,7 +16,7 @@ const SAVED_VIEW = 'saved';
+ export function parseRoute(pathname: string, search = ''): Route {
+   const params = new URLSearchParams(search);
+   // アプリの置き場そのもの（`/track` か `/track/`）の `?view=saved` だけ。知らない下位パスは今までどおり玄関へ送る
+-  if (params.get('view') === SAVED_VIEW && (pathname === BASE || pathname === `${BASE}/`)) {
++  if (params.get('view') === SAVED_VIEW) {
+     // 戻る道のためだけに、ルームのコードを預かる（接続はしない）
+     return { name: 'saved', roomCode: params.get('room') || null };
+   }

@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/hooks/use-saved-count.ts b/apps/track-web/src/hooks/use-saved-count.ts
+index 396ced3f..b3cada8c 100644
+--- a/apps/track-web/src/hooks/use-saved-count.ts
++++ b/apps/track-web/src/hooks/use-saved-count.ts
+@@ -53,7 +53,7 @@ export function useSaveToDevice(view: TrackView, getNow: () => number): SaveToDe
+     if (savingRef.current) return;
+     // 計測中は `rev` が変わらないまま時計だけが進むので、同じ記録とみなさない（押すたびにその時点の写しを残す）
+     const key = view.segments.some((g) => g.endMs === null) ? null : recordKey(view);
+-    if (key !== null && lastSavedKey.current === key) {
++    if (key !== null && lastSavedKey.current === 'none') {
+       setStatus('done');
+       return;
+     }
