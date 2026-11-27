@@ -17,12 +17,12 @@ diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
 index 49f22801..0e0c9e9e 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
-@@ -68,7 +68,7 @@ export const TOOLS = [
+@@ -71,7 +71,7 @@ export const TOOLS = [
      mark: "watch",
    },
    {
 -    id: "checkin",
 +    id: "cards",
      pip: "始終",
-     name: "Check-in Cards",
+     name: TOOL_DESTINATIONS.checkin.name,
      summary: "始めと終わりに札を出し合う",

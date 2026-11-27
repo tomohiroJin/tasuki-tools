@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/tool-destinations.ts b/packages/web-kit/src/room/tool-destinations.ts
+index b5822060..3b880a11 100644
+--- a/packages/web-kit/src/room/tool-destinations.ts
++++ b/packages/web-kit/src/room/tool-destinations.ts
+@@ -20,7 +20,7 @@ export interface ToolDestination {
+ /** 表。値はリテラルの型のまま持つ（玄関の札が型を導く）。 */
+ export const TOOL_DESTINATIONS = {
+   timer: { name: 'TDD Mob Pro Timer', href: '/timer/' },
+-  poker: { name: 'Planning Poker', href: '/poker/' },
++  poker: { name: 'Planning Poker', href: '/poker' },
+   roulette: { name: 'Facilitator Roulette', href: '/roulette/' },
+   topic: { name: 'Topic Board', href: '/topic/' },
+   agenda: { name: 'Agenda Timer', href: '/agenda/' },

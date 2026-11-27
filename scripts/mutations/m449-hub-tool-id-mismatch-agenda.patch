@@ -17,12 +17,12 @@ diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
 index 49f22801..01be4a03 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
-@@ -60,7 +60,7 @@ export const TOOLS = [
+@@ -63,7 +63,7 @@ export const TOOLS = [
      mark: "flag",
    },
    {
 -    id: "agenda",
 +    id: "clock",
      pip: "予定",
-     name: "Agenda Timer",
+     name: TOOL_DESTINATIONS.agenda.name,
      summary: "ステップを順に計って進める",

@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/room-call-notice.tsx b/packages/web-kit/src/room/room-call-notice.tsx
+index 3235ee44..6891227b 100644
+--- a/packages/web-kit/src/room/room-call-notice.tsx
++++ b/packages/web-kit/src/room/room-call-notice.tsx
+@@ -22,7 +22,7 @@ export interface RoomCallNoticeProps {
+  * 見た目は部品層の `.ui-call`（`packages/ui/src/components/call.css`）。
+  */
+ export function RoomCallNotice({ call, roomCode, onDismiss }: RoomCallNoticeProps) {
+-  const destination = toolDestination(call.tool);
++  const destination = toolDestination(call.tool) ?? { name: call.tool, href: '/' };
+   if (destination === undefined) return null;
+   return (
+     <div className="ui-call" role="status">

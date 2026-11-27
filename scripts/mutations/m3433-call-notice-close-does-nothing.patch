@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/room-call-notice.tsx b/packages/web-kit/src/room/room-call-notice.tsx
+index 3235ee44..592e5898 100644
+--- a/packages/web-kit/src/room/room-call-notice.tsx
++++ b/packages/web-kit/src/room/room-call-notice.tsx
+@@ -31,7 +31,7 @@ export function RoomCallNotice({ call, roomCode, onDismiss }: RoomCallNoticeProp
+         さんが {destination.name} に呼んでいます
+       </p>
+       <div className="ui-actions">
+-        <button type="button" className="ui-button ui-button--quiet" onClick={onDismiss}>
++        <button type="button" className="ui-button ui-button--quiet" onClick={() => undefined}>
+           閉じる
+         </button>
+         <a className="ui-button" href={`${destination.href}?room=${encodeURIComponent(roomCode)}`}>
