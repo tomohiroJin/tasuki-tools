@@ -1,0 +1,22 @@
+# 変異 3211: track-away-tail-gets-new-id
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 away の後、計測中の続きが新しい番号を取る（読み上げが「切り替え」と読み、問いかけの番号の比べが崩れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3211-*.patch
+# 復元: git apply -R scripts/mutations/m3211-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -196,7 +196,7 @@
+   // 上書きは後ろの残りに新しい番号を振るので、計測中の続きが元の番号を保つよう、前の残りと入れ替える
+   const tail = inserted.value.segments.at(-1);
+   const segments =
+-    tail === undefined || tail.id === running.id
++    true
+       ? inserted.value.segments
+       : inserted.value.segments.map((g) => (g.id === running.id ? { ...g, id: tail.id } : g === tail ? { ...g, id: running.id } : g));
+   return ok(timed(s, "away", input.now, { segments, nextSeq: inserted.value.nextSeq }));

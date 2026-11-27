@@ -31,7 +31,13 @@ const positionMs = v.pipe(v.number(), v.integer(), v.minValue(-MAX_POSITION_MS),
 // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
 export const TrackCommandSchema = v.variant("command", [
   v.strictObject({ command: v.literal("track.start"), label: labelStr, kind, backMin }),
-  v.strictObject({ command: v.literal("track.stop"), backMin }),
+  // 停止の位置は `backMin`（分前）か `atMs`（時刻軸の位置）のどちらか。同時に送ると拒む（離れていたときの問いかけ・FR-27）
+  v.pipe(
+    v.strictObject({ command: v.literal("track.stop"), backMin, atMs: v.optional(positionMs) }),
+    v.check((c) => c.backMin === undefined || c.atMs === undefined, "backMin and atMs must not be given together"),
+  ),
+  // 離れていた間（`fromMs` からいままで）を休憩にする
+  v.strictObject({ command: v.literal("track.away"), fromMs: positionMs }),
   v.strictObject({ command: v.literal("track.undo"), rev: v.pipe(v.number(), v.integer(), v.minValue(0)) }),
   v.strictObject({ command: v.literal("track.segment.set"), id: segmentId, label: labelStr, kind }),
   v.strictObject({ command: v.literal("track.segment.adjust"), id: segmentId, edge: v.picklist(["start", "end"]), atMs: positionMs }),
@@ -55,7 +61,7 @@ const frameKind = v.pipe(
 );
 const frameUndoKind = v.pipe(
   v.string(),
-  v.transform((s): UndoKind => (s === "stop" || s === "clear" ? s : "start")),
+  v.transform((s): UndoKind => (s === "stop" || s === "clear" || s === "away" ? s : "start")),
 );
 
 // 受けるフレームは**非 strict**（サーバーが項目を足しても古い web がフレームごと捨てない）。後から足す項目は任意にする。

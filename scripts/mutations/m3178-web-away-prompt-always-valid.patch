@@ -1,0 +1,21 @@
+# 変異 3178: web-away-prompt-always-valid
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#   - tests/track-room.test.tsx
+#
+# #476 出している問いかけを見直さず、いつまでも出し続ける（別の人が止めた後も、止まった区切りを切る問いかけが残る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3178-*.patch
+# 復元: git apply -R scripts/mutations/m3178-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -162,5 +162,5 @@
+  * 外れたら（誰かが止めた・切り替えた・始まりが動いた・24 時間を越えた）下ろす。
+  */
+ export function isAwayPromptStillValid(view: TrackView, nowMs: number, prompt: AwayPrompt): boolean {
+-  return awayTargetOf(view, nowMs, prompt.fromMs, prompt.runningId) !== null;
++  return true;
+ }

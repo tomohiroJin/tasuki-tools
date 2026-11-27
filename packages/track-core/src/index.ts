@@ -22,7 +22,7 @@ export { hasControlChars, normalizeLabel, isValidLabel } from "./label.js";
 
 export { createTrackState, start, stop, undo, autoStop, dismissOffer, clear, pin, toView } from "./track.js";
 
-export { setSegment, adjustRangeOf, adjustSegment, splitSegment, insertSegment, removeSegment } from "./edit.js";
+export { setSegment, adjustRangeOf, adjustSegment, splitSegment, insertSegment, away, removeSegment } from "./edit.js";
 export type { SegmentEdge } from "./edit.js";
 
 export { advanceNow, runningSegmentOf, durationOf, totalsOf, candidatesOf, previousLabelOf, longRunningOf } from "./projection.js";

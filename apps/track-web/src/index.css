@@ -54,6 +54,13 @@
   font-size: var(--font-size-xs);
 }
 
+/* 通知の設定（押すまで許可を求めない。拒まれたときだけ 1 行足す） */
+.track-notify {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
 /* ── 知らせ ───────────────────────────────────────────────── */
 .track-notices {
   display: grid;

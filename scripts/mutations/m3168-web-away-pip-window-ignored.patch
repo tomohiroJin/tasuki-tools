@@ -1,0 +1,22 @@
+# 変異 3168: web-away-pip-window-ignored
+#
+# 検出を期待するテスト:
+#   - tests/use-page-away.test.tsx
+#
+# #476 ミニ表示の窓が開いていても、離れていたと数える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3168-*.patch
+# 復元: git apply -R scripts/mutations/m3168-*.patch
+diff --git a/apps/track-web/src/platform/use-page-away.ts b/apps/track-web/src/platform/use-page-away.ts
+--- a/apps/track-web/src/platform/use-page-away.ts
++++ b/apps/track-web/src/platform/use-page-away.ts
+@@ -41,7 +41,7 @@
+       }
+       const hidden = hiddenRef.current;
+       hiddenRef.current = null;
+-      if (hidden === null || hidden.pip) return;
++      if (hidden === null) return;
+       const next: AwayReturn = { fromMs: hidden.position, runningId: hidden.runningId, returnedAt: performance.now() };
+       setReturned((current) => current ?? next);
+     };

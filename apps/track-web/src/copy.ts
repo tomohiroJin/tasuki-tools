@@ -27,6 +27,7 @@ export const UNDO_BUTTON = '取り消す';
 export const UNDO_NOTE_START = '切り替えました。';
 export const UNDO_NOTE_STOP = '止めました。';
 export const UNDO_NOTE_CLEAR = '記録を消しました。';
+export const UNDO_NOTE_AWAY = '離れていた間を休憩にしました。';
 export const undoRemaining = (seconds: number): string => `残り ${seconds} 秒`;
 
 // 切り替える
@@ -151,6 +152,20 @@ export const RESUME_BUTTON = '再開する';
 export const DISMISS_BUTTON = 'このまま';
 export const longRunningText = (name: string, minutes: number): string =>
   `「${name}」が ${minutes} 分続いています。切り替え忘れではありませんか`;
+
+// 離れていたとき（FR-27。戻ってきた本人の画面にだけ出す）
+export const awayPromptText = (minutes: number): string => `${minutes} 分ほど離れていました。計測は続いています。`;
+export const AWAY_KEEP_BUTTON = 'そのまま残す';
+export const AWAY_CUT_BUTTON = '離れた時刻で切る';
+export const AWAY_BREAK_BUTTON = 'その間を休憩にする';
+
+// 通知（既定は切。押したときにだけ許可を求める。通知の文に作業名を出さない）
+export const NOTIFY_BUTTON = '長く続いたら通知する';
+export const NOTIFY_DENIED_TEXT = '通知が許可されませんでした。ブラウザの設定で許可すると使えます。';
+export const NOTIFY_UNAVAILABLE_TEXT = 'この端末では通知を使えません。';
+export const longRunningBreakNotifyTitle = (minutes: number): string => `休憩が ${minutes} 分続いています`;
+export const longRunningNotifyTitle = (minutes: number): string => `同じ作業が ${minutes} 分続いています`;
+export const LONG_RUNNING_NOTIFY_BODY = '切り替え忘れではありませんか';
 
 // 読み上げ（切り替え・停止・自動の停止のときだけ差し替える）
 export const announceStarted = (name: string): string => `${name} を計測しています`;
