@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/cut-in-view.ts b/apps/checkin-web/src/cut-in-view.ts
+index 08063c49..e2f0b189 100644
+--- a/apps/checkin-web/src/cut-in-view.ts
++++ b/apps/checkin-web/src/cut-in-view.ts
+@@ -68,7 +68,7 @@ export function seenRoundOf(
+   view: { round: { seq: number; status: 'open' | 'revealed' } | null } | null,
+   stale: unknown,
+ ): SeenRound | null {
+-  if (!joined || view === null || view === stale || view.round === null) return null;
++  if (!joined || view === null || view.round === null) return null;
+   return { seq: view.round.seq, status: view.round.status };
+ }
+ 

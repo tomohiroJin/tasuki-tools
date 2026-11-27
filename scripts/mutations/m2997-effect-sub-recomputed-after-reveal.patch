@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -114,7 +114,7 @@
+     setBand(null);
+   }
+   const effect = band?.effect ?? null;
+-  const effectSub = band?.sub ?? null;
++  const effectSub = effect === null ? null : (EFFECT_SUB[effect] ?? streakSubOf(effect, sync.snapshot?.estimate));
+   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
+   const { retryNotice } = useRoomEntry(sync, roomId);
+ 

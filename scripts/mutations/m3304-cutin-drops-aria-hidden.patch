@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/cut-in.tsx b/packages/web-kit/src/room/cut-in.tsx
+index a36f1447..247499dc 100644
+--- a/packages/web-kit/src/room/cut-in.tsx
++++ b/packages/web-kit/src/room/cut-in.tsx
+@@ -78,7 +78,7 @@ export function CutIn({ cue }: { cue: CutInCue | null }): ReactNode {
+ 
+   const style = { '--cutin-duration': `${CUTIN_DURATION_MS}ms` } as CSSProperties;
+   return createPortal(
+-    <div className="ui-cutin" data-tone={cue.tone} aria-hidden="true" style={style}>
++    <div className="ui-cutin" data-tone={cue.tone} style={style}>
+       <div className="ui-cutin-veil" />
+       <div className="ui-cutin-flash" />
+       <div className="ui-cutin-stage">

@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import type { RoundStats } from '@tasuki/poker-core';
 import { Results, SPREAD_COPY, effectAnnounceDelay } from '../src/components/Results';
-import { EFFECT_COPY } from '../src/effect-copy';
+import { CUTIN_KICKER, EFFECT_COPY, EFFECT_SUB, announcementOf, streakSub } from '../src/effect-copy';
 import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 afterEach(cleanup);
@@ -60,7 +60,10 @@ describe('Results（#348）', () => {
   });
 
   it.each([
+    ['break', '全員休憩'],
     ['unanimous', '全員同じ'],
+    ['split', '大きく割れた'],
+    ['near', 'ほぼ同じ'],
     ['scattered', '全員バラバラ'],
     ['complete', '全員出そろいました'],
   ] as const)('E1（#639）: Given 演出 %s / When 描く / Then 見える帯は読み上げから隠し、読み上げの知らせ（status）は 1 つだけで「%s」を後から受ける', (effect, text) => {
@@ -109,6 +112,34 @@ describe('Results（#348）', () => {
 
   it('E3（#639）: Given 演出の決まった文言 / When 書体の常用の層に当てる / Then 外れる字は無い', () => {
     expect(outsideBase(Object.values(EFFECT_COPY))).toEqual([]);
+  });
+
+  it('E3b（#670）: Given 添え書き・連続・カットインの見出しと読み上げの文言 / When 書体の常用の層に当てる / Then 外れる字は無い', () => {
+    expect(outsideBase(Object.values(EFFECT_SUB))).toEqual([]);
+    expect(outsideBase([streakSub(2), streakSub(12), CUTIN_KICKER])).toEqual([]);
+    for (const effect of Object.keys(EFFECT_COPY) as (keyof typeof EFFECT_COPY)[]) {
+      expect(outsideBase([announcementOf(effect, EFFECT_SUB[effect] ?? streakSub(3))]), effect).toEqual([]);
+    }
+  });
+
+  it('E5（#670）: Given 題は 9 字以下（カットインの大きな字が 320px で 1 行に収まる）', () => {
+    for (const title of Object.values(EFFECT_COPY)) expect([...title].length, title).toBeLessThanOrEqual(9);
+  });
+
+  it('E6（#670）: Given 添え書きのある場面 / When 描く / Then 帯に添え書きが残り、読み上げは題と続けて読む', () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(<Results stats={stats} seatCount={3} afterFlip spread={null} effect="unanimous" effectSub="3 回続けて" />);
+      const band = container.querySelector('.results-effect');
+      expect(band?.textContent).toContain('全員同じ');
+      expect(band?.textContent).toContain('3 回続けて');
+      act(() => {
+        vi.advanceTimersByTime(effectAnnounceDelay(3, true));
+      });
+      expect(container.querySelector('[role="status"]')?.textContent).toBe('全員同じ。3 回続けて');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('U10（#405）: Given 割れた票 / When 描く / Then 名前は 1 人ずつ折り返さない塊になる', () => {

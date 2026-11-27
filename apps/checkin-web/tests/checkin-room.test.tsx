@@ -4,6 +4,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
+import { CUTIN_DURATION_MS } from '@tasuki/web-kit/room';
 import { CheckinRoom } from '../src/screens/CheckinRoom';
 import { redirectTo } from '../src/router';
 import { IDLE_CHECKIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, openCheckin } from './support/scripted-web-socket';
@@ -327,5 +328,147 @@ describe('玄関へ送るとき', () => {
 
     expect(ScriptedWebSocket.instances).toHaveLength(0);
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=checkin');
+  });
+});
+
+describe('開いたときのカットイン（#670）', () => {
+  /** 3 枚（晴れ 2・雨 1）の山が裏返り終わるまで（最後の札の遅れ 180 ＋ 配って裏返る 850） */
+  const FLIP_DONE_MS = 1030;
+  const cutIn = () => document.body.querySelector<HTMLElement>('.ui-cutin');
+  const cutInText = () => cutIn()?.querySelector('.ui-cutin-title')?.textContent;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** 接続中に開くのを見届けた状態にする（時計は入室の後から偽物に替える） */
+  function watchOpen(state: unknown = openCheckin('sunny')) {
+    // 実際のサーバーと同じく、参加の応答と状態のフレームは別々の受信（別々の描画）で届く
+    saveResumeIdentity(RESUME);
+    render(<CheckinRoom roomCode="R1" />);
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' }));
+    act(() => latestSocket().deliver(ROSTER_FRAME));
+    deliver(state);
+    vi.useFakeTimers();
+  }
+  const advance = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
+
+  it('Given 投票中を見ていた / When 開く / Then 札が裏返り終わるまで待ってから、側の題のカットインが出て、時間の後に消える', () => {
+    watchOpen();
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS - 1);
+    expect(cutIn()).toBeNull();
+    advance(1);
+    expect(cutInText()).toBe('チェックイン');
+    expect(cutIn()).toHaveAttribute('data-tone', 'jade');
+    advance(CUTIN_DURATION_MS);
+    expect(cutIn()).toBeNull();
+  });
+
+  it('Given 全員が同じ札で開いた / Then 「全員同じ」が出る', () => {
+    watchOpen();
+    const s = revealedCheckin();
+    deliver({ ...s, round: { ...s.round, piles: [{ card: 'sunny', count: 2, names: ['あや', 'ゆう'] }] } });
+    advance(FLIP_DONE_MS);
+    expect(cutInText()).toBe('全員同じ');
+    expect(cutIn()).toHaveAttribute('data-tone', 'gold');
+  });
+
+  it('Given チェックアウトの回が開いた / Then 「おつかれさまでした」が出る', () => {
+    const s = openCheckin('1');
+    watchOpen({ ...s, round: { ...s.round, method: 'roti', visibility: 'anonymous' } });
+    const r = revealedCheckin();
+    deliver({
+      ...r,
+      round: { ...r.round, method: 'roti', visibility: 'anonymous', piles: [{ card: '2', count: 1 }, { card: '4', count: 1 }] },
+    });
+    advance(FLIP_DONE_MS);
+    expect(cutInText()).toBe('おつかれさまでした');
+  });
+
+  it('Given 最初から開いている（再読み込み・途中入室）/ When 時間が経つ / Then 出ない', () => {
+    enter(revealedCheckin());
+    vi.useFakeTimers();
+    advance(FLIP_DONE_MS + 100);
+    expect(cutIn()).toBeNull();
+  });
+
+  it('Given 出ている最中 / When 同じ回の名簿が変わる / Then 出し直さず、消えた後にも出ない', () => {
+    watchOpen();
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS);
+    expect(cutIn()).not.toBeNull();
+    advance(CUTIN_DURATION_MS);
+    expect(cutIn()).toBeNull();
+    const s = revealedCheckin();
+    deliver({ ...s, spectatorCount: 1, round: { ...s.round, seats: [{ id: 'p1', name: 'あや', played: true }] } });
+    advance(FLIP_DONE_MS + CUTIN_DURATION_MS);
+    expect(cutIn()).toBeNull();
+  });
+
+  it('Given 開いた後に別のやり方を開いて戻る / Then 出し直さない', () => {
+    watchOpen();
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS + CUTIN_DURATION_MS);
+    fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
+    fireEvent.click(screen.getByRole('button', { name: 'いまの回に戻る' }));
+    advance(FLIP_DONE_MS + CUTIN_DURATION_MS);
+    expect(cutIn()).toBeNull();
+  });
+
+  it('Given 開いた回を見ていた / When 次の回が開く / Then またカットインが出る', () => {
+    watchOpen();
+    deliver(revealedCheckin(1));
+    advance(FLIP_DONE_MS + CUTIN_DURATION_MS);
+    expect(cutIn()).toBeNull();
+    deliver({ ...openCheckin('sunny'), round: { ...openCheckin('sunny').round, seq: 2 } });
+    deliver(revealedCheckin(2));
+    advance(FLIP_DONE_MS);
+    expect(cutInText()).toBe('チェックイン');
+  });
+
+  it('Given 投票中に切れて入り直した / When 入り直した直後の古い状態のまま、開いた状態が届く / Then 出さない（見届けていない）', () => {
+    watchOpen(); // 投票中を見た
+    act(() => latestSocket().drop());
+    advance(5000);
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' }));
+    // 入り直した直後は、切れる前の投票中の状態が残ったまま joined だけが真になる。それを見たことにしない
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS + CUTIN_DURATION_MS);
+    expect(cutIn()).toBeNull();
+  });
+
+  it('Given 入り直した後に新しい投票中の状態を見た / When 開く / Then 出る', () => {
+    watchOpen();
+    act(() => latestSocket().drop());
+    advance(5000);
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' }));
+    deliver(openCheckin('sunny'));
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS);
+    expect(cutInText()).toBe('チェックイン');
+  });
+
+  it('Given 動きを減らす設定 / When 開く / Then カットインを描かず、読み上げは出る', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    watchOpen();
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS + 100);
+    expect(cutIn()).toBeNull();
+    expect(liveRegion()).toHaveTextContent('晴れが 2 人');
+  });
+
+  it('Given 出ている最中 / When もう一回を押す / Then 押せて、カットインは消える（操作を奪わない）', () => {
+    watchOpen();
+    deliver(revealedCheckin());
+    advance(FLIP_DONE_MS);
+    expect(cutIn()).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'もう一回' }));
+    expect(commands()).toEqual([{ command: 'checkin.again', seq: 1 }]);
+    deliver({ ...openCheckin(null), round: { ...openCheckin(null).round, seq: 2 } });
+    expect(cutIn()).toBeNull();
   });
 });

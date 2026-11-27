@@ -1,0 +1,11 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -162,7 +162,6 @@
+           id: band.id,
+           title: EFFECT_COPY[effect],
+           kicker: CUTIN_KICKER,
+-          ...(effectSub !== null && { sub: effectSub }),
+           tone: EFFECT_TONE[effect],
+           delayMs: effectAnnounceDelay(seatCount, true),
+         }

@@ -1,0 +1,12 @@
+diff --git a/packages/ui/src/components/cut-in.css b/packages/ui/src/components/cut-in.css
+index a13b3251..eb32294c 100644
+--- a/packages/ui/src/components/cut-in.css
++++ b/packages/ui/src/components/cut-in.css
+@@ -20,7 +20,6 @@
+   z-index: 100; /* 接続の告知の帯（10）・agenda の映す表示（20）・ダイアログより上。操作は奪わない */
+   overflow: hidden;
+   contain: strict;
+-  pointer-events: none;
+   color: var(--ivory);
+ }
+ 

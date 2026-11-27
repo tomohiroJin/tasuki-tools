@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/estimate-log.ts b/packages/poker-core/src/estimate-log.ts
+index 95f4f677..33d1f017 100644
+--- a/packages/poker-core/src/estimate-log.ts
++++ b/packages/poker-core/src/estimate-log.ts
+@@ -118,7 +118,7 @@ export interface StreakGroup {
+  */
+ export function unanimousStreak(groups: readonly StreakGroup[]): number {
+   let streak = 0;
+-  for (let g = groups.length - 1; g >= 0; g -= 1) {
++  for (let g = groups.length - 1; g >= groups.length - 1; g -= 1) {
+     const entries = groups[g]!.entries;
+     for (let e = entries.length - 1; e >= 0; e -= 1) {
+       const counts = entries[e]!.counts;

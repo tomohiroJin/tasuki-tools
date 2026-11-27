@@ -1,0 +1,12 @@
+diff --git a/packages/ui/src/components/cut-in.css b/packages/ui/src/components/cut-in.css
+index a13b3251..92ad961b 100644
+--- a/packages/ui/src/components/cut-in.css
++++ b/packages/ui/src/components/cut-in.css
+@@ -437,6 +437,6 @@
+ 
+ @media (prefers-reduced-motion: reduce) {
+   .ui-cutin {
+-    display: none;
++    display: block;
+   }
+ }

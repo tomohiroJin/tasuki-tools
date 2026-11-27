@@ -414,3 +414,10 @@ C（凡例を絵つきにする）は「結局は見比べる」点が変わら�
 
 **確かめ方**: 単体は `tests/reveal-markdown.test.ts`（匿名の回に名前が 1 文字も入らない・名前つき・エスケープ・同名・札の順・数のやり方・日時）と `tests/reveal-copy.test.tsx`
 （開く前は操作が無い・成功・失敗の欄・次の回に残らない）。E2E は `e2e/specs/checkin-markdown.spec.ts`。変異は m2700〜m2709（帯は 2700〜2709）と、レビューの指摘で足した m2800〜m2804（帯は 2800〜2819）。
+
+## 補遺（#670: 札が開いたときのカットイン）
+
+札が開いたとき、全画面のカットイン（共通の部品 `CutIn`）を出す。設計は `docs/superpowers/specs/2026-11-27-cutin-design.md`（§4）が正本で、ここには写さない。
+- 出す条件: この画面が、同じ回の `open` → `revealed` を**接続中に見届けた**描画だけ（再読み込み・途中入室・再接続の直後の古い状態では出さない）。判定は `src/cut-in-view.ts`、状態は `CheckinRoom` の `useRevealCutIn`
+- 題: 2 人以上が全員同じ札なら「全員同じ」、それ以外は側で「チェックイン」「おつかれさまでした」。待ちは山の札が裏返り終わるまで。読み上げ（`checkin-live`）はいまのまま
+- 確かめ方: `tests/cut-in-view.test.ts`・`tests/checkin-room.test.tsx`・`e2e/specs/checkin-cutin.spec.ts`。変異は m3020〜（帯 3020〜3039）

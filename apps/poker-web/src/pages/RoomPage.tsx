@@ -3,6 +3,7 @@
 // **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
 import { lazy, Suspense, useState } from 'react';
+import { CutIn, type CutInCue } from '@tasuki/web-kit/room';
 import { RoomHeader } from '@tasuki/invite-ui';
 import { CardHand } from '../components/CardHand';
 import { CardTableBoundary } from '../components/CardTableBoundary';
@@ -13,14 +14,14 @@ import { EstimateLog } from '../components/EstimateLog';
 import { EstimateLogFoot } from '../components/EstimateLogFoot';
 import { PointsSelect } from '../components/PointsSelect';
 import { ParticipantList, PARTICIPANTS_HEADING_ID } from '../components/ParticipantList';
-import { Results } from '../components/Results';
+import { Results, effectAnnounceDelay } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { Card, NumberCardValue } from '@tasuki/poker-core';
-import type { ResultsEffect } from '../effect-copy';
-import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, sameRevealRound, spreadPromptOf } from '../room-view';
+import { CUTIN_KICKER, EFFECT_COPY, EFFECT_SUB, EFFECT_TONE, type ResultsEffect } from '../effect-copy';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, sameRevealRound, spreadPromptOf, streakSubOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
 // （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
@@ -91,18 +92,29 @@ export function RoomPage({ roomId, sync }: Props) {
   }
   const bandStatus = open && sync.snapshot !== nextStale ? round?.status : undefined;
   const [bandSeen, setBandSeen] = useState(bandStatus);
-  const [band, setBand] = useState<{ votes: ReadonlyMap<string, Card>; effect: ResultsEffect | null } | null>(null);
+  // 帯と一緒に持つ値は、開票の瞬間に一度だけ決める（#670）: 添え書き（連続の「N 回続けて」。開票の後の記録の変化で変えない）と、
+  // カットインの通し番号 `id`（帯を決めるたびに進む。同じ帯の間は変わらないので、描画のたびに出し直さず、再投票の開票では毎回新しく出る）。
+  const [band, setBand] = useState<{ votes: ReadonlyMap<string, Card>; effect: ResultsEffect | null; sub: string | null; id: number } | null>(null);
+  const [bandCount, setBandCount] = useState(0);
   if (bandStatus !== bandSeen) {
     setBandSeen(bandStatus);
-    setBand(
-      revealedLiveAfter(bandSeen, bandStatus) && sync.snapshot
-        ? { votes: revealedVoteMap(sync.snapshot.round) ?? new Map(), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
-        : null,
-    );
+    if (revealedLiveAfter(bandSeen, bandStatus) && sync.snapshot) {
+      const decided = resultsEffectOf(sync.snapshot.round, sync.snapshot.participants);
+      setBandCount(bandCount + 1);
+      setBand({
+        votes: revealedVoteMap(sync.snapshot.round) ?? new Map(),
+        effect: decided,
+        sub: decided === null ? null : (EFFECT_SUB[decided] ?? streakSubOf(decided, sync.snapshot.estimate)),
+        id: bandCount + 1,
+      });
+    } else {
+      setBand(null);
+    }
   } else if (band !== null && !(round !== undefined && sameRevealRound(band.votes, round))) {
     setBand(null);
   }
   const effect = band?.effect ?? null;
+  const effectSub = band?.sub ?? null;
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
 
@@ -142,11 +154,26 @@ export function RoomPage({ roomId, sync }: Props) {
   const spectatorCount = snapshot.participants.filter((p) => p.spectator).length;
   // 結果の待ち（`--seat-count`）は札を出す席だけで数える（席の一覧と同じ述語・`room-view.ts`）
   const seatCount = seatCardCount(snapshot.participants, revealedVotes);
+  // 画面全体のカットイン（#670）。帯が決まった（開票を見届けた）ときだけ渡す。待ちは札のめくりの後（読み上げ・帯と同じ式）。
+  // 帯は見届けた開票のときだけ作られるので、`afterFlip` は常に真
+  const cue: CutInCue | null =
+    band !== null && effect !== null
+      ? {
+          id: band.id,
+          title: EFFECT_COPY[effect],
+          kicker: CUTIN_KICKER,
+          ...(effectSub !== null && { sub: effectSub }),
+          tone: EFFECT_TONE[effect],
+          delayMs: effectAnnounceDelay(seatCount, true),
+        }
+      : null;
   // ゲームの間は、手札・結果・下端の帯をテーブルに置き換える（#403・設計 §5.2）。席の一覧・お題・記録は残す
   const table = snapshot.table;
 
   return (
     <main className="ui-page ui-page--wide room">
+      {/* 開票のカットイン（#670）。画面全体に重なる層で、ポインタもフォーカスも受けない（部品が body へ portal する） */}
+      <CutIn cue={cue} />
       {/* 見出し・戻る導線・ルームコード・招待 URL は共通の部品が描く（#447 段 1）。 */}
       <RoomHeader
         title="プランニングポーカー"
@@ -279,6 +306,7 @@ export function RoomPage({ roomId, sync }: Props) {
               afterFlip={revealedLive}
               spread={spreadPromptOf(snapshot.round, snapshot.participants)}
               effect={effect}
+              effectSub={effectSub}
             />
           )}
           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、

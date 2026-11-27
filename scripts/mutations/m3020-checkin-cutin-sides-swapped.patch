@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/cut-in-view.ts b/apps/checkin-web/src/cut-in-view.ts
+index 08063c49..2bba00d8 100644
+--- a/apps/checkin-web/src/cut-in-view.ts
++++ b/apps/checkin-web/src/cut-in-view.ts
+@@ -34,7 +34,7 @@ export function cutInOf(method: MethodId, piles: readonly PileView[]): CheckinCu
+     return { title: CUTIN_ALL_SAME, sub: METHOD_COPY[method].cards[same.card]?.name ?? same.card, tone: 'gold', kicker };
+   }
+   return {
+-    title: side === 'checkin' ? CUTIN_CHECKIN : CUTIN_CHECKOUT,
++    title: side === 'checkin' ? CUTIN_CHECKOUT : CUTIN_CHECKIN,
+     sub: summaryLine(method, piles),
+     tone: side === 'checkin' ? 'jade' : 'rose',
+     kicker,
