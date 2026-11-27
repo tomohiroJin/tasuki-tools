@@ -33,5 +33,6 @@ export type ToolDestinationId = keyof typeof TOOL_DESTINATIONS;
 
 /** ID から行き先を引く。表に無い綴り（古い画面が知らない新しい道具など）は `undefined`。 */
 export function toolDestination(id: string): ToolDestination | undefined {
-  return Object.hasOwn(TOOL_DESTINATIONS, id) ? TOOL_DESTINATIONS[id as ToolDestinationId] : undefined;
+  // `Object.hasOwn` は使わない（ES2022。lib が ES2020 の timer-web が型検査で読めない）。`wire.ts` の `isHubCommand` と同じ書き方。
+  return Object.prototype.hasOwnProperty.call(TOOL_DESTINATIONS, id) ? TOOL_DESTINATIONS[id as ToolDestinationId] : undefined;
 }
