@@ -13,10 +13,10 @@
 #       git apply scripts/mutations/m99-*.patch
 # 復元: git apply -R scripts/mutations/m99-*.patch
 diff --git a/apps/timer-web/src/sync/dispatch.ts b/apps/timer-web/src/sync/dispatch.ts
-index 06ebc56..1baad98 100644
+index 4468dbcb..23760256 100644
 --- a/apps/timer-web/src/sync/dispatch.ts
 +++ b/apps/timer-web/src/sync/dispatch.ts
-@@ -68,11 +68,6 @@ export function dispatchServerMessage(
+@@ -81,11 +81,6 @@ export function dispatchServerMessage(
    // **お題のフレームは timer の契約より先に見分ける**（#91・spec §5.5）。順を逆にすると
    // `ServerMsgSchema` が未知の type として落とし、「同期できていません」（#209）を出す。
    // `type` が "topic" なのに形が崩れているものは、ここで拾わず下の検証に落として知らせる。
@@ -26,5 +26,5 @@ index 06ebc56..1baad98 100644
 -    return;
 -  }
  
-   const parsed = v.safeParse(ServerMsgSchema, json);
-   if (!parsed.success) {
+   // **呼びかけの知らせも timer の契約より先に見分ける**（#677）。お題と同じ置き方。
+   // 形の崩れた知らせは、ここで拾わず下の検証に落として知らせる。

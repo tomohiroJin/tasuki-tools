@@ -1,12 +1,12 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index ab64236..67c2cf3 100644
+index 0c3e622b..f80399ba 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -296,7 +296,6 @@ export function useHubSync(): HubSync {
+@@ -371,7 +371,6 @@ export function useHubSync(): HubSync {
          setResuming(false);
          // **作成の待ちも終わらせる**（#642 のレビュー）。作成を弾かれたら送り直せるようにする。
          // 作成と無関係のエラーで降りても、覚える名前は捨てるだけなので、弾かれた名前は残らない。
 -        settleCreate();
-         // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
-         const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
-           currentCode: codeRef.current,
+         // **呼びかけの待ちも終わらせる**（#677）。弾かれたら送り直せるようにし、失敗は呼ぶ操作の近くへ出す。
+         const callWasPending = pendingCallRef.current !== null;
+         settleCall();

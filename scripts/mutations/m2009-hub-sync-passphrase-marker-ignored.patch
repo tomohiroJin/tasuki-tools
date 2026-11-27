@@ -8,15 +8,15 @@
 #
 # #638。設定した後も画面が「付いていません」のままで、変更・解除の口が出ない。
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 7a69bc2..9c66e60 100644
+index 0c3e622b..0e30dd32 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -482,7 +482,7 @@ export function useHubSync(): HubSync {
+@@ -548,7 +548,7 @@ export function useHubSync(): HubSync {
      error,
      needsPassphrase,
      // 名簿が届くまで・印の無い名簿（古いサーバー）は null（まだ分からない）。false と取り違えると、付いている合言葉を黙って上書きする。
 -    passphraseProtected: roster?.passphraseProtected ?? null,
 +    passphraseProtected: false,
      passphraseError,
-     connection,
-     creating,
+     roomCall,
+     calling,
