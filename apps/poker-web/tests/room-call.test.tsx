@@ -104,6 +104,17 @@ describe('poker が呼びかけの知らせを読む（同期フック）', () =
 
     expect(result.current.roomCall).toBeNull();
   });
+
+  it('Given 知らせが出ている / When 別のルームに入り直す / Then roomCall を消す（前のルームの「移る」を新しいルームに残さない）', () => {
+    const { result } = renderHook(() => usePokerSync());
+    open();
+    deliver(callFrame());
+    expect(result.current.roomCall).toEqual(CALL);
+
+    act(() => result.current.joinRoom('ZZZZ9999', 'はなこ'));
+
+    expect(result.current.roomCall).toBeNull();
+  });
 });
 
 describe('poker の画面に呼びかけの知らせを出す', () => {

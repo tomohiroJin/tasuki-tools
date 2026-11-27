@@ -35,6 +35,8 @@ export interface RoomChoiceProps {
   readonly passphraseProtected: boolean | null;
   /** 合言葉の設定の失敗の文言（無ければ null）。 */
   readonly passphraseError?: string | null;
+  /** 合言葉の設定の応答を待っているか（待つ間は呼んで移るを押せない・#677）。 */
+  readonly settingPassphrase?: boolean;
   /** 合言葉の設定・変更・解除（空文字で解除）。ルームに居る誰でも実行できる（#638）。 */
   onSetPassphrase(passphrase: string): void;
   /** 受け取った呼びかけ（最新の 1 つ。無ければ null・#677）。 */
@@ -51,7 +53,7 @@ export interface RoomChoiceProps {
 
 const noop = (): void => undefined;
 
-export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, passphraseError = null, onSetPassphrase, roomCall = null, onDismissRoomCall = noop, calling = false, callError = null, onCall = noop }: RoomChoiceProps) {
+export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, passphraseError = null, settingPassphrase = false, onSetPassphrase, roomCall = null, onDismissRoomCall = noop, calling = false, callError = null, onCall = noop }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
   const copy = useCopyText(inviteUrl);
   const [showQr, setShowQr] = useState(false);
@@ -115,7 +117,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
                 </li>
               ))}
             </ul>
-            <RoomCallPanel connection={connection} calling={calling} error={callError} onCall={onCall} />
+            <RoomCallPanel connection={connection} calling={calling || settingPassphrase} error={callError} onCall={onCall} />
           </section>
           <section className="hub-panel ui-panel" aria-labelledby="hub-invite-heading">
             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>
@@ -140,7 +142,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
               )}
             </div>
           </section>
-          <RoomPassphrase protectedNow={passphraseProtected} error={passphraseError} connection={connection} onSet={onSetPassphrase} />
+          <RoomPassphrase protectedNow={passphraseProtected} error={passphraseError} connection={connection} busy={calling || settingPassphrase} onSet={onSetPassphrase} />
         </div>
         {/* ルームに入ったままでも端末の記録は見られる（撤去した旧入口（timer の `Setup`）の性質を保つ）。
             戻り先を持たせて、見終わったら同じルームの選択画面へ戻れるようにする。

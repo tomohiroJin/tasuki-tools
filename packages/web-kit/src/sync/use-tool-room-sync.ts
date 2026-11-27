@@ -137,6 +137,8 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
   optionsRef.current = options;
 
   useEffect(() => {
+    // ルームが変わったら、前のルームの呼びかけの知らせは消す（新しいルームの「移る」として残さない・#677 の /code-review）
+    setCall(null);
     // 初期化子と効果の間に、別のタブが組を捨てていることがある。**ここでも玄関へ戻す印を立てる**
     // （立てずに return すると、接続も送り返しもしないまま「参加しています」で止まる）。
     // ⚠ この窓はテストで作れない（初期化子と効果の間に `localStorage` を変える手立てが無い）。
@@ -188,6 +190,7 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
             cancelRetry();
             clearResumeIdentity(roomCode);
             conn.dispose();
+            setCall(null);
             setGone(true);
             return;
           case 'left':
@@ -196,6 +199,8 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
             cancelRetry();
             clearResumeIdentity(roomCode);
             conn.dispose();
+            // 抜けたルームの呼びかけの「移る」を残さない（#677 の /code-review）
+            setCall(null);
             setJoined(false);
             setDeparted(plan.reason);
             return;
@@ -216,10 +221,11 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>
 
     const handleMessage = (raw: string): void => {
       // 呼びかけの知らせ（#677）は道具ごとの契約より先に見分ける。道具の `parse` には渡さない
-      // （渡すと「契約に合わないフレーム」として同期の告知が出る）。正しいフレームなので告知は下ろす。最新の 1 つだけ持つ。
+      // （渡すと「契約に合わないフレーム」として同期の告知が出る）。最新の 1 つだけ持つ。
+      // **同期の告知は変えない**（立てもせず、下ろしもしない）。呼びかけは道具の状態のフレームではないので、
+      // 状態のフレームを捨てて出ている告知（状態は古いまま）を、呼びかけの知らせで消してはいけない。
       const roomCall = optionsRef.current.parseCall(raw);
       if (roomCall !== null) {
-        setSyncStale(false);
         setCall(roomCall);
         return;
       }

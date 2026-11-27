@@ -95,6 +95,7 @@ export function App() {
           topicTitle={hub.topicTitle}
           passphraseProtected={hub.passphraseProtected}
           passphraseError={hub.passphraseError}
+          settingPassphrase={hub.settingPassphrase}
           onSetPassphrase={hub.setPassphrase}
           roomCall={hub.roomCall}
           onDismissRoomCall={hub.dismissRoomCall}
