@@ -1,0 +1,60 @@
+/* ============================================================
+   Tasuki UI — 呼びかけの知らせ（#677）
+   ルームの誰かが「みんなをこの道具へ呼ぶ」と、呼ばれた画面の上端に出る知らせ。
+   「○○さんが ○○ に呼んでいます」の一文（`.ui-call-text`・`<p>`）と、「閉じる」「移る」の操作（`.ui-actions`）を持つ。
+   名前（`.ui-call-name`）は長いと 2 行で省略し、押して全文に開ける（`ClampedName`。`[data-expanded]`）。
+
+   - 位置は画面の上端に貼りつく（接続の告知の帯 `.ui-banner` と同じ。z-index はそれより 1 つ下げ、重なったら告知が上）。
+   - 地は不透明（貼りついた帯の下を内容が通るため）。縁は金（呼びかけ）で、繋がらない告知の朱とは区別する。
+   - 動きは持たない（`prefers-reduced-motion` で止めるものが無い）。
+   - 320px 幅では横にあふれない（`min-width: 0`・`overflow-wrap: anywhere`・操作は縦に積む）。
+   ============================================================ */
+
+.ui-call {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--felt-950);
+  border-bottom: 1px solid var(--gold-edge);
+  color: var(--ivory);
+}
+
+.ui-call-text {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-tight);
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* 名前は 2 行まで。開いたら（[data-expanded]）全文 */
+.ui-call-name {
+  display: inline-block;
+  max-width: 100%;
+  max-height: calc(var(--line-tight) * 2em);
+  overflow: hidden;
+  vertical-align: bottom;
+  font-weight: 700;
+}
+
+.ui-call-name[data-expanded] {
+  max-height: none;
+}
+
+.ui-call-name[role='button'] {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+/* 操作は中央に寄せる（40rem 以上で `.ui-actions` は右寄せになるので、知らせの中だけ中央に戻す） */
+.ui-call .ui-actions {
+  justify-content: center;
+}

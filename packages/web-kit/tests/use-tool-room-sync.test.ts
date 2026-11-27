@@ -191,3 +191,71 @@ describe('useToolRoomSync', () => {
     expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'x.do' });
   });
 });
+
+describe('useToolRoomSync の呼びかけの知らせ（#677）', () => {
+  const CALL = { type: 'room.call', call: { tool: 'poker', fromParticipantId: 'p2', fromName: 'あや' } };
+
+  function setupWithSpy() {
+    const parsed: string[] = [];
+    const hook = renderHook(() =>
+      useToolRoomSync<Frame>({
+        roomCode: 'R1',
+        syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+        parse: (raw) => {
+          parsed.push(raw);
+          const value = JSON.parse(raw) as { type?: unknown };
+          return typeof value.type === 'string' ? (value as Frame) : null;
+        },
+        onFrame: () => undefined,
+        texts: TEXTS,
+      }),
+    );
+    return { hook, parsed };
+  }
+
+  function open() {
+    saveResumeIdentity(RESUME);
+    const sut = setupWithSpy();
+    act(() => latestSocket().open());
+    return sut;
+  }
+
+  it('Given 入った / When 呼びかけの知らせが届く / Then call に持つ', () => {
+    const { hook } = open();
+    expect(hook.result.current.call).toBeNull();
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.call).toEqual(CALL.call);
+  });
+
+  it('Given 呼びかけを持っている / When 2 通目が届く / Then 最新の 1 つに置き換わる', () => {
+    const { hook } = open();
+    act(() => latestSocket().deliver(CALL));
+    act(() => latestSocket().deliver({ type: 'room.call', call: { tool: 'topic', fromParticipantId: 'p3', fromName: 'いお' } }));
+    expect(hook.result.current.call).toEqual({ tool: 'topic', fromParticipantId: 'p3', fromName: 'いお' });
+  });
+
+  it('Given 呼びかけを持っている / When dismissCall を呼ぶ / Then call が消える', () => {
+    const { hook } = open();
+    act(() => latestSocket().deliver(CALL));
+    act(() => hook.result.current.dismissCall());
+    expect(hook.result.current.call).toBeNull();
+  });
+
+  it('Given 呼びかけの知らせ / When 届く / Then 道具の parse には渡らない', () => {
+    const { parsed } = open();
+    act(() => latestSocket().deliver(CALL));
+    expect(parsed).toEqual([]);
+    act(() => latestSocket().deliver({ type: 'state', value: 1 }));
+    expect(parsed).toHaveLength(1);
+  });
+
+  it('Given 契約に合わないフレームで同期が古い / When 呼びかけの知らせが届く / Then 同期の告知は下りる', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { hook } = open();
+    act(() => latestSocket().deliver({ nope: true }));
+    expect(hook.result.current.syncStale).toBe(true);
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.syncStale).toBe(false);
+    expect(hook.result.current.notice).toBe('none');
+  });
+});

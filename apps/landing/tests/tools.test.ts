@@ -4,6 +4,7 @@
  * `ToolId` は `TOOLS` の `id` から導く。手で書いた共用体と配列が食い違う余地を残さない。
  */
 import { describe, expect, it } from 'vitest';
+import { TOOL_DESTINATIONS, toolDestination } from '@tasuki/web-kit/room';
 import { TOOLS, type ToolId } from '../src/tools';
 
 describe('TOOLS', () => {
@@ -15,6 +16,13 @@ describe('TOOLS', () => {
   it('id は小文字の英字だけ（`?tool=` は大文字小文字を区別する）', () => {
     for (const tool of TOOLS) {
       expect(tool.id).toMatch(/^[a-z]+$/);
+    }
+  });
+
+  it('Given 行き先の表（web-kit） / When 札の名前と公開パスを見る / Then 表と同じ（正本は表の 1 か所・#677）', () => {
+    expect(TOOLS.map((tool) => tool.id)).toEqual(Object.keys(TOOL_DESTINATIONS));
+    for (const tool of TOOLS) {
+      expect({ name: tool.name, href: tool.href }).toEqual(toolDestination(tool.id));
     }
   });
 
