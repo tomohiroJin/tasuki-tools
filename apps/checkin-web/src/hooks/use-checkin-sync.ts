@@ -33,7 +33,7 @@
  * 切断中に押された操作は入り直しより先に届いて `NOT_IN_ROOM` になるので、画面は押させない。
  */
 import { useMemo, useRef, useState } from 'react';
-import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { CardId, CheckinCommand, CheckinView, GroupId, MethodId, Side, Visibility } from '@tasuki/checkin-core';
@@ -80,6 +80,10 @@ export interface CheckinSync {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
+  /** 呼びかけの知らせ（最新の 1 つ・#677）。無ければ null */
+  readonly call: RoomCall | null;
+  /** 知らせを閉じる（#677） */
+  dismissCall(): void;
   /** やり方を選ぶ（新しい回が始まる）。`seq` は置き換える回の番号（自分が見ている回。回が無ければ 0） */
   chooseMethod(seq: number, method: MethodId): void;
   /** 始まり／終わりの側から 1 つ引く（いまのやり方は除かれる）。`seq` は chooseMethod と同じ */
@@ -175,6 +179,8 @@ export function useCheckinSync(roomCode: string): CheckinSync {
       error: room.error,
       retryNotice: room.retryNotice,
       clearError: room.clearError,
+      call: room.call,
+      dismissCall: room.dismissCall,
       ...actions,
     }),
     [room, checkin, roster, topic, actions],

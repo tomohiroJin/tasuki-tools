@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/hooks/use-checkin-sync.ts b/apps/checkin-web/src/hooks/use-checkin-sync.ts
+index 18b5dd82..b4297325 100644
+--- a/apps/checkin-web/src/hooks/use-checkin-sync.ts
++++ b/apps/checkin-web/src/hooks/use-checkin-sync.ts
+@@ -179,7 +179,7 @@ export function useCheckinSync(roomCode: string): CheckinSync {
+       error: room.error,
+       retryNotice: room.retryNotice,
+       clearError: room.clearError,
+-      call: room.call,
++      call: null,
+       dismissCall: room.dismissCall,
+       ...actions,
+     }),

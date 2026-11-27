@@ -22,7 +22,7 @@
  * `canOperate`（`topic-view.ts`）で押させない。
  */
 import { useMemo, useState } from 'react';
-import type { DepartureReason } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { Category, Difficulty, Language, TopicCommand, TopicState } from '@tasuki/topic-core';
@@ -62,6 +62,10 @@ export interface TopicSync {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
+  /** 呼びかけの知らせ（最新の 1 つ・#677）。無ければ null */
+  readonly call: RoomCall | null;
+  /** 知らせを閉じる（#677） */
+  dismissCall(): void;
   setTopic(title: string, body: string): void;
   clearTopic(): void;
   generate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty, category: Category): void;
@@ -124,6 +128,8 @@ export function useTopicSync(roomCode: string): TopicSync {
       error: room.error,
       retryNotice: room.retryNotice,
       clearError: room.clearError,
+      call: room.call,
+      dismissCall: room.dismissCall,
       ...actions,
     }),
     [room, topicState, actions],

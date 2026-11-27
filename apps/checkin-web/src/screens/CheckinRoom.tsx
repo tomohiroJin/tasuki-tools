@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { METHODS } from '@tasuki/checkin-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect } from '@tasuki/web-kit/room';
+import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, RoomCallNotice } from '@tasuki/web-kit/room';
 import { Hand, SpectatorToggle } from '../components/Hand';
 import { MethodPicker } from '../components/MethodPicker';
 import { PromptPanel } from '../components/PromptPanel';
@@ -113,6 +113,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
     <main className="ui-page ui-page--wide checkin-room">
       <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
       {banner}
+      {sync.call !== null && <RoomCallNotice call={sync.call} roomCode={roomCode} onDismiss={sync.dismissCall} />}
 
       {sync.error && (
         <p className="ui-note ui-note--error" role="alert">
