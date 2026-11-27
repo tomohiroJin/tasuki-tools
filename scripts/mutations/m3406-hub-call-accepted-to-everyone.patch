@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 8fa22c66..265486e3 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -242,7 +242,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+       type: "room.call",
+       call: { tool, fromParticipantId: caller.id, fromName: caller.displayName },
+     });
+-    hub.sendTo(connId, { type: "room.called", tool });
++    for (const id of room.participants.flatMap((p) => [...p.connections.keys()])) hub.sendTo(id, { type: "room.called", tool });
+   }
+ 
+   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {

@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 8fa22c66..24f208ad 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -224,7 +224,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+       return;
+     }
+     const tool = cmd.tool;
+-    if (!isKnownToolId(tool)) {
++    if (tool.length === 0) {
+       fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
+       return;
+     }

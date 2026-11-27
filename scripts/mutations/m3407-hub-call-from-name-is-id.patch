@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 8fa22c66..6544e704 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -240,7 +240,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+     }
+     deps.sendCall(callRecipients(room, connId, tool), {
+       type: "room.call",
+-      call: { tool, fromParticipantId: caller.id, fromName: caller.displayName },
++      call: { tool, fromParticipantId: caller.id, fromName: caller.id },
+     });
+     hub.sendTo(connId, { type: "room.called", tool });
+   }
