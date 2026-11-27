@@ -117,7 +117,7 @@ test.describe('玄関から全員を同じ道具へ呼ぶ', () => {
     await expect(callNotice(away.page)).toHaveCount(0);
   });
 
-  test('Given timer にいる人と玄関の 2 人 / When 呼ばれて「閉じる」、続けて 5 秒以内にもう 1 人が呼ぶ / Then timer の画面のまま知らせが消え、2 人目は待つよう伝えられて移らない', async ({
+  test('Given timer にいる人と玄関の 2 人 / When 呼ばれた直後にもう 1 人が呼び、timer の人は「閉じる」 / Then 2 人目は待つよう伝えられて移らず、timer の画面のまま知らせが消える', async ({
     page,
     openPeer,
   }) => {
@@ -132,7 +132,17 @@ test.describe('玄関から全員を同じ道具へ呼ぶ', () => {
     await joinHub(second.page, url, 'うみ');
 
     await expectWhere(page, 'いずみ', 'TDD Mob Pro Timer');
+    // 2 人目の欄は先に選んでおく（1 回目の受け付けから 2 回目までの間を短くし、遅い環境でも 5 秒の内に収める）
+    await second.page.getByLabel('呼ぶ道具').selectOption({ label: 'Planning Poker' });
     await callEveryone(page, 'Agenda Timer');
+
+    // 1 回目が受け付けられた合図（2 人目に知らせが届いた）の直後に、2 人目が呼ぶ → 待つよう伝えられ、玄関のまま。
+    // 拒まれた呼びかけが配られないことは、宛先と歯止めの単体・実 WS の検査（`apps/tasuki-sync/test/hub-room-call.test.ts` ほか）が見る
+    await expect(callNotice(second.page)).toContainText('さんが Agenda Timer に呼んでいます');
+    await second.page.getByRole('button', { name: '呼んで移る' }).click();
+    await expect(second.page.getByRole('alert').filter({ hasText: '少し待ってから呼んでください。' })).toBeVisible();
+    expect(new URL(second.page.url()).pathname).toBe('/');
+
     await expect.poll(() => new URL(page.url()).pathname, { message: '呼んだ人の行き先' }).toBe('/agenda/');
 
     // timer の画面に知らせが出る。同期の告知は立たない（知らせを契約より先に見分けている）
@@ -143,13 +153,5 @@ test.describe('玄関から全員を同じ道具へ呼ぶ', () => {
     await callNotice(inTimer.page).getByRole('button', { name: '閉じる' }).click();
     await expect(callNotice(inTimer.page)).toHaveCount(0);
     expect(new URL(inTimer.page.url()).pathname).toBe('/timer/');
-
-    // 5 秒たたないうちに、同じルームのもう 1 人が呼ぶ → 待つよう伝えられ、玄関のまま
-    await expect(callNotice(second.page)).toContainText('さんが Agenda Timer に呼んでいます');
-    await callEveryone(second.page, 'Planning Poker');
-    await expect(second.page.getByRole('alert').filter({ hasText: '少し待ってから呼んでください。' })).toBeVisible();
-    expect(new URL(second.page.url()).pathname).toBe('/');
-    // 拒まれた呼びかけは配られない（timer の人に新しい知らせは出ない）
-    await expect(callNotice(inTimer.page)).toHaveCount(0);
   });
 });
