@@ -96,6 +96,41 @@ test.describe('札が開いたときのカットイン', () => {
     await a.setViewportSize(original);
   });
 
+  test('Given 320px・長い要約（23 字）の添え書き / When 帯が止まった姿で測る / Then 題と添え書きが画面の左右の中に収まる', async ({ page, openPeer }) => {
+    // #670 のレビュー。層は overflow: hidden なので、横のスクロールでは中身のはみ出しが見えない（scrollWidth は常に収まる）。
+    // 字そのものの外枠を測る。動きの途中は帯が画面の外から滑り込むので、全部の動きを帯が止まった時刻（全体の 50%）で止めて測る
+    const { a, b } = await openRoom(page, openPeer, 'long');
+    await a.setViewportSize({ width: 320, height: 640 });
+    await a.getByRole('button', { name: '別のやり方', exact: true }).click();
+    await chooseMethod(a, 'チェックイン', 'この会の理解');
+    await handCard(a, 'どちらもわかる').click();
+    await handCard(b, 'どちらもあいまい').click();
+    const layer = cutIn(a, 'チェックイン');
+    await expect(layer).toBeVisible({ timeout: SHOWN_WITHIN_MS });
+    await expect(layer.locator('.ui-cutin-sub')).toHaveText('どちらもわかる・どちらもあいまいが 1 人ずつ');
+    const boxes = await a.evaluate(() => {
+      const root = document.querySelector('body > .ui-cutin');
+      if (root === null) return null;
+      for (const anim of root.getAnimations({ subtree: true })) {
+        const total = Number(anim.effect?.getComputedTiming().endTime ?? 0);
+        anim.pause();
+        anim.currentTime = total / 2;
+      }
+      const box = (sel: string) => {
+        const r = root.querySelector(sel)?.getBoundingClientRect();
+        return r === undefined ? null : { left: r.left, right: r.right };
+      };
+      return { width: document.documentElement.clientWidth, title: box('.ui-cutin-title'), sub: box('.ui-cutin-sub') };
+    });
+    expect(boxes).not.toBeNull();
+    for (const key of ['title', 'sub'] as const) {
+      const box = boxes![key];
+      expect(box, key).not.toBeNull();
+      expect(box!.left, `${key} の左端`).toBeGreaterThanOrEqual(0);
+      expect(box!.right, `${key} の右端`).toBeLessThanOrEqual(boxes!.width);
+    }
+  });
+
   test('Given 動きを減らす設定 / When 開く / Then カットインは描かず、読み上げの文は出る', async ({ page, openPeer }) => {
     const { a, b } = await openRoom(page, openPeer, 'reduced');
     await a.emulateMedia({ reducedMotion: 'reduce' });

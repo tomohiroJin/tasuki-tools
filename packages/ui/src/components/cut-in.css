@@ -158,7 +158,14 @@
   animation-name: ui-cutin-kicker;
 }
 
+/* 添え書きは長さに上限が無い（Check-in Cards の要約は 29 字になる・#670 のレビュー）。舞台は画面の 120% 幅なので、
+   左右を舞台の 15% ずつ詰めて画面の幅の中（約 84%。帯の傾きで外枠が広がる分の余白を残す）に置き、収まらなければ折り返す
+   （nowrap のままだと 320px で両端が切れる。12% では傾いた外枠が 320px で 5px はみ出した） */
 .ui-cutin-sub {
+  inset-inline: 15%;
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.5;
   inset-block-start: 100%;
   padding-block-start: 0.6em;
   font-size: var(--font-size-base);

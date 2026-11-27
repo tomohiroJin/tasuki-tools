@@ -104,9 +104,22 @@ test.describe('poker の開票の演出（#639・#670）', () => {
       await expect(title).toBeVisible();
       // 出ている間（動きの途中）に測る。層は画面の全体に重なるが、文書の幅を広げない
       expect(await hasNoHorizontalScroll(page), '横スクロールが出ない').toBe(true);
-      const box = await title.boundingBox();
+      // 題の外枠は、動きの時刻で変わる（右から滑り込む途中は画面の外に居る）。いつ測るかで結果が揺れないよう、
+      // 全部の動きを帯が止まった時刻（全体の 50%）で止めてから測る（#670 のレビュー）
+      const box = await page.evaluate(() => {
+        const root = document.querySelector('body > .ui-cutin');
+        if (root === null) return null;
+        for (const anim of root.getAnimations({ subtree: true })) {
+          const total = Number(anim.effect?.getComputedTiming().endTime ?? 0);
+          anim.pause();
+          anim.currentTime = total / 2;
+        }
+        const r = root.querySelector('.ui-cutin-title')?.getBoundingClientRect();
+        return r === undefined ? null : { left: r.left, right: r.right };
+      });
       expect(box, '題が描かれている').not.toBeNull();
-      expect(box!.x + box!.width, '題の右端が画面の中').toBeLessThanOrEqual(width + 1);
+      expect(box!.left, '題の左端が画面の中').toBeGreaterThanOrEqual(0);
+      expect(box!.right, '題の右端が画面の中').toBeLessThanOrEqual(width);
     });
   }
 

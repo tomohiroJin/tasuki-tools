@@ -65,6 +65,21 @@ test('子の層も操作を奪わない（pointer-events は継承されるが�
   assert.match(d, /pointer-events:\s*none/);
 });
 
+/** 宣言の並びのうち、最後に書かれたその性質の値（後勝ち。共有の規則の後に個別の規則が来る） */
+function lastValue(declarations, property) {
+  const values = [...declarations.matchAll(new RegExp(`(?:^|[;\\s])${property}:\\s*([^;]+);`, 'g'))].map((m) => m[1].trim());
+  return values.at(-1);
+}
+
+test('添え書きは画面の幅の中に置き、長ければ折り返す（#670 のレビュー。320px で 23 字の要約の両端が切れた）', () => {
+  const d = declarationsOf('.ui-cutin-sub');
+  assert.equal(lastValue(d, 'white-space'), 'normal');
+  // 舞台は画面の 120% 幅。左右を舞台の 10% 以上詰めないと、画面の外へ出る
+  const inset = lastValue(d, 'inset-inline');
+  assert.match(inset ?? '', /^\d+(\.\d+)?%$/, `inset-inline が割合でない: ${inset}`);
+  assert.ok(Number.parseFloat(inset) >= 10, `inset-inline が 10% 未満: ${inset}`);
+});
+
 test('題は 1 行に収める（nowrap）', () => {
   const d = declarationsOf('.ui-cutin-title');
   assert.match(d, /white-space:\s*nowrap/);
