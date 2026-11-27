@@ -19,7 +19,7 @@ describe('TOOLS', () => {
     }
   });
 
-  it('Given 行き先の表（web-kit） / When 札の名前と公開パスを見る / Then 表と同じ（正本は表の 1 か所・#677）', () => {
+  it('Given 行き先の表（web-kit） / When 札の名前と公開パスを見る / Then 表と同じ（同じ値を 2 か所が持つので、ずれをここで止める・#677）', () => {
     const tableIds = Object.keys(TOOL_DESTINATIONS);
     const cardIds = TOOLS.map((tool) => tool.id);
     // 表に無い札・札に無い表の行が無い（順も同じ）

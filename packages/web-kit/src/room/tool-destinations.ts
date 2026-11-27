@@ -1,8 +1,8 @@
 /**
- * 道具の行き先の表（#677）。道具の**名前**と**公開パス**の正本。
+ * 道具の行き先の表（#677）。呼びかけの知らせ（{@link RoomCallNotice}）が「どこへ移るか」を引く、道具の**名前**と**公開パス**。
  *
- * 玄関の札（`apps/landing/src/tools.ts` の `TOOLS`）はここから名前と公開パスを引く。呼びかけの知らせ
- * （{@link RoomCallNotice}）も同じ表で「どこへ移るか」を決める（写しを持たない）。
+ * **玄関の札（`apps/landing/src/tools.ts` の `TOOLS`）も同じ値を持つ**（正本は 2 か所）。`tools.ts` は純粋な層で、
+ * web-kit を読めない（`scripts/lib/layer-direction.mjs`）。ずれは `apps/landing/tests/tools.test.ts` の一致の検査が止める。
  *
  * - 鍵は道具の ID。**綴りの正本は同期サーバー**（`apps/tasuki-sync/src/application/tool-id.ts`）で、ここは見せ方だけを持つ。
  * - 公開パスは web 側だけでは決まらない。足す・移すときは `vite.config.ts` の `base`・`deploy/<app>/app.env` の

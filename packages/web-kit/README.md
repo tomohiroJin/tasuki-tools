@@ -11,7 +11,9 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
   `@tasuki/sync-client` の `joinRetryDelayMs` が決め、このフックは回数・タイマー・知らせの文言を持つ
 - `useToolRoomSync(options)` — 1 つのルームへ入るツールの画面（お題・ルーレット）の同期の共通部分。
   接続と接続の状態・保存した組での参加と入り直し・参加の失敗の扱い（`planForJoinError`）・混雑のやり直しを持つ。
-  ツール固有のフレームとコマンドは持たず、受けたフレームは `onFrame` でツールのフックへ渡す
+  ツール固有のフレームとコマンドは持たず、受けたフレームは `onFrame` でツールのフックへ渡す。
+  呼びかけの知らせ（`room.call`・#677）は、ツールが渡す**必須の** `parseCall` で `parse` より先に見分け、最新の 1 つを `call`・`dismissCall()` に持つ
+  （見分けは各アプリの純粋な層が `RoomCallFrameSchema` で行う。web-kit は room-core・protocol を読まない）
 
 使っているのは各アプリの同期フック。
 
@@ -37,11 +39,12 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 
 - `connectionNotice(kind)` — 接続の告知の種類（`ConnectionNoticeKind`）を文にする。**文 3 つ（再接続中・最新でない・届かない）の正本はここ 1 か所**
 - `ConnectionBanner` — 告知の帯（`ui-banner`）。届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない。
-- `RoomCallNotice`（#677）— 呼びかけの知らせ（`ui-call`）。「○○さんが ○○ に呼んでいます」「閉じる」「移る」（同じルームの道具のページへのリンク）。自動では移さない。知らない道具は描かない。
-- `TOOL_DESTINATIONS` / `toolDestination(id)`（#677）— 道具の名前と公開パスの**正本**（玄関の札もここから引く）。知らない ID は `undefined`。
-- `parseRoomCallFrame(raw)`（`./sync`・#677）— 呼びかけの知らせ（`room.call`）の見分け。知らせでなければ `null`。`useToolRoomSync` は道具の `parse` より先にこれで見分け、`call`・`dismissCall()` に持つ。
   checkin・roulette・topic・agenda・poker が同じ文・役割で出す。位置は、checkin の本画面は `<main>` の中・見出しの後、roulette・topic・poker・agenda の本画面は `<main>` の直前、agenda の映す表示の間は映す表示（`.projection`）の中の上端（全面を覆うので外では見えない）、参加前の画面（checkin・agenda）は `<main>` の中・見出しの後。アプリごとに違い、揃えてはいない。
   agenda は映す表示に出入りするたびに帯の親が変わる（main の直前 ↔ 映す表示の中）ので、帯は mount し直され、`role` の読み上げもやり直される。映す表示は fixed で全面を覆うため、同じ要素を保つ手段が無い（外に残すと覆われ、z-index を上げると隅の操作を覆う）。
+- `RoomCallNotice`（#677）— 呼びかけの知らせ（`ui-call`）。「○○さんが ○○ に呼んでいます」「閉じる」「移る」（同じルームの道具のページへのリンク）。自動では移さない。知らない道具は描かない。
+  受け取る型は web-kit の `RoomCallView`（道具と名前だけ。room-core の `RoomCall` は構造で渡せる）。置き場所は各画面の接続の告知の帯の近く（timer は上端の帯の中なので、スクロールすると一緒に流れる）
+- `TOOL_DESTINATIONS` / `toolDestination(id)`（#677）— 呼びかけの「移る」が引く、道具の名前と公開パスの表。知らない ID は `undefined`。
+  **玄関の札（`apps/landing/src/tools.ts`）は純粋な層なので web-kit を読めず、同じ値を自分でも持つ**（正本は 2 か所）。ずれは玄関の `tests/tools.test.ts` の一致の検査が止める
 
 - `LoadingView` — 読み込み中・送り返している間の画面（`main` の中の `role="status"` の一言。見た目の `.loading-note` は `packages/ui` が持つ）
 - `RoomGoneView` — ルームが無いときの画面（h1・説明・トップ（`/`）へのリンク。消えたルームの選択画面へは送らない）
