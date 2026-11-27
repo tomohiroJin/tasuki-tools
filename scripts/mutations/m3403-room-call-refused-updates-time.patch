@@ -1,0 +1,14 @@
+diff --git a/apps/tasuki-sync/src/application/room-call.ts b/apps/tasuki-sync/src/application/room-call.ts
+index 4f4f8049..0239b5ec 100644
+--- a/apps/tasuki-sync/src/application/room-call.ts
++++ b/apps/tasuki-sync/src/application/room-call.ts
+@@ -41,8 +41,8 @@ export function createRoomCallGate(clock: MonotonicClock): RoomCallGate {
+     tryAccept(roomCode) {
+       const now = clock.now();
+       const last = lastAcceptedAt.get(roomCode);
+-      if (last !== undefined && now - last < CALL_INTERVAL_MS) return false;
+       lastAcceptedAt.set(roomCode, now);
++      if (last !== undefined && now - last < CALL_INTERVAL_MS) return false;
+       return true;
+     },
+     clearRoom(roomCode) {

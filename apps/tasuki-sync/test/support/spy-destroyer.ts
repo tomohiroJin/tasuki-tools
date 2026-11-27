@@ -72,6 +72,7 @@ export function spyDestroyer(
     agendaDeadlines: { clear: (c) => calls.push(`agendaDeadlines.clear:${c}`) },
     checkinGrace: { clearRoom: (c) => calls.push(`checkinGrace.clearRoom:${c}`) },
     trackAutoStop: { clearRoom: (c) => calls.push(`trackAutoStop.clearRoom:${c}`) },
+    roomCalls: { clearRoom: (c) => calls.push(`roomCalls.clearRoom:${c}`) },
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
     topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },

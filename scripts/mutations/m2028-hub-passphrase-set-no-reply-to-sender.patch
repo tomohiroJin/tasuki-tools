@@ -17,5 +17,5 @@ index 22f09bdb..7f426a93 100644
      // （玄関は名簿の到着で設定の失敗の表示を消す）。
 -    hub.sendTo(connId, { type: "roster", room: buildRoster(room, nowProtected) });
    }
- 
-   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
+
+   /**

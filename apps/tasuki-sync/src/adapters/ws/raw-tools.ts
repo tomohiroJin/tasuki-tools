@@ -24,7 +24,7 @@
  *   6. `scripts/audit-assembly-wiring.mjs` の `parts` へ 1 行（`audit-assembly-wiring.test.mjs` が `assembly/` の実体と照合する）
  *   7. 玄関・E2E・監査の許可リスト（アプリの外。`tool-id.ts` の docstring を参照）
  */
-import type { HubServerMsg } from "@tasuki/room-core";
+import type { HubServerMsg, RoomCallFrame } from "@tasuki/room-core";
 import { TOOL_IDS, type KnownToolId } from "../../application/tool-id.js";
 import type { AgendaOwnFrame, AgendaServerMsg } from "../../ports/agenda-server-msg.js";
 import type { CheckinOwnFrame, CheckinServerMsg } from "../../ports/checkin-server-msg.js";
@@ -54,7 +54,9 @@ export type RawToolId = "hub" | Exclude<KnownToolId, "timer" | "poker">;
  * **{@link RawToolFramesCoverIds} が足りない行を、{@link NoExtraRawToolFrames} が余計な行を落とす。**
  */
 export interface RawToolFrames {
-  hub: { own: HubServerMsg; out: HubServerMsg };
+  // 呼びかけの知らせ（#677）はルームの全接続へ届く（宛先の選び方は `application/room-call.ts`）。
+  // 道具の行ではなくハブの口で送る（お題の `topic` フレームがお題の口で全接続へ配られるのと同じ置き方）。
+  hub: { own: HubServerMsg; out: HubServerMsg | RoomCallFrame };
   topic: { own: TopicOwnFrame; out: TopicServerMsg };
   roulette: { own: RouletteOwnFrame; out: RouletteServerMsg };
   agenda: { own: AgendaOwnFrame; out: AgendaServerMsg };

@@ -1,0 +1,12 @@
+diff --git a/apps/tasuki-sync/src/application/room-call.ts b/apps/tasuki-sync/src/application/room-call.ts
+index 4f4f8049..87e13967 100644
+--- a/apps/tasuki-sync/src/application/room-call.ts
++++ b/apps/tasuki-sync/src/application/room-call.ts
+@@ -58,7 +58,6 @@ export function callRecipients(room: Room, callerConnId: string, tool: string):
+   for (const participant of room.participants) {
+     if (participant.id === caller?.id) continue;
+     const declared = [...participant.connections.values()];
+-    if (declared.includes(tool)) continue;
+     ids.push(...participant.connections.keys());
+   }
+   return ids;
