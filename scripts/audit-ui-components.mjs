@@ -657,6 +657,7 @@ export const SHARED_UI_ENTRIES = [
     parts: [
       { name: "ConnectionBanner", file: "packages/web-kit/src/room/connection-banner.tsx" },
       { name: "LoadingView", file: "packages/web-kit/src/room/loading-view.tsx" },
+      { name: "RoomCallNotice", file: "packages/web-kit/src/room/room-call-notice.tsx" },
       { name: "RoomGoneView", file: "packages/web-kit/src/room/room-gone-view.tsx" },
       { name: "RoomJoiningView", file: "packages/web-kit/src/room/room-joining-view.tsx" },
     ],
