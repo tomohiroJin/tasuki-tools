@@ -96,6 +96,11 @@ export function App() {
           passphraseProtected={hub.passphraseProtected}
           passphraseError={hub.passphraseError}
           onSetPassphrase={hub.setPassphrase}
+          roomCall={hub.roomCall}
+          onDismissRoomCall={hub.dismissRoomCall}
+          calling={hub.calling}
+          callError={hub.callError}
+          onCall={hub.callRoom}
         />
       );
     case 'gone':

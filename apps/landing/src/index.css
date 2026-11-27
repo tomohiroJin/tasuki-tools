@@ -457,6 +457,21 @@
   margin: var(--space-3) 0 0;
   font-size: var(--font-size-sm);
 }
+/* 「みんなを呼ぶ」（#677）。参加者の名簿の下に、区切り線を挟んで置く。欄の幅・並びは部品（`.ui-select`・`.ui-actions`）が持つ */
+.hub-call {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.hub-call .hub-label {
+  margin: 0;
+}
+.hub-call .hub-error {
+  margin: 0;
+}
 /* 「記録を見る」。作業領域の末尾で、パネルの右端に揃える */
 .hub-foot {
   display: flex;
