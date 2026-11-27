@@ -390,6 +390,41 @@ describe('試しに鳴らす', () => {
     expect(sources[0]?.stop).not.toHaveBeenCalled();
     expect(sources[1]?.stop).not.toHaveBeenCalled();
   });
+
+  it('Given ファイルを読んでいる途中の試聴 / When 別の音を試聴してから読み終わる / Then 古い試聴は鳴らさず、後の音だけ鳴る', async () => {
+    // Given: bell の取得を保留したまま試聴する
+    state = 'running';
+    let release: () => void = () => {};
+    fetchMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) });
+        }),
+    );
+    const { previewChime } = await import('../src/platform/sound');
+    previewChime('bell');
+    await flush();
+    // When: 読み終わる前に時打ちを試聴し、そのあと bell が読み終わる
+    previewChime('strike');
+    await flush();
+    release();
+    await flush();
+    // Then: 時打ちの 2 打だけが鳴り、古い bell は後から重ならない
+    expect(createOscillator).toHaveBeenCalledTimes(2);
+    expect(bufferStart).not.toHaveBeenCalled();
+  });
+
+  it('Given 時間切れの音が鳴っている / When 試聴する / Then 時間切れの音は止めない', async () => {
+    state = 'running';
+    const { playChime, preloadChime, previewChime } = await import('../src/platform/sound');
+    preloadChime('bell');
+    await flush();
+    playChime('bell');
+    await flush();
+    previewChime('melody');
+    await flush();
+    expect(sources[0]?.stop).not.toHaveBeenCalled();
+  });
 });
 
 /**

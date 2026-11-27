@@ -586,7 +586,7 @@ timer はすでにクロノグラフの目盛り盤・計測弧・運針を持�
 
 - timer の音ファイル 4 つ（`department.mp3`・`melody.mp3`・`sustained.mp3`・`bell.mp3`）は、`apps/timer-web/public/sounds/` から `apps/agenda-web/public/sounds/` へ写した（中身は同じ）
 - 音声 4 つ（`timeout-male.mp3`・`timeout-female.mp3`・`timeout-nise.mp3`・`timeout-mai.mp3`）は AivisSpeech で「時間切れです」を合成した。モデルはすべて ACML 1.0 で、クレジット表記は任意（禁止事項に当たらない）
-- 作り方は `scripts/gen-agenda-voices.sh`（話者は fumifumi・morioki・にせ・まい。timer の `scripts/gen-voices.sh` と同じ形。44100Hz・96k の mp3 を書く）。エンジンが応答しなければ失敗して既存の mp3 を保つ。4 本は一時ディレクトリへ書き、そろってから出力先へ移すので、途中で失敗しても一部だけ新しい mp3 は残らない
+- 作り方は `scripts/gen-agenda-voices.sh`（話者は fumifumi・morioki・にせ・まい。timer の `scripts/gen-voices.sh` と同じ形。44100Hz・96k の mp3 を書く）。エンジンが応答しなければ失敗して既存の mp3 を保つ。4 本は一時ディレクトリへ書き、そろってから出力先へ移すので、合成・変換の途中で失敗しても一部だけ新しい mp3 は残らない（移す途中の失敗〔ディスクの空き・権限・中断〕では一部が新しくなりうる。生成物はコミットの前に `git diff` で見る）
 
 `/code-review` の指摘（#669）で次を足した（D8 の補足）:
 

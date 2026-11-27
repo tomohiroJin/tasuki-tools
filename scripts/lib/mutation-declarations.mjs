@@ -14057,6 +14057,14 @@ export const MUTATIONS = [
     note: RESERVED_2950_2969 + " " + "#669 の /code-review。callback 形しか受けない古い Safari で、ファイルの音がデコードできず時打ちのままになる。",
   },
   {
+    id: 2962,
+    label: "読んでいる途中の試聴を、後の試聴が押されても鳴らす",
+    patch: "m2962-stale-preview-still-plays.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 の /code-review 後のレビュー。ファイルの取得中に別の音を試聴すると、読み終わった古い音が後から重なって鳴る。",
+  },
+  {
     id: 2970,
     label: "SoundSettings の音の種類の選択が、選んだ id でなく先頭の id を onChimeChange へ渡す",
     patch: "m2970-sound-settings-wrong-chime-id.patch",
