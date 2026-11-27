@@ -1,13 +1,13 @@
 diff --git a/apps/checkin-web/src/cut-in-view.ts b/apps/checkin-web/src/cut-in-view.ts
-index 08063c49..f2827ce1 100644
+index 3cbef455..49c7edfd 100644
 --- a/apps/checkin-web/src/cut-in-view.ts
 +++ b/apps/checkin-web/src/cut-in-view.ts
-@@ -14,7 +14,7 @@ import { METHOD_COPY } from './method-copy';
+@@ -13,7 +13,7 @@ import { METHOD_COPY } from './method-copy';
  import { REVEAL_FLIP_MS, revealSchedule, summaryLine } from './reveal-view';
  
  /** 「全員同じ」と呼ぶ出した人数の下限（1 人だけでは全員とは言わない） */
 -const ALL_SAME_MIN_PLAYERS = 2;
 +const ALL_SAME_MIN_PLAYERS = 1;
  
- /** `CutInCue` のうち、開いた山の中身だけで決まる部分（id・待ちは画面が足す） */
- export type CheckinCutIn = Required<Pick<CutInCue, 'title' | 'sub' | 'tone' | 'kicker'>>;
+ /**
+  * カットインの中身のうち、開いた山だけで決まる部分（id・待ちは画面が足す）。
