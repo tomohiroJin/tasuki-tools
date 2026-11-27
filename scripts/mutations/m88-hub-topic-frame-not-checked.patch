@@ -17,7 +17,6 @@
 # `topic` フレームはハブの契約に合わないので黙って捨てられ、選択画面の「いまのお題」が
 # 一生更新されない。
 diff --git a/apps/landing/src/hub/hub-frames.ts b/apps/landing/src/hub/hub-frames.ts
-index 423badf4..2bc45adb 100644
 --- a/apps/landing/src/hub/hub-frames.ts
 +++ b/apps/landing/src/hub/hub-frames.ts
 @@ -25,8 +25,6 @@ export type HubFrame =
@@ -26,6 +25,6 @@ index 423badf4..2bc45adb 100644
  export function classifyHubFrame(raw: string): HubFrame {
 -  const topic = parseBoundaryMessage(TopicFrameSchema, raw);
 -  if (topic.isOk()) return { kind: 'topic', title: topic.value.state.topic?.title ?? null };
-   const call = parseRoomCallFrame(raw);
-   if (call !== null) return { kind: 'call', call };
+   const call = parseBoundaryMessage(RoomCallFrameSchema, raw);
+   if (call.isOk()) return { kind: 'call', call: call.value.call };
    const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);

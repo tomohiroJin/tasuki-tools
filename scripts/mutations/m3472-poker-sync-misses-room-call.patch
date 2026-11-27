@@ -1,13 +1,12 @@
 diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
-index 709d57e5..777dedda 100644
 --- a/apps/poker-web/src/hooks/useSync.ts
 +++ b/apps/poker-web/src/hooks/useSync.ts
-@@ -229,7 +229,7 @@ export function usePokerSync(): PokerSync & PokerRoomCall {
+@@ -228,7 +228,7 @@ export function usePokerSync(): PokerSync & PokerRoomCall {
      // **呼びかけの知らせも poker の契約より先に見分ける**（#677）。お題と同じ置き方で、順を逆にすると
      // 未知の `type` として落とし、#212 の告知（同期できていません）が立つ。
      // 知らせは契約を満たすフレームの数に入れない（`syncStale` を下ろさない。お題のフレームと同じ）。
--    const call = parseRoomCallFrame(raw);
-+    const call = parseRoomCallFrame('');
-     if (call !== null) {
-       setRoomCall(call);
+-    const call = parseBoundaryMessage(RoomCallFrameSchema, raw);
++    const call = parseBoundaryMessage(RoomCallFrameSchema, '');
+     if (call.isOk()) {
+       setRoomCall(call.value.call);
        return;

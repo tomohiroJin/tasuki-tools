@@ -17,12 +17,12 @@ diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
 index 49f22801..87733047 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
-@@ -47,7 +47,7 @@ export const TOOLS = [
+@@ -44,7 +44,7 @@ export const TOOLS = [
      mark: "spade",
    },
    {
 -    id: "roulette",
 +    id: "wheel",
      pip: "進行",
-     name: TOOL_DESTINATIONS.roulette.name,
+     name: "Facilitator Roulette",
      summary: "その場で進行役を決める",
