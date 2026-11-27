@@ -293,6 +293,11 @@ describe('ミニ表示', () => {
   });
 
   it('Given 計測中 / When 秒の境目が来る / Then 窓の経過がその境目で進む（固定の間隔ではない）', async () => {
+    // 本体の時計（`useTrackClock` の requestAnimationFrame・setInterval）は**一切動かさない**。動くと、本体の描き直しにつられて
+    // 窓の経過も進み、窓自身のタイマーが壊れていても通る（負荷の高い CI で本物の時間で走り、変異 3204 が見逃された。
+    // 偽の時計にすると advanceTimersByTime で確実に走ってしまう）。窓の描き直しのきっかけを setTimeout だけにする
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
+    vi.spyOn(window, 'setInterval').mockImplementation((() => 0) as unknown as typeof window.setInterval);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
       let now = 50_000;
