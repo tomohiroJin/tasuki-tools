@@ -1,0 +1,22 @@
+# 変異 3252: track-mini-css-rule-rewritten
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/mini-window-copy.test.ts
+#
+# #476 窓へ写す規則の文字列を書き換える。data の値の中の入れ子の url(%23n) が壊れ、body::after の mask-image が効かなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3252-*.patch
+# 復元: git apply -R scripts/mutations/m3252-*.patch
+diff --git a/apps/track-web/src/platform/mini-window.ts b/apps/track-web/src/platform/mini-window.ts
+--- a/apps/track-web/src/platform/mini-window.ts
++++ b/apps/track-web/src/platform/mini-window.ts
+@@ -79,7 +79,7 @@
+     try {
+       const style = target.createElement('style');
+       style.textContent = Array.from(sheet.cssRules)
+-        .map((rule) => rule.cssText)
++        .map((rule) => rule.cssText.replace(/url\(%23/g, 'url(/%23'))
+         .join('\n');
+       target.head.appendChild(style);
+     } catch {

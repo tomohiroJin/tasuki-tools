@@ -1,0 +1,23 @@
+# 変異 3205: track-mini-keys-not-attached
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 ミニ表示の窓の文書に、S・C キーの聞き手を付けない。窓にフォーカスがあるとき、キーで止められない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3205-*.patch
+# 復元: git apply -R scripts/mutations/m3205-*.patch
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index bc8934d8..343a298c 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -142,7 +142,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
+         if (running !== null) sync.stop();
+       },
+       onResume: resumePrevious },
+-    mini.container?.ownerDocument ?? null,
++    null,
+   );
+ 
+   const resume = (): void => {

@@ -183,3 +183,15 @@ export const CLOSE_BUTTON = '閉じる';
 export const DEFAULT_ERROR_TEXT = '操作を完了できませんでした';
 export const RETRY_WAITING_TEXT = '参加を待っています。自動で入り直しています…';
 export const RETRY_EXHAUSTED_TEXT = '参加できません。時間をおいてから再読込してください';
+
+// 見せ方（映す画面・ミニ表示。#476 第 2 段）
+export const VIEW_TOOLS_HEADING = '見せ方';
+export const DISPLAY_LINK = '映す画面を開く';
+export const DISPLAY_NOTE = '大きな画面に映します。読むだけで、操作は手元で行います。';
+export const MINI_OPEN_BUTTON = 'ミニ表示で出す';
+export const MINI_CLOSE_BUTTON = 'ミニ表示を閉じる';
+export const MINI_RESUME_BUTTON = '直前を再開';
+export const bandSummary = (from: string, to: string, works: number, breaks: number): string => `${from} から ${to} まで。作業 ${works} 件、休憩 ${breaks} 件。`;
+export const DISPLAY_NEEDS_JOIN = 'この画面を映すには、先にこの端末でルームに入ってください。';
+export const DISPLAY_JOIN_LINK = 'ルームに入る';
+export const MINI_OFFLINE = '接続が切れています';

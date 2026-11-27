@@ -5,9 +5,9 @@
  * （名前・経過の h:mm:ss・時刻・描き直す秒・取り消しの残り・± の行き先・読み上げの文・タブの題）を持つ。
  * **端末（`document`・時計・時間帯）は読まない。** 要る値は引数で受ける。
  */
-import { MAX_LOOKBACK_MS, MIN_SEGMENT_MS, durationOf, formatClock, formatDuration, longRunningOf, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { MAX_LOOKBACK_MS, MIN_SEGMENT_MS, durationOf, formatClock, formatDuration, formatMonthDay, longRunningOf, runningSegmentOf, type Band, type SegmentView, type TrackView } from '@tasuki/track-core';
 import { AWAY_PROMPT_MIN_HIDDEN_MS } from './limits';
-import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from './copy';
+import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, bandSummary, tabTitle } from './copy';
 
 const MS_PER_SEC = 1000;
 
@@ -108,6 +108,38 @@ export function announcementFor(prev: TrackView | null, next: TrackView): string
 export function tabTitleOf(view: TrackView, nowMs: number): string | null {
   const running = runningSegmentOf(view);
   return running === null ? null : tabTitle(nameOf(running), formatDuration(durationOf(running, nowMs)));
+}
+
+/** 帯と表の色の数（CSS の `.track-tone--0`〜`3` と揃える） */
+export const TONE_COUNT = 4;
+
+/**
+ * 作業名の色の番号。**表の行の並び（`totalsOf` の降順）の位置**で巡るので、表の行の頭の印と帯の色が同じになる。
+ * 良し悪しを表さない（FR-19）。表に無い名前（休憩ほか）は 0。
+ */
+export function toneIndexOf(rows: readonly { readonly label: string }[], label: string): number {
+  const index = rows.findIndex((row) => row.label === label);
+  return (index < 0 ? 0 : index) % TONE_COUNT;
+}
+
+/**
+ * 帯の両端の時刻。右端は切り下げた位置でなく、計測中は「いま」から求める（止まっていれば最後の終わり）。
+ * 両端の日付が違うときは、月/日を添える。
+ */
+export function axisLabelsOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): { start: string; end: string } {
+  const startWall = view.epochWallMs + band.startMs;
+  const endWall = view.epochWallMs + Math.max(band.endMs, band.running ? nowMs : band.endMs);
+  const spans = formatMonthDay(startWall, tzOffsetMin) !== formatMonthDay(endWall, tzOffsetMin);
+  const label = (wall: number): string => (spans ? `${formatMonthDay(wall, tzOffsetMin)} ${formatClock(wall, tzOffsetMin)}` : formatClock(wall, tzOffsetMin));
+  return { start: label(startWall), end: label(endWall) };
+}
+
+/** 帯の読み上げ向けの要約（始まりと終わりの時刻・作業と休憩の区切りの数）。 */
+export function bandSummaryOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): string {
+  const { start, end } = axisLabelsOf(view, band, nowMs, tzOffsetMin);
+  const works = band.parts.filter((part) => part.kind === 'work').length;
+  const breaks = band.parts.filter((part) => part.kind === 'break').length;
+  return bandSummary(start, end, works, breaks);
 }
 
 /** 表に戻ったときに端末が覚えていること。**端末だけが持つ**（サーバーへ送らず、状態にも載せない。設計 §4 C2） */

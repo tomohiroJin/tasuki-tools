@@ -28,7 +28,7 @@ export type { SegmentEdge } from "./edit.js";
 export { advanceNow, runningSegmentOf, durationOf, totalsOf, candidatesOf, previousLabelOf, longRunningOf } from "./projection.js";
 export type { TotalRow, Totals, Candidate } from "./projection.js";
 
-export { MARKDOWN_TEXT, formatDuration, formatClock, formatDate, escapeLabel, toMarkdown } from "./markdown.js";
+export { MARKDOWN_TEXT, formatDuration, formatClock, formatDate, formatMonthDay, escapeLabel, toMarkdown } from "./markdown.js";
 
 export { CSV_COLUMNS, csvField, toCsv, csvFileName } from "./csv.js";
 
@@ -36,3 +36,6 @@ export { TrackCommandSchema, TrackFrameSchema, TrackErrorFrameSchema, TRACK_ERRO
 export type { TrackCommand, TrackErrorCode } from "./schemas.js";
 
 export { trackErrorMessageFor } from "./error-messages.js";
+
+export { BAND_STEP_MS, stepDown, bandOf } from "./band.js";
+export type { Band, BandPart } from "./band.js";

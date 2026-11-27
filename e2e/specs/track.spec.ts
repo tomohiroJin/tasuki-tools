@@ -59,6 +59,15 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(nowName(b)).toHaveText('設計');
     await expect(segments(b)).toHaveCount(1);
 
+    // 映す画面（#476 第 2 段 D1・D4）: 新しいタブで開き、読むだけであること・時系列の帯が出ることを見る。
+    // 同じ文脈なので、A の復帰の組で入る（ルームは増やさない）
+    await expect(page.locator('.track-band-line .track-band-part')).toHaveCount(1);
+    const [display] = await Promise.all([context.waitForEvent('page'), page.getByRole('link', { name: '映す画面を開く' }).click()]);
+    await expect(display.locator('.track-display-name')).toHaveText('設計');
+    await expect(display.locator('.track-band-line .track-band-part')).toHaveCount(1);
+    await expect(display.locator('button, a[href], input, select, textarea')).toHaveCount(0);
+    await display.close();
+
     // When / Then その2: 1 秒より長く置いてから、B が「実装」へ切り替える → A の画面も「実装」になり、区切りは 2 つ
     await expect.poll(async () => (await nowPanel(b).locator('.track-digits').textContent()) ?? '', { message: '経過が 2 秒を超える' }).toMatch(/0:00:0[2-9]/);
     await startWork(b, '実装');

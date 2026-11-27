@@ -1,0 +1,21 @@
+# 変異 3195: track-band-tone-index-collapsed
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 時系列の帯の作業の色が、作業名によらず同じ番号になる。D4。表の行の頭の印と帯の色が対応しない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3195-*.patch
+# 復元: git apply -R scripts/mutations/m3195-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+index 2408826b..18f2f8ed 100644
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -115,5 +115,5 @@ export const TONE_COUNT = 4;
+  */
+ export function toneIndexOf(rows: readonly { readonly label: string }[], label: string): number {
+   const index = rows.findIndex((row) => row.label === label);
+-  return (index < 0 ? 0 : index) % TONE_COUNT;
++  return (index < 0 ? 0 : index) % 1;
+ }

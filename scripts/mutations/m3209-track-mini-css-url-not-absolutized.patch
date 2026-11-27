@@ -1,0 +1,23 @@
+# 変異 3209: track-mini-css-url-not-absolutized
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/mini-window-copy.test.ts
+#
+# #476 窓の head に、開いたページの URL を指す base を置かない。窓の基準 URL で読まれ、書体や画像が読めない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3209-*.patch
+# 復元: git apply -R scripts/mutations/m3209-*.patch
+diff --git a/apps/track-web/src/platform/mini-window.ts b/apps/track-web/src/platform/mini-window.ts
+--- a/apps/track-web/src/platform/mini-window.ts
++++ b/apps/track-web/src/platform/mini-window.ts
+@@ -65,9 +65,6 @@
+  */
+ export function copyStylesInto(source: Document, target: Document): void {
+   copyRootAttributes(source, target);
+-  const base = target.createElement('base');
+-  base.href = source.baseURI;
+-  target.head.appendChild(base);
+   for (const sheet of Array.from(source.styleSheets)) {
+     if (sheet.href !== null) {
+       const link = target.createElement('link');

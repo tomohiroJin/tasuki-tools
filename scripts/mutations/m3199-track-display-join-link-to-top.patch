@@ -1,0 +1,23 @@
+# 変異 3199: track-display-join-link-to-top
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-display.test.tsx
+#
+# #476 映す画面の「ルームに入る」が、玄関のそのルームでなく玄関の先頭へ向かう。名乗った後にそのルームへ戻れない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3199-*.patch
+# 復元: git apply -R scripts/mutations/m3199-*.patch
+diff --git a/apps/track-web/src/screens/TrackDisplay.tsx b/apps/track-web/src/screens/TrackDisplay.tsx
+index 0736744c..72835c88 100644
+--- a/apps/track-web/src/screens/TrackDisplay.tsx
++++ b/apps/track-web/src/screens/TrackDisplay.tsx
+@@ -29,7 +29,7 @@ export function TrackDisplay({ roomCode }: { roomCode: string }) {
+     return (
+       <main className="track-display">
+         <p className="ui-note">{DISPLAY_NEEDS_JOIN}</p>
+-        <a className="ui-button ui-button--secondary" href={hubPathFor(roomCode, sync.departed ?? undefined)}>
++        <a className="ui-button ui-button--secondary" href="/">
+           {DISPLAY_JOIN_LINK}
+         </a>
+       </main>

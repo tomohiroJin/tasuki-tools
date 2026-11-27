@@ -1,0 +1,36 @@
+# 変異 3255: track-display-auto-redirect-to-hub
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-display.test.tsx
+#
+# #476 映す画面が、同一性の無い端末を玄関へ自動で送る。名乗った後の戻り先は操作できるルームの画面で、映す画面へ戻れない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3255-*.patch
+# 復元: git apply -R scripts/mutations/m3255-*.patch
+diff --git a/apps/track-web/src/screens/TrackDisplay.tsx b/apps/track-web/src/screens/TrackDisplay.tsx
+--- a/apps/track-web/src/screens/TrackDisplay.tsx
++++ b/apps/track-web/src/screens/TrackDisplay.tsx
+@@ -8,7 +8,7 @@
+  * （名乗った後の戻り先は操作できるルームの画面で、映す画面へは戻れないため）。
+  */
+ import { bandOf, totalsOf, runningSegmentOf, durationOf, type TrackView } from '@tasuki/track-core';
+-import { ConnectionBanner, RoomGoneView, RoomJoiningView, usePrefersReducedMotion } from '@tasuki/web-kit/room';
++import { ConnectionBanner, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion } from '@tasuki/web-kit/room';
+ import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
+ import { TimeBand } from '../components/TimeBand';
+ import { TotalsPanel } from '../components/TotalsPanel';
+@@ -17,11 +17,12 @@
+ import { useTrackClock } from '../hooks/use-track-clock';
+ import { useTrackSync } from '../hooks/use-track-sync';
+ import { localTzOffsetMin } from '../platform/timezone';
+-import { hubPathFor } from '../router';
++import { hubPathFor, redirectTo } from '../router';
+ import { bandSummaryOf, formatElapsed, isUnnamed, nameOf, tabTitleOf } from '../track-view';
+ 
+ export function TrackDisplay({ roomCode }: { roomCode: string }) {
+   const sync = useTrackSync(roomCode);
++  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'track', hubPathFor, redirectTo });
+ 
+   if (sync.gone) return <RoomGoneView />;
+   // 玄関へは自動で送らない（名乗った後の戻り先は操作できるルームの画面で、映す画面へは戻れない）。

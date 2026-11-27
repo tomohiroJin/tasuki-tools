@@ -19,7 +19,10 @@ export interface TrackKeyHandlers {
   onResume(): void;
 }
 
-export function useTrackKeys(handlers: TrackKeyHandlers): void {
+/**
+ * `target` は聞き手を付ける文書。既定はこのページ。ミニ表示の窓の文書を渡すと、窓にも同じ処理を付ける（`null` なら付けない）。
+ */
+export function useTrackKeys(handlers: TrackKeyHandlers, target: Document | null = document): void {
   const latest = useRef(handlers);
   latest.current = handlers;
 
@@ -28,15 +31,17 @@ export function useTrackKeys(handlers: TrackKeyHandlers): void {
       const current = latest.current;
       if (!current.enabled) return;
       const action = keyActionOf(event, {
-        editable: isEditableTarget(document.activeElement),
-        dialogOpen: document.querySelector(BLOCKING) !== null,
+        editable: isEditableTarget((target ?? document).activeElement),
+        // 窓に付けたキーでも、本体の文書の確かめ・ダイアログを見る（窓の外で確かめが開いている間は S を拾わない）
+        dialogOpen: document.querySelector(BLOCKING) !== null || (target ?? document).querySelector(BLOCKING) !== null,
       });
       if (action === null) return;
       if (action.type === 'candidate') current.onCandidate(action.index);
       else if (action.type === 'stop') current.onStop();
       else current.onResume();
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+    if (target === null) return;
+    target.addEventListener('keydown', onKeyDown);
+    return () => target.removeEventListener('keydown', onKeyDown);
+  }, [target]);
 }
