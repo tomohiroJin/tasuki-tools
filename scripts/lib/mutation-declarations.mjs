@@ -298,6 +298,12 @@ const RESERVED_2920_2929 =
 const RESERVED_2930_2949 =
   "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
 
+const RESERVED_2950_2969 =
+  "**対応表より後に足した変異。** 2950〜2969 は #669（agenda の時間切れの音を選べる）の音の中核に割り当てた範囲。";
+
+const RESERVED_2970_2984 =
+  "**対応表より後に足した変異。** 2970〜2984 は #669（agenda の時間切れの音を選べる）の組む画面の音の欄に割り当てた範囲。";
+
 const RESERVED_3180_3209 =
   "**対応表より後に足した変異。** 3180〜3209 は #476 の第 2 段 D（映す画面・ミニ表示・時系列の帯）に割り当てた範囲。";
 
@@ -13980,6 +13986,134 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/turbo-env.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
+  },
+  {
+    id: 2950,
+    label: "時間切れの音を、解錠前（running でない）でも鳴らす",
+    patch: "m2950-play-chime-ignores-lock.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "解錠前の時間切れの音が resume を待って残り、次に画面を触った瞬間に遅れて鳴る。",
+  },
+  {
+    id: 2951,
+    label: "覚えた音の読み出しが、未知の値を既定へ戻さずそのまま使う",
+    patch: "m2951-chime-setting-keeps-unknown.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/chime-setting.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "一覧に無い id（古い版・手で書き換えた値）を覚えていると、選択欄が空になり時間切れの音が決まらない。",
+  },
+  {
+    id: 2952,
+    label: "ファイルの音が読めていないとき、時打ちで代えずに黙る",
+    patch: "m2952-unloaded-file-chime-stays-silent.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "音ファイルが未読・読み込み失敗・デコード失敗のとき、時間切れに何も鳴らない（D8 の代わりの時打ちが破れる）。",
+  },
+  {
+    id: 2953,
+    label: "時間切れに、選んだ音でなく時打ちを鳴らす",
+    patch: "m2953-run-signals-plays-strike-not-chosen.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "選んだ音を無視して常に時打ちが鳴る（音を選べる機能が働かない）。",
+  },
+  {
+    id: 2954,
+    label: "同じ音を何度も読み込む（fetch の結果を覚えない）",
+    patch: "m2954-chime-fetch-not-cached.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "選ぶたび・画面を開くたびに同じ mp3 を取り直し、通信が無駄に増える。",
+  },
+  {
+    id: 2955,
+    label: "AgendaRoom が組む画面へ時間切れの音の欄を渡さない",
+    patch: "m2955-agenda-room-omits-sound-settings.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#669。部品も単体の検査も揃っていても、組む画面に音の欄が出ず、音を選べない。",
+  },
+  {
+    id: 2956,
+    label: "AgendaRoom の音の選択が、選んだ id を端末に覚えず試聴だけする",
+    patch: "m2956-agenda-room-chime-change-not-saved.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_2950_2969 + " " + "#669。選んでも覚えず、時間切れの音が変わらない（選択欄だけ戻る）。",
+  },
+  {
+    id: 2957,
+    label: "上昇 2 音・下降 2 音の分岐を外し、トーンを選んでも時打ちを鳴らす",
+    patch: "m2957-tone-branch-disabled.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 のレビュー。上昇・下降を選んでも時打ちが鳴る（時打ちも 2 打なので、個数だけの検査は通ってしまう）。",
+  },
+  {
+    id: 2958,
+    label: "ベルの音ファイルの名前を melody にすり替える",
+    patch: "m2958-bell-file-name-swapped.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 のレビュー。ベルを選んでもメロディが鳴る（ファイル名と URL を確かめる検査が 1 件だけだと取り違えが通る）。",
+  },
+  {
+    id: 2959,
+    label: "取得・デコードの失敗を覚えたままにし、取り直さない",
+    patch: "m2959-chime-failure-remembered.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 の /code-review。一時的な失敗のあと再読み込みまで時打ちのままになる。",
+  },
+  {
+    id: 2960,
+    label: "試聴の前に、前の試聴の音を止めない",
+    patch: "m2960-preview-keeps-previous-sound.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 の /code-review。続けて押すと前の試聴が止まらず重なって鳴る。",
+  },
+  {
+    id: 2961,
+    label: "decodeAudioData に callback を渡さず Promise 形だけにする",
+    patch: "m2961-decode-ignores-callback-form.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 の /code-review。callback 形しか受けない古い Safari で、ファイルの音がデコードできず時打ちのままになる。",
+  },
+  {
+    id: 2962,
+    label: "読んでいる途中の試聴を、後の試聴が押されても鳴らす",
+    patch: "m2962-stale-preview-still-plays.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound.test.ts"],
+    note: RESERVED_2950_2969 + " " + "#669 の /code-review 後のレビュー。ファイルの取得中に別の音を試聴すると、読み終わった古い音が後から重なって鳴る。",
+  },
+  {
+    id: 2970,
+    label: "SoundSettings の音の種類の選択が、選んだ id でなく先頭の id を onChimeChange へ渡す",
+    patch: "m2970-sound-settings-wrong-chime-id.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound-settings.test.tsx"],
+    note: RESERVED_2970_2984 + " " + "#669。どの音を選んでも先頭の音（時打ち）に戻り、音を選べない。",
+  },
+  {
+    id: 2971,
+    label: "SoundSettings の「試しに鳴らす」が音なしのとき押せなくなる",
+    patch: "m2971-sound-settings-preview-disabled-when-off.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/sound-settings.test.tsx"],
+    note: RESERVED_2970_2984 + " " + "#669。音なしにしている端末で、選んだ音を試せない（D9: 明示の操作なので音なしでも鳴らす）。",
+  },
+  {
+    id: 2972,
+    label: "ScenarioBuilder が時間切れの音の欄を保存の一覧の後ろに描く",
+    patch: "m2972-sound-settings-after-saved-list.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_2970_2984 + " " + "#669。音の欄が保存の一覧の下へ押し下げられ、狭い幅で見つけにくい（D4: プレビューの下・保存の上）。",
   },
   {
     id: 3180,

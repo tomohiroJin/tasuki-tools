@@ -12,7 +12,10 @@ import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { redirectTo } from '../src/router';
 import {
+  CHIME_LABEL,
   EXTEND_LABEL,
+  PREVIEW_CHIME_BUTTON,
+  SOUND_SETTINGS_HEADING,
   FINISHED_ANNOUNCE,
   NEXT_BUTTON,
   PAUSE_BUTTON,
@@ -33,10 +36,10 @@ import {
   skipStepLabel,
   unskipStepLabel,
 } from '../src/copy';
-import { playStrike, unlockAudio } from '../src/platform/sound';
-import { SOUND_SETTING_KEY } from '../src/hooks/use-sound-setting';
+import { playChime, preloadChime, previewChime, unlockAudio } from '../src/platform/sound';
+import { CHIME_SETTING_KEY, SOUND_SETTING_KEY } from '../src/hooks/use-sound-setting';
 import { Driver, MIN } from './support/agenda-states';
-import { RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
+import { IDLE_AGENDA, RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/router')>()),
@@ -46,10 +49,13 @@ vi.mock('../src/router', async (importOriginal) => ({
 /** 解錠の状態（既定は解錠済み。覚えた「音あり」で開き直した局面だけ閉じる） */
 const audio = vi.hoisted(() => ({ unlocked: true, listeners: new Set<() => void>() }));
 
-vi.mock('../src/platform/sound', () => ({
+vi.mock('../src/platform/sound', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/platform/sound')>()),
+  preloadChime: vi.fn(),
   installAudioUnlock: vi.fn(),
   unlockAudio: vi.fn(),
-  playStrike: vi.fn(),
+  playChime: vi.fn(),
+  previewChime: vi.fn(),
   isAudioUnlocked: () => audio.unlocked,
   subscribeAudioState: (listener: () => void) => {
     audio.listeners.add(listener);
@@ -73,7 +79,9 @@ beforeEach(() => {
   vi.spyOn(performance, 'now').mockReturnValue(50_000);
   localStorage.clear();
   window.history.replaceState(null, '', '/agenda/?room=R1');
-  vi.mocked(playStrike).mockClear();
+  vi.mocked(playChime).mockClear();
+  vi.mocked(previewChime).mockClear();
+  vi.mocked(preloadChime).mockClear();
   vi.mocked(unlockAudio).mockClear();
   audio.unlocked = true;
 });
@@ -259,14 +267,14 @@ describe('時間切れの合図と音', () => {
     audio.unlocked = false;
     joinedRoom(runningAgenda(59_000));
     deliverAgenda(runningAgenda(60_000));
-    expect(playStrike).not.toHaveBeenCalled();
+    expect(playChime).not.toHaveBeenCalled();
     // 画面のどこかに触れた（`installAudioUnlock`）→ 解錠
     audioUnlocked();
     expect(screen.getByRole('button', { name: SOUND_ON })).toBeInTheDocument();
     const extended = (ms: number) => ({ ...runningAgenda(ms), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
     deliverAgenda(extended(119_000));
     deliverAgenda(extended(120_000));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
   });
 
   it('Given 解錠済みの「音あり」 / When 押す / Then 「音なし」に戻す', () => {
@@ -280,7 +288,7 @@ describe('時間切れの合図と音', () => {
   it('Given 音あり / When 最初に受けたフレームが残り −5 秒 / Then 鳴らさない（過去の 0 に対して鳴らさない）', () => {
     soundOn();
     joinedRoom(runningAgenda(65_000));
-    expect(playStrike).not.toHaveBeenCalled();
+    expect(playChime).not.toHaveBeenCalled();
   });
 
   it('Given 音あり・残り +1 秒で切断 / When 再接続で受けた最初のフレームが残り −5 秒 / Then 鳴らさない', () => {
@@ -292,23 +300,23 @@ describe('時間切れの合図と音', () => {
     expect(ScriptedWebSocket.instances.length).toBeGreaterThan(1);
     join();
     deliverAgenda(runningAgenda(65_000));
-    expect(playStrike).not.toHaveBeenCalled();
+    expect(playChime).not.toHaveBeenCalled();
   });
 
   it('Given 音あり・残り +1 秒 / When 残り 0 のフレーム、続けて −2 秒のフレームを受ける / Then 1 回だけ鳴らし、盤を光らせる', () => {
     soundOn();
     joinedRoom(runningAgenda(59_000));
     deliverAgenda(runningAgenda(60_000));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
     expect(document.querySelector('.dial--striking')).not.toBeNull();
     deliverAgenda(runningAgenda(62_000));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
   });
 
   it('Given 音なし / When 0 をまたぐ / Then 鳴らさないが、盤は光らせる', () => {
     joinedRoom(runningAgenda(59_000));
     deliverAgenda(runningAgenda(60_000));
-    expect(playStrike).not.toHaveBeenCalled();
+    expect(playChime).not.toHaveBeenCalled();
     expect(document.querySelector('.dial--striking')).not.toBeNull();
   });
 
@@ -332,27 +340,27 @@ describe('時間切れの合図と音', () => {
     });
     Reflect.deleteProperty(document, 'visibilityState');
     deliverAgenda(runningAgenda(65_000));
-    expect(playStrike).not.toHaveBeenCalled();
+    expect(playChime).not.toHaveBeenCalled();
     // その後の 0 またぎ（延長で正に戻って再び 0）は鳴らす
     deliverAgenda({ ...runningAgenda(119_000), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
     deliverAgenda({ ...runningAgenda(120_000), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
   });
 
   it('Given 音あり・0 をまたいで鳴らした / When 遅れの大きいフレームで残りが +30ms に戻り、再び 0 をまたぐ / Then 鳴らさず、延長してまたいだときは鳴らす', () => {
     soundOn();
     joinedRoom(runningAgenda(59_000));
     deliverAgenda(runningAgenda(60_000));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
     // 片道の遅れが大きいフレームで残りが +30ms に戻り、手元の時計（ここではフレーム）で再び 0 をまたぐ
     deliverAgenda(runningAgenda(59_970));
     deliverAgenda(runningAgenda(60_010));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
     // +1 分の延長で持ち時間が変わったあとの 0 またぎは、別の時間切れとして鳴らす（J20）
     const extended = (ms: number) => ({ ...runningAgenda(ms), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
     deliverAgenda(extended(119_000));
     deliverAgenda(extended(120_000));
-    expect(playStrike).toHaveBeenCalledTimes(2);
+    expect(playChime).toHaveBeenCalledTimes(2);
   });
 
   it('Given 音あり・自動で次へのステップの 0 を手元でまたいで鳴らした / When 遅れて +30ms のフレーム、続けて次へ移ったフレームを受ける / Then 二度目は鳴らさない', () => {
@@ -360,11 +368,11 @@ describe('時間切れの合図と音', () => {
     const d = new Driver([1, 2], undefined, 'advance');
     joinedRoom(d.view(1 * MIN - 1000));
     deliverAgenda(d.view(1 * MIN));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
     deliverAgenda(d.view(1 * MIN - 30));
     d.tick(1 * MIN + 20);
     deliverAgenda(d.view(1 * MIN + 20));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
   });
 
   it('Given 音あり・0 をまたいで鳴らした / When 最初からやり直して同じステップで再び 0 をまたぐ / Then もう一度鳴らす', () => {
@@ -374,7 +382,7 @@ describe('時間切れの合図と音', () => {
     deliverAgenda({ ...runningAgenda(0), phase: 'idle', currentId: null });
     deliverAgenda(runningAgenda(59_000));
     deliverAgenda(runningAgenda(60_000));
-    expect(playStrike).toHaveBeenCalledTimes(2);
+    expect(playChime).toHaveBeenCalledTimes(2);
   });
 
   it('Given 光らせた / When 600ms 過ぎる / Then 光を下ろす', () => {
@@ -402,9 +410,25 @@ describe('自動で次へ移ったときの合図', () => {
     joinedRoom(d.view(1 * MIN - 30));
     d.tick(1 * MIN + 20);
     deliverAgenda(d.view(1 * MIN + 20));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
     expect(document.querySelector('.dial--striking')).not.toBeNull();
     expect(live()).toContain(TIMEOUT_ANNOUNCE);
+  });
+
+  it('Given 音あり・選んだ音が bell / When 時間切れ / Then 選んだ id を鳴らす', () => {
+    localStorage.setItem(SOUND_SETTING_KEY, 'on');
+    localStorage.setItem(CHIME_SETTING_KEY, 'bell');
+    const d = new Driver([1, 2], undefined, 'advance');
+    joinedRoom(d.view(1 * MIN - 30));
+    d.tick(1 * MIN + 20);
+    deliverAgenda(d.view(1 * MIN + 20));
+    expect(playChime).toHaveBeenCalledWith('bell');
+  });
+
+  it('Given 選んだ音が bell / When 進める画面を開く / Then 選んだ音を先に読む', () => {
+    localStorage.setItem(CHIME_SETTING_KEY, 'bell');
+    joinedRoom(runningAgenda(1000));
+    expect(preloadChime).toHaveBeenCalledWith('bell');
   });
 
   it('Given 音あり・最後のステップが自動で次へ・残り +30ms / When 終了へ移ったフレームを受ける / Then 鳴らし、時間切れと終了を読み上げる', () => {
@@ -413,7 +437,7 @@ describe('自動で次へ移ったときの合図', () => {
     joinedRoom(d.view(1 * MIN - 30));
     d.tick(1 * MIN + 20);
     deliverAgenda(d.view(1 * MIN + 20));
-    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(playChime).toHaveBeenCalledTimes(1);
     expect(live()).toContain(TIMEOUT_ANNOUNCE);
     expect(live()).toContain(FINISHED_ANNOUNCE);
   });
@@ -424,7 +448,7 @@ describe('自動で次へ移ったときの合図', () => {
     joinedRoom(d.view(30_000));
     d.next(31_000);
     deliverAgenda(d.view(31_000));
-    expect(playStrike).not.toHaveBeenCalled();
+    expect(playChime).not.toHaveBeenCalled();
     expect(live()).not.toContain(TIMEOUT_ANNOUNCE);
   });
 });
@@ -643,5 +667,45 @@ describe('玄関へ送るとき', () => {
 
     expect(ScriptedWebSocket.instances).toHaveLength(0);
     expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=agenda');
+  });
+});
+
+/**
+ * 組む画面の「時間切れの音」の欄の配線（#669 D4・D5・D9）。
+ *
+ * @requirements #669
+ */
+describe('時間切れの音の設定（組む画面）', () => {
+  it('Given 開始前のルーム / When 組む画面を開く / Then 「時間切れの音」の欄が出て、覚えた音を先に読む', () => {
+    localStorage.setItem(CHIME_SETTING_KEY, 'bell');
+    joinedRoom(IDLE_AGENDA);
+    expect(screen.getByRole('heading', { name: SOUND_SETTINGS_HEADING })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: CHIME_LABEL })).toHaveValue('bell');
+    expect(preloadChime).toHaveBeenCalledWith('bell');
+  });
+
+  it('Given 開始前のルーム / When 音の種類を変える / Then 端末に覚え、進める画面の時間切れでその音を鳴らす', () => {
+    localStorage.setItem(SOUND_SETTING_KEY, 'on');
+    joinedRoom(IDLE_AGENDA);
+    fireEvent.change(screen.getByRole('combobox', { name: CHIME_LABEL }), { target: { value: 'bell' } });
+    expect(localStorage.getItem(CHIME_SETTING_KEY)).toBe('bell');
+    const d = new Driver([1, 2], undefined, 'advance');
+    deliverAgenda(d.view(1 * MIN - 30));
+    d.tick(1 * MIN + 20);
+    deliverAgenda(d.view(1 * MIN + 20));
+    expect(playChime).toHaveBeenCalledWith('bell');
+  });
+
+  it('Given 開始前のルーム / When 知らない音の値が来る / Then 捨てて覚えない', () => {
+    joinedRoom(IDLE_AGENDA);
+    fireEvent.change(screen.getByRole('combobox', { name: CHIME_LABEL }), { target: { value: 'no-such' } });
+    expect(localStorage.getItem(CHIME_SETTING_KEY)).toBeNull();
+  });
+
+  it('Given 音を選んだ組む画面 / When 「試しに鳴らす」を押す / Then 選んだ音を試聴する', () => {
+    joinedRoom(IDLE_AGENDA);
+    fireEvent.change(screen.getByRole('combobox', { name: CHIME_LABEL }), { target: { value: 'bell' } });
+    fireEvent.click(screen.getByRole('button', { name: PREVIEW_CHIME_BUTTON }));
+    expect(previewChime).toHaveBeenCalledWith('bell');
   });
 });

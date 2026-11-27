@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/hooks/use-sound-setting.ts b/apps/agenda-web/src/hooks/use-sound-setting.ts
+index 64dab599..a28e48ee 100644
+--- a/apps/agenda-web/src/hooks/use-sound-setting.ts
++++ b/apps/agenda-web/src/hooks/use-sound-setting.ts
+@@ -29,7 +29,7 @@ export const CHIME_SETTING_KEY = 'tasuki.agenda.chime';
+ function readChime(): ChimeId {
+   try {
+     const v = localStorage.getItem(CHIME_SETTING_KEY);
+-    return isChimeId(v) ? v : DEFAULT_CHIME_ID;
++    return v === null ? DEFAULT_CHIME_ID : (v as ChimeId);
+   } catch {
+     return DEFAULT_CHIME_ID;
+   }

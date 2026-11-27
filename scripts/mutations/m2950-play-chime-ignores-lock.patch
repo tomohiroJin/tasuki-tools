@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+index 3036eba9..066cd669 100644
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -273,7 +273,7 @@ async function playBuffer(ctx: AudioContext, buffer: AudioBuffer): Promise<void>
+  */
+ export function playChime(id: ChimeId): void {
+   const ctx = getSharedAudioContext();
+-  if (!ctx || ctx.state !== 'running') return;
++  if (!ctx) return;
+   playNow(ctx, id);
+ }
+ 

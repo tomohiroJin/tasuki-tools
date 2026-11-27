@@ -180,6 +180,39 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
 });
 
 /**
+ * 時間切れの音を選べる（#669）。`@core` ではない（本番の確かめには入れない・ルームを 1 つ足す。
+ * 音そのものは自動で聞けないので、欄・端末への記憶・音源の配信だけを見る）。
+ */
+test.describe('進行タイマーは時間切れの音を選べる', () => {
+  test('Given 組む画面 / When 音を女声に変えて再読み込み / Then 11 個の選択肢（先頭は時打ち）・選びは残り・音源が配られる（#669）', async ({
+    page,
+    consoleWatcher,
+  }) => {
+    await openAgendaTool(page, NAME_A);
+
+    const select = page.getByRole('combobox', { name: '音の種類' });
+    await expect(page.getByRole('heading', { name: '時間切れの音', exact: true })).toBeVisible();
+    await expect(select.getByRole('option')).toHaveCount(11);
+    await expect(select.getByRole('option').first()).toHaveText('時打ち');
+    await expect(select).toHaveValue('strike');
+
+    await select.selectOption({ label: '音声（女声）' });
+    await expect(select).toHaveValue('voice-female');
+    await page.reload();
+    await expect(page.getByRole('combobox', { name: '音の種類' })).toHaveValue('voice-female');
+
+    // 音源が Caddy 越しに配られる（同梱のファイルとして）
+    for (const file of ['timeout-female.mp3', 'department.mp3']) {
+      const response = await page.request.get(`/agenda/sounds/${file}`);
+      expect(response.status(), file).toBe(200);
+      expect(response.headers()['content-type'], file).toContain('audio');
+    }
+
+    expect(consoleWatcher.errors).toEqual([]);
+  });
+});
+
+/**
  * 終了の一覧を Markdown でコピーする（#676）。`@core` ではない（本番の確かめには入れない・ルームを 1 つ足す）。
  */
 test.describe('進行タイマーは終了の一覧を Markdown でコピーできる', () => {

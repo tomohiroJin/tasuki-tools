@@ -191,6 +191,11 @@ export const SOUND_OFF = '音なし';
 /** 「音あり」を覚えているが、開き直して解錠されていない（押すと 1 回で有効になる） */
 export const SOUND_LOCKED = '音を有効に';
 
+// 組む画面の「時間切れの音」の欄（#669）
+export const SOUND_SETTINGS_HEADING = '時間切れの音';
+export const CHIME_LABEL = '音の種類';
+export const PREVIEW_CHIME_BUTTON = '試しに鳴らす';
+
 /** 操作の失敗の一言を閉じる */
 export const CLOSE_BUTTON = '閉じる';
 

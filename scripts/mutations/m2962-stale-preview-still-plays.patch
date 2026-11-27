@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+index 088adb84..e8013bff 100644
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -321,7 +321,7 @@ export function previewChime(id: ChimeId): void {
+   }
+   void decodeChime(id).then(() => {
+     // 読んでいる間に次の試聴が押されていたら、こちらは鳴らさない
+-    if (mine === previewSeq) playNow(ctx, id, previewNodes);
++    if (mine === mine) playNow(ctx, id, previewNodes);
+   });
+ }
+ 
