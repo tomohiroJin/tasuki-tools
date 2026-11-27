@@ -82,6 +82,29 @@ describe('SyncConnection', () => {
     expect(conn.send({ command: 'd' })).toBe('dropped');
   });
 
+  it('Given 確立済み・未接続・閉じかけ・破棄済み / When sendIfOpen する / Then 確立済みだけ送り、ほかは溜めずに false（#677）', () => {
+    const conn = new SyncConnection({ url: 'ws://example/ws', onMessage: () => {} });
+    conn.connect();
+
+    // 未接続（確立前）は送らず、溜めもしない（確立しても流れない）
+    expect(conn.sendIfOpen({ command: 'a' })).toBe(false);
+    latest().open();
+    expect(latest().sent).toEqual([]);
+    // 確立済みはその場で送る
+    expect(conn.sendIfOpen({ command: 'b' })).toBe(true);
+    expect(latest().sent).toEqual([JSON.stringify({ command: 'b' })]);
+    // 閉じかけは送らず、溜めない（繋ぎ直しても流れない）
+    latest().readyState = 2;
+    expect(conn.sendIfOpen({ command: 'c' })).toBe(false);
+    latest().onclose?.();
+    vi.runOnlyPendingTimers();
+    latest().open();
+    expect(latest().sent).toEqual([]);
+    // 破棄済みは送らない
+    conn.dispose();
+    expect(conn.sendIfOpen({ command: 'd' })).toBe(false);
+  });
+
   it('Given 確立済み / When send する / Then その場で送られる', () => {
     // Given
     const conn = new SyncConnection({ url: 'ws://example/ws', onMessage: () => {} });
