@@ -14126,6 +14126,22 @@ export const MUTATIONS = [
     note: RESERVED_2950_2969 + " " + "#670。画面外から滑り込む帯と字が横の scroll を出す。",
   },
   {
+    id: 2960,
+    label: "カットインの添え書きを 1 行に戻す（nowrap）",
+    patch: "m2960-cutin-sub-nowrap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/cut-in.test.mjs"],
+    note: RESERVED_2950_2969 + " " + "#670 のレビュー。Check-in Cards の長い要約（23 字）が 320px で両端から切れる。",
+  },
+  {
+    id: 2961,
+    label: "カットインの添え書きを、舞台（画面の 120% 幅）いっぱいに置く",
+    patch: "m2961-cutin-sub-full-stage-width.patch",
+    pkg: "packages/ui",
+    tests: ["tests/cut-in.test.mjs"],
+    note: RESERVED_2950_2969 + " " + "#670 のレビュー。折り返しても、添え書きの両端が画面の外に出て切れる。",
+  },
+  {
     id: 2990,
     label: "ほぼ同じの判定を、大きく割れたより先に置く",
     patch: "m2990-effect-near-before-split.patch",
