@@ -1,0 +1,11 @@
+diff --git a/apps/checkin-web/src/cut-in-view.ts b/apps/checkin-web/src/cut-in-view.ts
+index 08063c49..eb789a31 100644
+--- a/apps/checkin-web/src/cut-in-view.ts
++++ b/apps/checkin-web/src/cut-in-view.ts
+@@ -74,5 +74,5 @@ export function seenRoundOf(
+ 
+ /** 同じ回が投票中（open）から開いた（revealed）のを、前の描画から今の描画で見届けたか */
+ export function revealedLiveAfter(previous: SeenRound | null, next: SeenRound | null): boolean {
+-  return previous !== null && next !== null && previous.status === 'open' && next.status === 'revealed' && previous.seq === next.seq;
++  return next !== null && (previous === null || previous.status === 'open') && next.status === 'revealed' && previous.seq === next.seq;
+ }

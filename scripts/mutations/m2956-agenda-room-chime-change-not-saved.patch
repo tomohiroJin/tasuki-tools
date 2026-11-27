@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
+--- a/apps/agenda-web/src/screens/AgendaRoom.tsx
++++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
+@@ -114,7 +114,7 @@ function PhaseView({
+   // 知らない値は捨てる（端末の設定を壊さない）
+   const onChimeChange = useCallback(
+     (id: string) => {
+-      if (isChimeId(id)) setChimeId(id);
++      if (isChimeId(id)) previewChime(id);
+     },
+     [setChimeId],
+   );

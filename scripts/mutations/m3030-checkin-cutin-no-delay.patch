@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
+index fd2d6900..e08685cf 100644
+--- a/apps/checkin-web/src/screens/CheckinRoom.tsx
++++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
+@@ -85,7 +85,7 @@ function useRevealCutIn(joined: boolean, view: CheckinView | null): CutInCue | n
+     const round = view?.round;
+     if (revealedLiveAfter(prev, seen) && round?.status === 'revealed') {
+       const piles = orderedPiles(round.method, round.piles);
+-      setCue({ id: round.seq, delayMs: cutInDelayMs(piles), ...cutInOf(round.method, piles) });
++      setCue({ id: round.seq, delayMs: 0, ...cutInOf(round.method, piles) });
+     } else if (cue !== null && !(seen?.status === 'revealed' && seen.seq === cue.id)) {
+       setCue(null);
+     }

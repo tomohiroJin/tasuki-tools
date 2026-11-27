@@ -9,11 +9,12 @@
  * - 切断中（`sync.joined` が偽）は卓の操作を押させない（`canOperate`。agenda と同じ）。接続の告知を帯で出す
  * - 開いたことは常に置いた `aria-live` の領域で読み上げる（文だけを差し替える。agenda と同じ）
  * - 画面が替わったら、フォーカスを問いの見出し（選択画面なら選択の見出し）へ移す（`useLandingFocus`）
+ * - 札が開いたら全画面のカットインを出す（#670）。**開くのを接続中に見届けた描画**でだけ（`cut-in-view.ts`）
  */
 import { useEffect, useRef, useState } from 'react';
-import { METHODS } from '@tasuki/checkin-core';
+import { METHODS, type CheckinView } from '@tasuki/checkin-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, RoomCallNotice } from '@tasuki/web-kit/room';
+import { ConnectionBanner, CutIn, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, RoomCallNotice, type CutInCue } from '@tasuki/web-kit/room';
 import { Hand, SpectatorToggle } from '../components/Hand';
 import { MethodPicker } from '../components/MethodPicker';
 import { PromptPanel } from '../components/PromptPanel';
@@ -22,6 +23,7 @@ import { RevealCopy } from '../components/RevealCopy';
 import { RoundDock } from '../components/RoundDock';
 import { SeatRow } from '../components/SeatRow';
 import { CLOSE_BUTTON, PAGE_HEADING } from '../copy';
+import { cutInDelayMs, cutInOf, revealedLiveAfter, seenRoundOf, type SeenRound } from '../cut-in-view';
 import { useCheckinSync } from '../hooks/use-checkin-sync';
 import { useRevealExport } from '../hooks/use-reveal-export';
 import { orderedPiles, summaryLine } from '../reveal-view';
@@ -58,6 +60,39 @@ function useLandingFocus(key: string) {
   };
 }
 
+/**
+ * 札が開いたときのカットインの cue（#670）。**この画面が実際に見た出来事**だけで決める（状態の中身から回を推し量らない）。
+ * - 出す: 接続中に、同じ回が投票中から開いたのを見た描画。中身はその瞬間の山で一度だけ決める（`id` は回の `seq`）
+ * - 捨てる: 見届けた回が開いたままでなくなった（次の回・見ていない状態）
+ * - 変えない: 同じ回の名簿・見学の変化、「別のやり方」を開いて戻る、状態の届き直し（`CutIn` は同じ `id` を出し直さない）
+ * 再接続の直後は、切れる前の古い状態が残ったまま `joined` だけが真になるので、その実体を控えて見ていないものとして扱う。
+ * 前の描画と比べて決める（描画中に状態を調整する React の型。poker の `RoomPage` と同じ）。
+ */
+function useRevealCutIn(joined: boolean, view: CheckinView | null): CutInCue | null {
+  const [seenJoined, setSeenJoined] = useState(joined);
+  const [staleView, setStaleView] = useState<CheckinView | null>(null);
+  // この描画で決まる次の控えから計算する（`set` は予約されるだけなので、古い控えで計算した値を渡さない）
+  const nextStale = joined !== seenJoined ? (joined ? view : null) : staleView;
+  if (joined !== seenJoined) {
+    setSeenJoined(joined);
+    setStaleView(nextStale);
+  }
+  const seen = seenRoundOf(joined, view, nextStale);
+  const [prev, setPrev] = useState<SeenRound | null>(seen);
+  const [cue, setCue] = useState<CutInCue | null>(null);
+  if (seen?.seq !== prev?.seq || seen?.status !== prev?.status) {
+    setPrev(seen);
+    const round = view?.round;
+    if (revealedLiveAfter(prev, seen) && round?.status === 'revealed') {
+      const piles = orderedPiles(round.method, round.piles);
+      setCue({ id: round.seq, delayMs: cutInDelayMs(piles), ...cutInOf(round.method, piles) });
+    } else if (cue !== null && !(seen?.status === 'revealed' && seen.seq === cue.id)) {
+      setCue(null);
+    }
+  }
+  return cue;
+}
+
 export function CheckinRoom({ roomCode }: { roomCode: string }) {
   const sync = useCheckinSync(roomCode);
   // 「別のやり方」を押したあとの手元だけの状態。押しても他の人の回は変わらない
@@ -73,6 +108,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   }, [roundSeq]);
   // 結果の持ち出しの時刻と欄の状態は、卓の出し入れ（別のやり方→戻る）で捨てない層で、回ごとに持つ（#676）
   const revealExport = useRevealExport(round?.status === 'revealed' ? round.seq : null);
+  const cutInCue = useRevealCutIn(sync.joined, view);
   const focusKey = showPicker ? 'picker' : round === null ? NO_VIEW_KEY : `${round.seq}:${round.status}`;
   const { targetRef, markOwnAction } = useLandingFocus(focusKey);
 
@@ -207,6 +243,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
       <p className="ui-visually-hidden checkin-live" aria-live="polite">
         {announcement}
       </p>
+      <CutIn cue={cutInCue} />
     </main>
   );
 }

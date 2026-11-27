@@ -1,0 +1,14 @@
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 77a69e81..70cb4b9d 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -315,8 +315,8 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart, soundSettin
+             </button>
+           </div>
+         </section>
+-        {soundSettings}
+         <SavedScenarioList scenario={check.ok ? check.input : null} suggestedName={draft.title} onPick={(s) => setDraft(draftFromInput(s))} />
++        {soundSettings}
+       </div>
+     </div>
+   );

@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/agreement.ts b/packages/poker-core/src/agreement.ts
+index 62ff2ea4..05be7c5f 100644
+--- a/packages/poker-core/src/agreement.ts
++++ b/packages/poker-core/src/agreement.ts
+@@ -18,7 +18,7 @@ export const BREAK_MIN_VOTES = 2;
+  * ほぼ同じ（#670）の下限。2 票で割れるのは「一致でない」だけで、ほぼ同じとは言えない。
+  * 3 票あって初めて「2 人がそろい、1 人だけ違う」が成り立つ
+  */
+-export const NEAR_MIN_VOTES = 3;
++export const NEAR_MIN_VOTES = 2;
+ 
+ export type Agreement = 'unanimous' | 'scattered';
+ 

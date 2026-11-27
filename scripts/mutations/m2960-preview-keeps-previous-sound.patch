@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -314,7 +314,7 @@ export function previewChime(id: ChimeId): void {
+   const mine = ++previewSeq;
+   for (const node of previewNodes.splice(0)) {
+     try {
+-      node.stop();
++      void node;
+     } catch {
+       /* まだ始まっていない・終わっている音の stop は無視する */
+     }

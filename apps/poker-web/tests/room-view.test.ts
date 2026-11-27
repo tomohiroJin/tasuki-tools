@@ -131,12 +131,49 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), three)).toBe('unanimous');
   });
 
-  it('同じ札が 1 組も無ければ scattered', () => {
+  it('同じ札が 1 組も無ければ、大きく離れていても scattered（バラバラが割れより先。3 枚すべて違えば必ず 2 段以上離れるので、割れを先に見るとバラバラが出なくなる）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), three)).toBe('scattered');
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(3)], ['c', n(5)]]), three)).toBe('scattered');
   });
 
-  it('全員が出したが一致でもバラバラでもなければ complete（全員の投票完了。投票完了は自動で開票されるので、開票と同時に届く）', () => {
-    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(8)]]), three)).toBe('complete');
+  it('大きく割れた（2 段以上。1 と 13 は 5 段）なら、同じ札が 2 組あっても split', () => {
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(1)], ['c', n(13)]]), three)).toBe('split');
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(13)]]), [person('a'), person('b')])).toBe('split');
+  });
+
+  it('3 票・2 種類で片方がちょうど 1 枚（割れてはいない）なら near。誰が違うかは返さない', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(8)]]), three)).toBe('near');
+    expect(resultsEffectOf(revealed([['a', n(3)], ['b', n(5)], ['c', n(5)]]), three)).toBe('near');
+  });
+
+  it('2 票で違う（隣同士）なら near にしない。complete（2 人で違うのはよくある）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), [person('a'), person('b')])).toBe('complete');
+  });
+
+  it('割れても近くもない（2 種類が 2 枚ずつ）なら complete（全員の投票完了。投票完了は自動で開票されるので、開票と同時に届く）', () => {
+    const four = [person('a'), person('b'), person('c'), person('d')];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(8)], ['d', n(8)]]), four)).toBe('complete');
+  });
+
+  it('? が混ざった near の形（5・5・?）は complete。? 入りの 4 票（5・5・8・?）も near にしない', () => {
+    const four = [person('a'), person('b'), person('c'), person('d')];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(8)], ['d', { kind: 'question' }]]), four)).toBe('complete');
+  });
+
+  it('☕ と数字が混ざれば break にならない（1 枚でも別の札が混ざれば complete）', () => {
+    const two = [person('a'), person('b')];
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', n(5)]]), two)).toBe('complete');
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }], ['c', n(5)]]), three)).toBe('complete');
+  });
+
+  it('全員が ☕（3 票）でも break。? だけの全員は break にならない', () => {
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }], ['c', { kind: 'coffee' }]]), three)).toBe('break');
+    expect(resultsEffectOf(revealed([['a', { kind: 'question' }], ['b', { kind: 'question' }]]), [person('a'), person('b')])).toBe('complete');
+  });
+
+  it('見学者の票が残っていても、接続中の投票者が全員 ☕ を出していれば break（票は卓に見える全票で判定する）', () => {
+    const people = [person('a'), person('b'), person('w', { spectator: true })];
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }]]), people)).toBe('break');
   });
 
   it('? が混ざれば、全員が出していても complete（一致・バラバラにはならない）', () => {
@@ -152,7 +189,7 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)]]), five)).toBeNull();
   });
 
-  it('接続中の 5 人のうち 3 人だけが違う札を出して手動で開票したなら、scattered にしない', () => {
+  it('接続中の 5 人のうち 3 人だけが違う札を出して手動で開票したなら、split にしない', () => {
     const five = [person('a'), person('b'), person('c'), person('d'), person('e')];
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), five)).toBeNull();
   });
@@ -172,14 +209,14 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(13)]]), people)).toBe('scattered');
   });
 
-  it('接続中の 2 人が同じ 5 で、切断した人が 13 を出していたなら、見える札は同じでないので complete', () => {
+  it('接続中の 2 人が同じ 5 で、切断した人が 13 を出していたなら、見える札は 3 段離れているので split', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
-    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(13)]]), people)).toBe('complete');
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(13)]]), people)).toBe('split');
   });
 
-  it('接続中の 3 人が 1・5・8 で、切断した人が 5 を出していたなら、見える札に同じ 5 があるので complete', () => {
+  it('接続中の 3 人が 1・5・8 で、切断した人が 5 を出していたなら、見える札は 1〜8 の 3 段離れるので split', () => {
     const people = [person('a'), person('b'), person('c'), person('d', { connected: false })];
-    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)], ['d', n(5)]]), people)).toBe('complete');
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)], ['d', n(5)]]), people)).toBe('split');
   });
 
   it('名簿に居ない人の票も見える札として判定に入る（接続中の 2 人と 5・5・5）', () => {
@@ -201,8 +238,8 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)]]), [person('a')])).toBeNull();
   });
 
-  it('全員が ☕ なら unanimous にはならず complete（休憩の演出は第 2 段。テーブルが出る間は結果の節ごと描かれない）', () => {
-    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }]]), [person('a'), person('b')])).toBe('complete');
+  it('全員が ☕（2 票）なら unanimous にはならず break（全員休憩）', () => {
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }]]), [person('a'), person('b')])).toBe('break');
   });
 });
 

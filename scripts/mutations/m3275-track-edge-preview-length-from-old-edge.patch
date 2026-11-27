@@ -1,0 +1,23 @@
+# 変異 3275: track-edge-preview-length-from-old-edge
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 端を合わせる欄の「読み取った時間」の長さが、動かした後でなく動かす前の端から数えたものになる（23:30 になることに気づけない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3275-*.patch
+# 復元: git apply -R scripts/mutations/m3275-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -201,7 +201,7 @@
+     startYesterday: start.yesterday,
+     endClock: end.clock,
+     endYesterday: end.yesterday,
+-    lengthMin: Math.floor((endMs - startMs) / MS_PER_MIN),
++    lengthMin: Math.floor((endMs - (edge === 'start' ? currentMs : startMs)) / MS_PER_MIN),
+   };
+ }
+

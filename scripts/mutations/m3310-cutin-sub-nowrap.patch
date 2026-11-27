@@ -1,0 +1,13 @@
+diff --git a/packages/ui/src/components/cut-in.css b/packages/ui/src/components/cut-in.css
+index 3eba0880..6f99221a 100644
+--- a/packages/ui/src/components/cut-in.css
++++ b/packages/ui/src/components/cut-in.css
+@@ -163,7 +163,7 @@
+    （nowrap のままだと 320px で両端が切れる。12% では傾いた外枠が 320px で 5px はみ出した） */
+ .ui-cutin-sub {
+   inset-inline: 15%;
+-  white-space: normal;
++  white-space: nowrap;
+   text-wrap-style: balance; /* 一括指定の text-wrap は text-wrap-mode（折り返すか）も書き換えて white-space を打ち消すので、形だけの個別指定にする */
+   line-height: 1.5;
+   inset-block-start: 100%;

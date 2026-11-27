@@ -1,0 +1,23 @@
+# 変異 3113: track-clear-focus-error-fallback-off
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 「記録を消す」が拒まれても、元のボタンへフォーカスを戻さない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3113-*.patch
+# 復元: git apply -R scripts/mutations/m3113-*.patch
+diff --git a/apps/track-web/src/components/TakeHome.tsx b/apps/track-web/src/components/TakeHome.tsx
+index 06955ba3..54ab7037 100644
+--- a/apps/track-web/src/components/TakeHome.tsx
++++ b/apps/track-web/src/components/TakeHome.tsx
+@@ -101,7 +101,7 @@ function ClearControl({
+       // 空の写しが届いた。元のボタンは押せなくなったので、次に押すもの（開始）へ
+       setPending(false);
+       onCleared();
+-    } else if (error !== null || !canOperate) {
++    } else if (!canOperate) {
+       // 拒まれた・切れた。元のボタンへ戻す
+       setPending(false);
+       setReturnFocus(true);

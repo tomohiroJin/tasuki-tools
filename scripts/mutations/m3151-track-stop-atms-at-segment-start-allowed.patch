@@ -1,0 +1,22 @@
+# 変異 3151: track-stop-atms-at-segment-start-allowed
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 停止の位置・休憩の始まりに、計測中の区切りの始まりちょうどを許す（「始まりより後」の境界が 1 つずれる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3151-*.patch
+# 復元: git apply -R scripts/mutations/m3151-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -103,7 +103,7 @@
+  * `backMin`（15 分まで）にとっては、始まりより後かどうかだけが効く。
+  */
+ export function isBackdatePosition(running: Segment, t: number, nowMs: number): boolean {
+-  return t > running.startMs && nowMs - t >= MIN_SEGMENT_MS && nowMs - t <= MAX_LOOKBACK_MS;
++  return t >= running.startMs && nowMs - t >= MIN_SEGMENT_MS && nowMs - t <= MAX_LOOKBACK_MS;
+ }
+ 
+ /**

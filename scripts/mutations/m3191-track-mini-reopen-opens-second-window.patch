@@ -1,0 +1,25 @@
+# 変異 3191: track-mini-reopen-opens-second-window
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#
+# #476 開いている小さな窓があっても、もう一度開こうとして重ねて頼む。D3。窓が増える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3191-*.patch
+# 復元: git apply -R scripts/mutations/m3191-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+index 340bbe5c..eef117ac 100644
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -45,10 +45,6 @@ export function useMiniWindow(): MiniWindow {
+   }, [release]);
+ 
+   const open = useCallback(async (): Promise<void> => {
+-    if (windowRef.current !== null) {
+-      windowRef.current.focus();
+-      return;
+-    }
+     if (requestingRef.current) return;
+     requestingRef.current = true;
+     try {

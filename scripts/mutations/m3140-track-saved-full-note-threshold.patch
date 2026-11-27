@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/components/TakeHome.tsx b/apps/track-web/src/components/TakeHome.tsx
+index 5daa8850..7cef081e 100644
+--- a/apps/track-web/src/components/TakeHome.tsx
++++ b/apps/track-web/src/components/TakeHome.tsx
+@@ -89,7 +89,7 @@ export function TakeHome({ markdown, hasRecord, canOperate, onClear, savedCount,
+       </div>
+       <p className="ui-note track-save-note">{SAVE_NOTE}</p>
+       {/* 上限に達していれば、押す前に、いちばん古い 1 件が消えることを示す */}
+-      {savedCount !== null && savedCount >= MAX_SAVED_RECORDS && <p className="ui-note track-save-note">{saveFullNote(MAX_SAVED_RECORDS)}</p>}
++      {savedCount !== null && savedCount > MAX_SAVED_RECORDS && <p className="ui-note track-save-note">{saveFullNote(MAX_SAVED_RECORDS)}</p>}
+       {manualOpen && (
+         <textarea
+           aria-label={COPY_MANUAL_FIELD}

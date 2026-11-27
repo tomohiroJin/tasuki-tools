@@ -1,0 +1,449 @@
+/* ============================================================
+   Tasuki UI — カットイン（#670・格闘ゲーム・RPG の必殺技の見せ方）
+   画面の全体に重なる層。一瞬の暗転と閃光 → 斜めの太い帯が左から突っ込む → 帯の中を集中線が流れる →
+   大きな字が右から滑り込んで止まり、少し震える → 火花が散る → 帯ごと右へ抜けて消える。
+
+   **操作を奪わない**: `pointer-events: none`・`overflow: hidden`（横の scroll を出さない）。描画側（`CutIn`・
+   `@tasuki/web-kit/room`）は `aria-hidden` で `document.body` へ出し、中にフォーカスできる物を置かない。
+   **動かすのは transform・opacity・clip-path・filter だけ**（折り返し・高さを変えない）。
+   **動きを減らす設定では層ごと出さない**（`CutIn` が描かない。ここでも念のため `display: none`）。
+
+   **時間の正本は TS の `CUTIN_DURATION_MS`**。CSS へは `--cutin-duration`（層の style）で渡され、ここは
+   その中の割合だけを持つ。数を CSS に写さない。
+   **色は tone ごとに `color` だけを決める**。帯の縁・集中線・火花・字の光は `currentColor`（と、その
+   `color-mix()`）から引くので、場面を足しても `color` の 1 行で済む。
+   ============================================================ */
+
+.ui-cutin {
+  position: fixed;
+  inset: 0;
+  z-index: 100; /* 接続の告知の帯（10）・agenda の映す表示（20）・ダイアログより上。操作は奪わない */
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+  color: var(--ivory);
+}
+
+.ui-cutin[data-tone='gold'] {
+  color: var(--gold-bright);
+}
+
+.ui-cutin[data-tone='rose'] {
+  color: var(--rose-bright);
+}
+
+.ui-cutin[data-tone='jade'] {
+  color: var(--jade-lift);
+}
+
+.ui-cutin[data-tone='ivory'] {
+  color: var(--ivory);
+}
+
+/* ---- 一瞬の暗転と閃光 ---- */
+
+.ui-cutin-veil,
+.ui-cutin-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+
+.ui-cutin-veil {
+  background: var(--felt-scrim);
+  animation-name: ui-cutin-veil;
+}
+
+.ui-cutin-flash {
+  background: var(--ivory);
+  animation-name: ui-cutin-flash;
+}
+
+/* ---- 斜めの帯（左から突っ込んで止まり、右へ抜ける） ---- */
+
+.ui-cutin-stage {
+  position: absolute;
+  inset-inline: -10%;
+  inset-block: 0;
+  margin-block: auto;
+  height: clamp(7rem, 28vmin, 12rem);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  transform: rotate(-8deg);
+  animation-name: ui-cutin-stage;
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.ui-cutin-band {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-block: 2px solid currentColor;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, currentColor 22%, transparent) 35%,
+      color-mix(in srgb, currentColor 22%, transparent) 65%,
+      transparent
+    ),
+    var(--felt-950);
+  box-shadow:
+    0 0 2.5rem color-mix(in srgb, currentColor 45%, transparent),
+    inset 0 0 3rem color-mix(in srgb, currentColor 20%, transparent);
+  animation-name: ui-cutin-band;
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+
+/* 集中線と光の筋。幅を 2 倍に取った縞を、横へ流す */
+.ui-cutin-streaks {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 200%;
+  background: repeating-linear-gradient(
+    98deg,
+    transparent 0 1.4rem,
+    color-mix(in srgb, currentColor 30%, transparent) 1.4rem 1.55rem,
+    transparent 1.55rem 3.4rem
+  );
+  animation-name: ui-cutin-streaks;
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+
+/* 奥の筋: 細く、逆向きに、ゆっくり。奥行きを出す */
+.ui-cutin-streaks--far {
+  opacity: 0.6;
+  background: repeating-linear-gradient(
+    82deg,
+    transparent 0 0.9rem,
+    color-mix(in srgb, currentColor 24%, transparent) 0.9rem 0.98rem,
+    transparent 0.98rem 2.2rem
+  );
+  animation-name: ui-cutin-streaks-far;
+}
+
+/* ---- 字 ---- */
+
+.ui-cutin-kicker,
+.ui-cutin-sub {
+  position: absolute;
+  inset-inline: 0;
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+  color: currentColor;
+  text-shadow: 0 0 0.8em color-mix(in srgb, currentColor 70%, transparent);
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: ease-out;
+}
+
+.ui-cutin-kicker {
+  inset-block-end: 100%;
+  padding-block-end: 0.6em;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  animation-name: ui-cutin-kicker;
+}
+
+/* 添え書きは長さに上限が無い（Check-in Cards の要約は 29 字になる・#670 のレビュー）。舞台は画面の 120% 幅なので、
+   左右を舞台の 15% ずつ詰めて画面の幅の中（約 84%。帯の傾きで外枠が広がる分の余白を残す）に置き、収まらなければ折り返す
+   （nowrap のままだと 320px で両端が切れる。12% では傾いた外枠が 320px で 5px はみ出した） */
+.ui-cutin-sub {
+  inset-inline: 15%;
+  white-space: normal;
+  text-wrap-style: balance; /* 一括指定の text-wrap は text-wrap-mode（折り返すか）も書き換えて white-space を打ち消すので、形だけの個別指定にする */
+  line-height: 1.5;
+  inset-block-start: 100%;
+  padding-block-start: 0.6em;
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  animation-name: ui-cutin-sub;
+}
+
+.ui-cutin-title {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 8.6vw, 5.5rem); /* scale-exempt: 画面いっぱいの見せ場の字（5 段の外）。320px 幅で 9 字が、動きの山（scale 1.14）でも画面に収まる大きさ（9.6vw では山で 5px 切れた・#670 のレビュー） */
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: currentColor;
+  -webkit-text-stroke: 0.05em var(--felt-950);
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 0.25em currentColor,
+    0 0 0.7em color-mix(in srgb, currentColor 75%, transparent),
+    0 0 1.6em color-mix(in srgb, currentColor 45%, transparent);
+  animation-name: ui-cutin-title;
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+/* ---- 火花 ---- */
+
+.ui-cutin-sparks {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.ui-cutin-spark {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: calc(0.9rem * var(--spark-size));
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: currentColor;
+  box-shadow: 0 0 0.6rem currentColor;
+  opacity: 0;
+  animation-name: ui-cutin-spark;
+  animation-duration: var(--cutin-duration);
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1);
+}
+
+/* ---- 動き（割合は --cutin-duration の中。1800ms なら 1% が 18ms） ---- */
+
+@keyframes ui-cutin-veil {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.7;
+  }
+  82% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-cutin-flash {
+  0% {
+    opacity: 0;
+  }
+  3% {
+    opacity: 0.9;
+  }
+  14% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-cutin-stage {
+  0% {
+    opacity: 0;
+    transform: rotate(-8deg) translateX(-120%);
+  }
+  4% {
+    opacity: 1;
+  }
+  15% {
+    transform: rotate(-8deg) translateX(2%);
+  }
+  21% {
+    transform: rotate(-8deg) translateX(0);
+  }
+  80% {
+    opacity: 1;
+    transform: rotate(-8deg) translateX(1.5%);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-8deg) translateX(125%);
+  }
+}
+
+@keyframes ui-cutin-band {
+  0% {
+    filter: brightness(2.4);
+  }
+  22% {
+    filter: brightness(1.5);
+  }
+  40% {
+    filter: none;
+  }
+  100% {
+    filter: none;
+  }
+}
+
+@keyframes ui-cutin-streaks {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-45%);
+  }
+}
+
+@keyframes ui-cutin-streaks-far {
+  0% {
+    transform: translateX(-40%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes ui-cutin-title {
+  0% {
+    opacity: 0;
+    transform: translateX(55vw) skewX(-14deg);
+  }
+  10% {
+    opacity: 0;
+    transform: translateX(55vw) skewX(-14deg);
+  }
+  24% {
+    opacity: 1;
+    transform: translateX(0) skewX(0) scale(1.14);
+  }
+  28% {
+    transform: translateX(-0.07em) scale(1.06);
+  }
+  31% {
+    transform: translateX(0.06em) scale(1.02);
+  }
+  34% {
+    transform: translateX(-0.04em) scale(1);
+  }
+  37% {
+    transform: translateX(0.02em) scale(1);
+  }
+  40% {
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes ui-cutin-kicker {
+  0% {
+    opacity: 0;
+    transform: translateX(-3rem);
+  }
+  18% {
+    opacity: 0;
+    transform: translateX(-3rem);
+  }
+  32% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ui-cutin-sub {
+  0% {
+    opacity: 0;
+    transform: translateX(3rem);
+  }
+  26% {
+    opacity: 0;
+    transform: translateX(3rem);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ui-cutin-spark {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateX(0) rotate(45deg) scale(0);
+  }
+  24% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateX(0) rotate(45deg) scale(0);
+  }
+  30% {
+    opacity: 1;
+    transform: rotate(var(--spark-angle)) translateX(calc(var(--spark-dist) * 0.2)) rotate(45deg) scale(1.2);
+  }
+  62% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateX(var(--spark-dist)) rotate(225deg) scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateX(var(--spark-dist)) rotate(225deg) scale(0.2);
+  }
+}
+
+/* ---- 静止の見本（gallery.html 用の `data-still`）: 動かさず、いちばん見せたい瞬間の姿で止める。
+   クラスの修飾にしない（`CutIn` は付けないので、死んだ部品として数えられる） ---- */
+
+.ui-cutin[data-still] {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  contain: layout paint;
+  height: 11rem;
+  border: 1px solid currentColor;
+}
+
+.ui-cutin[data-still] .ui-cutin-veil,
+.ui-cutin[data-still] .ui-cutin-flash,
+.ui-cutin[data-still] .ui-cutin-spark {
+  display: none;
+}
+
+.ui-cutin[data-still] .ui-cutin-stage {
+  height: 6rem;
+  inset-inline: 0;
+}
+
+.ui-cutin[data-still] .ui-cutin-stage,
+.ui-cutin[data-still] .ui-cutin-band,
+.ui-cutin[data-still] .ui-cutin-streaks,
+.ui-cutin[data-still] .ui-cutin-kicker,
+.ui-cutin[data-still] .ui-cutin-sub,
+.ui-cutin[data-still] .ui-cutin-title {
+  animation: none;
+}
+
+/* ---- 動きを減らす設定: 念のため層ごと隠す（`CutIn` はそもそも描かない） ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-cutin {
+    display: none;
+  }
+}

@@ -1,0 +1,23 @@
+# 変異 3108: track-insert-yesterday-note-dropped
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 抜けを足す欄が、前日の時刻として読んだことを誤りの文に添えない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3108-*.patch
+# 復元: git apply -R scripts/mutations/m3108-*.patch
+diff --git a/apps/track-web/src/components/InsertForm.tsx b/apps/track-web/src/components/InsertForm.tsx
+index a472ee79..229cabe9 100644
+--- a/apps/track-web/src/components/InsertForm.tsx
++++ b/apps/track-web/src/components/InsertForm.tsx
+@@ -137,7 +137,7 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
+       <p className="track-hint">{INSERT_NOTE}</p>
+       {error !== null && (
+         <p id={errorId} className="track-form-error ui-note ui-note--error" role="alert">
+-          {error.yesterday ? INSERT_YESTERDAY_NOTE : ''}
++          {error.yesterday && false ? INSERT_YESTERDAY_NOTE : ''}
+           {ERROR_TEXT[error.code]}
+         </p>
+       )}

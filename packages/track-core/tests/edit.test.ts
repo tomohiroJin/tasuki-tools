@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { adjustRangeOf, adjustSegment, insertSegment, removeSegment, setSegment, splitSegment } from "../src/edit.js";
+import { adjustRangeOf, adjustSegment, away, insertSegment, removeSegment, setSegment, splitSegment } from "../src/edit.js";
 import { MAX_LOOKBACK_MS, MAX_SEGMENTS, MIN_SEGMENT_MS } from "../src/limits.js";
-import { autoStop, start, stop, toView } from "../src/track.js";
+import { autoStop, start, stop, toView, undo } from "../src/track.js";
 import type { TrackState } from "../src/types.js";
 import { MIN, at, codeOf, empty, must, sample, shape } from "./support/states.js";
 
@@ -243,5 +243,77 @@ describe("removeSegment（区切りを消す）", () => {
   });
   it("無い区切りは SEGMENT_NOT_FOUND", () => {
     expect(codeOf(removeSegment(sample(), { id: "g-99" }))).toBe("SEGMENT_NOT_FOUND");
+  });
+});
+
+describe("away（離れていた間を休憩にする・FR-27）", () => {
+  /** sample() の計測中は g-4 実装 50-。NOW = 60 分 */
+  it("指した位置からいままでを休憩で上書きし、計測中の区切りは後ろで同じ名前のまま続く", () => {
+    const s = must(away(sample(), { fromMs: 52 * MIN, now: NOW }));
+    expect(shape(s).slice(3)).toEqual(["実装:50-52", "休憩:52-60", "実装:60-"]);
+    expect(s.segments.at(-1)).toMatchObject({ kind: "work", label: "実装", endMs: null });
+  });
+  it("計測中の続きは元の区切りの番号を保ち、前の残りと休憩が新しい番号を取る（番号は使い回さない）", () => {
+    const base = sample();
+    const s = must(away(base, { fromMs: 52 * MIN, now: NOW }));
+    expect(s.segments.slice(3).map((g) => [g.kind, g.id])).toEqual([["work", "g-6"], ["break", "g-5"], ["work", "g-4"]]);
+    expect(s.nextSeq).toBe(base.nextSeq + 2);
+  });
+  it("前の端切れを含めたときも、計測中の続きは元の番号を保つ", () => {
+    const s = must(away(sample(), { fromMs: 50 * MIN + 500, now: NOW }));
+    expect(s.segments.slice(3).map((g) => [g.kind, g.id])).toEqual([["break", "g-5"], ["work", "g-4"]]);
+  });
+  it("計測中の区切りが休憩なら何もしない（同じ参照）", () => {
+    const resting = must(start(must(start(empty(), { label: "設計", kind: "work", now: at(0) })), { label: "", kind: "break", now: at(10) }));
+    expect(must(away(resting, { fromMs: 20 * MIN, now: at(30) }))).toBe(resting);
+  });
+  it("取り消しの対象（kind は away）で、取り消すと直前の区切りの列へ戻る", () => {
+    const base = sample();
+    const s = must(away(base, { fromMs: 52 * MIN, now: NOW }));
+    expect(s.undo!.kind).toBe("away");
+    expect(s.rev).toBe(base.rev + 1);
+    const undone = undo(s, { rev: s.undo!.rev, now: NOW + 1 });
+    expect(undone.segments).toEqual(base.segments);
+  });
+  it("前の端切れ（1 秒未満）は休憩へ含める", () => {
+    const s = must(away(sample(), { fromMs: 50 * MIN + 500, now: NOW }));
+    expect(shape(s).slice(3)).toEqual(["休憩:50-60", "実装:60-"]);
+  });
+  it("計測していなければ何もしない（同じ参照）", () => {
+    const stopped = must(stop(sample(), { now: NOW }));
+    expect(must(away(stopped, { fromMs: 52 * MIN, now: NOW + MIN }))).toBe(stopped);
+    const e = empty();
+    expect(must(away(e, { fromMs: 0, now: at(5) }))).toBe(e);
+  });
+  it("計測中の区切りの始まり以前は TRACK_BACKDATE_TOO_FAR", () => {
+    expect(codeOf(away(sample(), { fromMs: 50 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    expect(codeOf(away(sample(), { fromMs: 45 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
+  });
+  it("いまより先・いまちょうど・いまとの差が 1 秒未満は TRACK_BACKDATE_TOO_FAR", () => {
+    expect(codeOf(away(sample(), { fromMs: 61 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    expect(codeOf(away(sample(), { fromMs: 60 * MIN, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    expect(codeOf(away(sample(), { fromMs: 60 * MIN - MIN_SEGMENT_MS + 1, now: NOW }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    const edge = must(away(sample(), { fromMs: 60 * MIN - MIN_SEGMENT_MS, now: NOW }));
+    expect(edge.segments.slice(3).map((g) => [g.kind, g.startMs, g.endMs])).toEqual([
+      ["work", 50 * MIN, 60 * MIN - MIN_SEGMENT_MS],
+      ["break", 60 * MIN - MIN_SEGMENT_MS, 60 * MIN],
+      ["work", 60 * MIN, null],
+    ]);
+  });
+  it("いまから 24 時間より前は TRACK_BACKDATE_TOO_FAR（ちょうど 24 時間前は通る）", () => {
+    const longRunning = must(start(empty(), { label: "設計", kind: "work", now: at(0) }));
+    const now = at(30 * 60);
+    expect(codeOf(away(longRunning, { fromMs: 6 * 60 * MIN - 1, now }))).toBe("TRACK_BACKDATE_TOO_FAR");
+    expect(away(longRunning, { fromMs: 6 * 60 * MIN, now }).isOk()).toBe(true);
+  });
+  it("区切りが上限に達していれば TRACK_FULL", () => {
+    let s = must(start(empty(), { label: "a", kind: "work", now: at(0) }));
+    for (let i = 1; i < MAX_SEGMENTS; i++) s = must(start(s, { label: i % 2 === 0 ? "a" : "b", kind: "work", now: at(i * 2) }));
+    expect(s.segments).toHaveLength(MAX_SEGMENTS);
+    expect(codeOf(away(s, { fromMs: MAX_SEGMENTS * 2 * MIN - MIN, now: at(MAX_SEGMENTS * 2) + 5 * MIN }))).toBe("TRACK_FULL");
+  });
+  it("離れていた間に重なる閉じた区切りはないので、休憩の前の区切りには触らない", () => {
+    const s = must(away(sample(), { fromMs: 55 * MIN, now: NOW }));
+    expect(s.segments.slice(0, 3)).toEqual(sample().segments.slice(0, 3));
   });
 });

@@ -1,0 +1,23 @@
+# 変異 3201: track-band-tone-live-totals
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-display.test.tsx
+#
+# #476 時系列の帯の色の番号を、1 分の刻みでなくその時点の合計の並びで決める。1 分の内で合計の順位が入れ替わると、帯の色が入れ替わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3201-*.patch
+# 復元: git apply -R scripts/mutations/m3201-*.patch
+diff --git a/apps/track-web/src/components/TimeBand.tsx b/apps/track-web/src/components/TimeBand.tsx
+index 3b3d846d..04e69c91 100644
+--- a/apps/track-web/src/components/TimeBand.tsx
++++ b/apps/track-web/src/components/TimeBand.tsx
+@@ -22,7 +22,7 @@ interface Props {
+ export function TimeBand({ view, nowMs, tzOffsetMin }: Props) {
+   const band = bandOf(view, nowMs);
+   if (band === null) return null;
+-  const rows = totalsOf(view, stepDown(nowMs)).rows;
++  const rows = totalsOf(view, nowMs).rows;
+   const axis = axisLabelsOf(view, band, nowMs, tzOffsetMin);
+   return (
+     <div className="track-band-wrap" aria-hidden="true">

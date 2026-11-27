@@ -1,0 +1,23 @@
+# 変異 3165: web-away-prompt-before-return-frame
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#   - tests/track-room.test.tsx
+#
+# #476 戻る前に届いた古い写しでも、離れていたときの問いかけを判定する（写しの位置が古く、長さが違う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3165-*.patch
+# 復元: git apply -R scripts/mutations/m3165-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -151,7 +151,7 @@
+  * 長さは端末の単調時計ではなく写しの位置で測る（スリープで端末の時計が進まない環境があるため）。
+  */
+ export function awayPromptOf(view: TrackView, nowMs: number, receivedAt: number, away: AwayReturn | null): AwayPrompt | null {
+-  if (away === null || receivedAt < away.returnedAt) return null;
++  if (away === null) return null;
+   const running = awayTargetOf(view, nowMs, away.fromMs, away.runningId);
+   if (running === null) return null;
+   return { fromMs: away.fromMs, runningId: running.id, awayMin: Math.floor((nowMs - away.fromMs) / 60_000) };

@@ -1,0 +1,23 @@
+# 変異 3270: track-insert-preview-length-unpadded
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 「読み取った時間」の長さ（h:mm）の分を 2 桁にしない（0:05 が 0:5 になる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3270-*.patch
+# 復元: git apply -R scripts/mutations/m3270-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..66ed2b8e 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -178,7 +178,7 @@ export function insertPreviewOf(input: InsertInput, nowMs: number, epochWallMs:
+ 
+ /** 長さ（分）を `h:mm` にする。 */
+ export function lengthHm(lengthMin: number): string {
+-  return `${Math.floor(lengthMin / 60)}:${String(lengthMin % 60).padStart(2, '0')}`;
++  return `${Math.floor(lengthMin / 60)}:${String(lengthMin % 60)}`;
+ }
+ 
+ /**

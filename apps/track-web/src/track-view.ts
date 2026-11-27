@@ -5,8 +5,9 @@
  * （名前・経過の h:mm:ss・時刻・描き直す秒・取り消しの残り・± の行き先・読み上げの文・タブの題）を持つ。
  * **端末（`document`・時計・時間帯）は読まない。** 要る値は引数で受ける。
  */
-import { durationOf, formatClock, formatDuration, runningSegmentOf, type SegmentView, type TrackView } from '@tasuki/track-core';
-import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, tabTitle } from './copy';
+import { MAX_LOOKBACK_MS, MIN_SEGMENT_MS, durationOf, formatClock, formatDuration, formatMonthDay, longRunningOf, runningSegmentOf, type Band, type SegmentView, type TrackView } from '@tasuki/track-core';
+import { AWAY_PROMPT_MIN_HIDDEN_MS } from './limits';
+import { ANNOUNCE_AUTO_STOPPED, ANNOUNCE_STOPPED, BREAK_NAME, UNNAMED_NAME, announceStarted, bandSummary, tabTitle } from './copy';
 
 const MS_PER_SEC = 1000;
 
@@ -15,6 +16,9 @@ export function nameOf(segment: Pick<SegmentView, 'kind' | 'label'>): string {
   if (segment.kind === 'break') return BREAK_NAME;
   return segment.label === '' ? UNNAMED_NAME : segment.label;
 }
+
+/** 欄を開いている間の描き直しの間隔。止まっている間は画面が描き直さないので、押せる・押せないや「前日」の添えを古いまま残さない（手直しの欄・抜けを足す欄） */
+export const OPEN_TICK_MS = 1000;
 
 /** 目立たせる名前なしの作業か。 */
 export const isUnnamed = (segment: Pick<SegmentView, 'kind' | 'label'>): boolean => segment.kind === 'work' && segment.label === '';
@@ -104,4 +108,94 @@ export function announcementFor(prev: TrackView | null, next: TrackView): string
 export function tabTitleOf(view: TrackView, nowMs: number): string | null {
   const running = runningSegmentOf(view);
   return running === null ? null : tabTitle(nameOf(running), formatDuration(durationOf(running, nowMs)));
+}
+
+/** 帯と表の色の数（CSS の `.track-tone--0`〜`3` と揃える） */
+export const TONE_COUNT = 4;
+
+/**
+ * 作業名の色の番号。**表の行の並び（`totalsOf` の降順）の位置**で巡るので、表の行の頭の印と帯の色が同じになる。
+ * 良し悪しを表さない（FR-19）。表に無い名前（休憩ほか）は 0。
+ */
+export function toneIndexOf(rows: readonly { readonly label: string }[], label: string): number {
+  const index = rows.findIndex((row) => row.label === label);
+  return (index < 0 ? 0 : index) % TONE_COUNT;
+}
+
+/**
+ * 帯の両端の時刻。右端は切り下げた位置でなく、計測中は「いま」から求める（止まっていれば最後の終わり）。
+ * 両端の日付が違うときは、月/日を添える。
+ */
+export function axisLabelsOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): { start: string; end: string } {
+  const startWall = view.epochWallMs + band.startMs;
+  const endWall = view.epochWallMs + Math.max(band.endMs, band.running ? nowMs : band.endMs);
+  const spans = formatMonthDay(startWall, tzOffsetMin) !== formatMonthDay(endWall, tzOffsetMin);
+  const label = (wall: number): string => (spans ? `${formatMonthDay(wall, tzOffsetMin)} ${formatClock(wall, tzOffsetMin)}` : formatClock(wall, tzOffsetMin));
+  return { start: label(startWall), end: label(endWall) };
+}
+
+/** 帯の読み上げ向けの要約（始まりと終わりの時刻・作業と休憩の区切りの数）。 */
+export function bandSummaryOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): string {
+  const { start, end } = axisLabelsOf(view, band, nowMs, tzOffsetMin);
+  const works = band.parts.filter((part) => part.kind === 'work').length;
+  const breaks = band.parts.filter((part) => part.kind === 'break').length;
+  return bandSummary(start, end, works, breaks);
+}
+
+/** 表に戻ったときに端末が覚えていること。**端末だけが持つ**（サーバーへ送らず、状態にも載せない。設計 §4 C2） */
+export interface AwayReturn {
+  /** 非表示になった時点の時刻軸の位置（そのときの手元の時計の値） */
+  readonly fromMs: number;
+  /** 非表示になった時点で計測中だった区切りの id（計測していなければ null） */
+  readonly runningId: string | null;
+  /** 表に戻った時刻（`performance.now()`）。これ以後に届いた写しで判定する（C1b） */
+  readonly returnedAt: number;
+}
+
+/** 離れていたときの問いかけ */
+export interface AwayPrompt {
+  readonly fromMs: number;
+  /** 問いかけの対象の区切りの id。これが計測中でなくなれば問いかけは出さない */
+  readonly runningId: string;
+  /** 離れていた分（切り捨て） */
+  readonly awayMin: number;
+}
+
+/**
+ * 問いかけの対象になる計測中の区切り（作業の条件）。**出すかの判定（`awayPromptOf`）と、出している間の見直し
+ * （`isAwayPromptStillValid`）が、この 1 つの関数を通す**（条件を二重に持たない）。次をすべて満たす区切りを返す。
+ *
+ * - 計測中の区切りが作業（`kind: "work"`。休憩が長く続いても尋ねない）で、`LONG_RUNNING_NOTICE_MS`（90 分）以上続いている
+ * - その区切りが、非表示になった時に計測中だった区切りと同じ（離れている間に切り替え・停止されていない）
+ * - 非表示になった位置が、その区切りの始まりより後
+ * - 非表示になった位置が、いまから `AWAY_PROMPT_MIN_HIDDEN_MS`（10 分）以上前、`MAX_LOOKBACK_MS` 以内（外ならサーバーが拒む。
+ *   10 分以上は、サーバーが要る最短の長さ `MIN_SEGMENT_MS` も満たす）
+ */
+function awayTargetOf(view: TrackView, nowMs: number, fromMs: number, runningId: string | null): SegmentView | null {
+  const hiddenMs = nowMs - fromMs;
+  if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
+  const running = longRunningOf(view, nowMs);
+  if (running === null || running.kind !== 'work' || running.id !== runningId || running.startMs >= fromMs) return null;
+  return running;
+}
+
+/**
+ * 離れていたときの問いかけを出すか（FR-27・設計 §4 C1・C1b）。**表に戻った後に届いた写しで**、
+ * 写しが表に戻った後のもの（`receivedAt` ≧ `away.returnedAt`。戻る前の古い写しでは決めない）で、かつ `awayTargetOf` が区切りを返すときだけ出す。
+ *
+ * 長さは端末の単調時計ではなく写しの位置で測る（スリープで端末の時計が進まない環境があるため）。
+ */
+export function awayPromptOf(view: TrackView, nowMs: number, receivedAt: number, away: AwayReturn | null): AwayPrompt | null {
+  if (away === null || receivedAt < away.returnedAt) return null;
+  const running = awayTargetOf(view, nowMs, away.fromMs, away.runningId);
+  if (running === null) return null;
+  return { fromMs: away.fromMs, runningId: running.id, awayMin: Math.floor((nowMs - away.fromMs) / 60_000) };
+}
+
+/**
+ * 出している問いかけを、まだ出してよいか。写しが変わるたびに `awayPromptOf` と同じ条件（`awayTargetOf`）で見直し、
+ * 外れたら（誰かが止めた・切り替えた・始まりが動いた・24 時間を越えた）下ろす。
+ */
+export function isAwayPromptStillValid(view: TrackView, nowMs: number, prompt: AwayPrompt): boolean {
+  return awayTargetOf(view, nowMs, prompt.fromMs, prompt.runningId) !== null;
 }

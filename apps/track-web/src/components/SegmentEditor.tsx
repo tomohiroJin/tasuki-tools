@@ -32,12 +32,11 @@ import {
   stepText,
 } from '../copy';
 import type { TrackActions } from '../hooks/use-track-sync';
-import { edgePositionOf, splitPositionOf } from '../time-input';
-import { clockOf, steppedEdge } from '../track-view';
+import { edgePositionOf, edgePreviewOf, splitPositionOf, type InsertPreview } from '../time-input';
+import { OPEN_TICK_MS, clockOf, steppedEdge } from '../track-view';
+import { ReadRangeHint } from './ReadRangeHint';
 
 const MS_PER_MIN = 60_000;
-/** 開いている間の描き直しの間隔。止まっている間は画面が描き直さないので、押せる・押せないを古いまま残さない */
-const OPEN_TICK_MS = 1000;
 /** ± のボタンの刻み（分）。並びは左から */
 const STEPS = [-5, -1, 1, 5] as const;
 
@@ -92,11 +91,25 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
   const setEdge = (edge: SegmentEdge, event: FormEvent): void => {
     event.preventDefault();
     if (!canOperate) return;
-    const atMs = edgePositionOf(edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, getNow()), view.epochWallMs, tzOffsetMin);
+    const current = positionOf(edge);
+    if (current === null) return;
+    const now = getNow();
+    // 時刻は、範囲に収まる読み方のうち動かす前の端に最も近い日の時刻として読む（設計 A5 (3)）。
+    // 前日として 23 時間を超える区切りになりうるが、押す前に読み取った時刻と長さを欄の中に出して本人に見せる（設計 A5 (4)）
+    const atMs = edgePositionOf(edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, now), current, now, view.epochWallMs, tzOffsetMin);
     setEdgeError(atMs === null ? edge : null);
     if (atMs === null) return;
     actions.adjustSegment(segment.id, edge, atMs);
     setEdgeTime((prev) => ({ ...prev, [edge]: '' }));
+  };
+
+  // 押す前に、読み取った時刻と動かした後の長さを出す。入力のたびに、「いま」を取り直して読む。読み取れない入力では出さない
+  const previewOf = (edge: SegmentEdge): InsertPreview | null => {
+    const current = positionOf(edge);
+    if (current === null || edgeTime[edge] === '') return null;
+    const now = getNow();
+    const other = edge === 'start' ? (segment.endMs ?? now) : segment.startMs;
+    return edgePreviewOf(edge, edgeTime[edge], adjustRangeOf(view.segments, segment.id, edge, now), current, other, now, view.epochWallMs, tzOffsetMin);
   };
 
   const split = (event: FormEvent): void => {
@@ -179,6 +192,10 @@ export function SegmentEditor({ view, segment, nowMs, getNow, tzOffsetMin, canOp
               {EDGE_SET_BUTTON}
             </button>
           </form>
+          {(() => {
+            const preview = previewOf(edge);
+            return preview !== null && <ReadRangeHint preview={preview} />;
+          })()}
           {edgeError === edge && (
             <p id={edgeErrorId} className="track-form-error ui-note ui-note--error" role="alert">
               {EDGE_OUT_OF_RANGE}

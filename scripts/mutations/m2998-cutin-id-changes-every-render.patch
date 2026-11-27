@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -159,7 +159,7 @@
+   const cue: CutInCue | null =
+     band !== null && effect !== null
+       ? {
+-          id: band.id,
++          id: Math.random(),
+           title: EFFECT_COPY[effect],
+           kicker: CUTIN_KICKER,
+           ...(effectSub !== null && { sub: effectSub }),

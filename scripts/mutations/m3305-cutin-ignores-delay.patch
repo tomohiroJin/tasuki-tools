@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/room/cut-in.tsx b/packages/web-kit/src/room/cut-in.tsx
+index a36f1447..fbcf8ef8 100644
+--- a/packages/web-kit/src/room/cut-in.tsx
++++ b/packages/web-kit/src/room/cut-in.tsx
+@@ -67,7 +67,7 @@ export function CutIn({ cue }: { cue: CutInCue | null }): ReactNode {
+     const showTimer = setTimeout(() => {
+       setShownId(id);
+       hideTimer = setTimeout(() => setShownId(null), CUTIN_DURATION_MS);
+-    }, delayRef.current);
++    }, 0);
+     return () => {
+       clearTimeout(showTimer);
+       clearTimeout(hideTimer);

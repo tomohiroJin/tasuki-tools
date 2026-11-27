@@ -40,6 +40,10 @@ export interface TrackActions {
   /** 開始と切り替え。`backMin` は「◯ 分前から」 */
   start(label: string, kind: SegmentKind, backMin?: BackMinutes): void;
   stop(backMin?: BackMinutes): void;
+  /** 時刻軸の位置で止める（離れた時刻で切る） */
+  stopAt(atMs: number): void;
+  /** 位置からいままでを休憩にする（離れていた間） */
+  away(fromMs: number): void;
   /** 直前の 1 操作を取り消す（`rev` は写しの `undo.rev`） */
   undo(rev: number): void;
   setSegment(id: string, label: string, kind: SegmentKind): void;
@@ -148,6 +152,8 @@ export function useTrackSync(roomCode: string): TrackSync {
     return {
       start: (label, kind, backMin) => sendCommand({ command: 'track.start', label, kind, ...back(backMin) }),
       stop: (backMin) => sendCommand({ command: 'track.stop', ...back(backMin) }),
+      stopAt: (atMs) => sendCommand({ command: 'track.stop', atMs }),
+      away: (fromMs) => sendCommand({ command: 'track.away', fromMs }),
       undo: (rev) => sendCommand({ command: 'track.undo', rev }),
       setSegment: (id, label, kind) => sendCommand({ command: 'track.segment.set', id, label, kind }),
       adjustSegment: (id, edge, atMs) => sendCommand({ command: 'track.segment.adjust', id, edge, atMs }),

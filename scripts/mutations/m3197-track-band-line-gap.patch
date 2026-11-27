@@ -1,0 +1,22 @@
+# 変異 3197: track-band-line-gap
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-css.test.ts
+#
+# #476 時系列の帯の行が、部分どうしの間（gap）を持つ。区切りが多いと、間の幅の合計で帯が親の幅を超え、右端が切れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3197-*.patch
+# 復元: git apply -R scripts/mutations/m3197-*.patch
+diff --git a/apps/track-web/src/index.css b/apps/track-web/src/index.css
+index 05da3a43..93f98c7c 100644
+--- a/apps/track-web/src/index.css
++++ b/apps/track-web/src/index.css
+@@ -485,6 +485,7 @@
+ }
+ .track-band-line {
+   display: flex;
++  gap: 2px;
+   height: var(--space-5);
+   overflow: hidden;
+   border-radius: var(--radius-sm);

@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -187,7 +187,7 @@ const buffers = new Map<ChimeId, AudioBuffer>();
+ /** 失敗（null）で終わったら覚えから外す。一時的な失敗のあと、次の preload・試聴で取り直せるようにする */
+ function forgetIfFailed<T>(map: Map<ChimeId, Promise<T | null>>, id: ChimeId, load: Promise<T | null>): void {
+   void load.then((value) => {
+-    if (value === null && map.get(id) === load) map.delete(id);
++    if (value === undefined && map.get(id) === load) map.delete(id);
+   });
+ }
+

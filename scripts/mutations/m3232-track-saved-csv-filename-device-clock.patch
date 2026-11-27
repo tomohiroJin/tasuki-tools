@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index 53a25e67..2534a8bd 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -176,7 +176,7 @@ function RoomBody({ view, sync, roomCode }: { view: TrackView; sync: TrackSync;
+             saveStatus={saved.status}
+             saving={saved.saving}
+             onSave={() => void saved.save()}
+-            onCsv={() => downloadTextFile(csvFileName(view.epochWallMs + getNow(), tzOffsetMin), toCsv(view, getNow(), tzOffsetMin))}
++            onCsv={() => downloadTextFile(csvFileName(Date.now(), tzOffsetMin), toCsv(view, getNow(), tzOffsetMin))}
+             savedHref={savedPathFor(roomCode)}
+           />
+         </div>

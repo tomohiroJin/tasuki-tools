@@ -1,0 +1,23 @@
+# 変異 3116: track-insert-yesterday-always
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 前日へ読み替えていない誤りにも、前日の時刻として読んだと添える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3116-*.patch
+# 復元: git apply -R scripts/mutations/m3116-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..d31175de 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -127,7 +127,7 @@ export function insertRangeOf(input: InsertInput, nowMs: number, epochWallMs: nu
+     if (endClock === null) return fail('time');
+     const end = readClock(endClock, nowMs, epochWallMs, tzOffsetMin);
+     endMs = end.posMs;
+-    yesterday = start.wrapped || end.wrapped;
++    yesterday = true;
+   }
+   if (endMs - startMs < MIN_SEGMENT_MS) return fail('order', yesterday);
+   return { ok: true, startMs, endMs };

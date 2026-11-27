@@ -1,0 +1,12 @@
+diff --git a/apps/track-web/src/storage/saved-store.ts b/apps/track-web/src/storage/saved-store.ts
+index bf4a20f3..647a78b7 100644
+--- a/apps/track-web/src/storage/saved-store.ts
++++ b/apps/track-web/src/storage/saved-store.ts
+@@ -77,6 +77,6 @@ export function deleteSaved(id: string): Promise<void> {
+  */
+ export function deleteMany(ids: readonly string[]): Promise<void> {
+   return write((store) => {
+-    for (const id of ids) store.delete(id);
++    store.clear();
+   });
+ }

@@ -51,6 +51,9 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 - `RoomJoiningView` — 最初の入室が成立するまでの画面（h1・戻るリンク・混雑の知らせ・失敗の一言）。戻るリンクの文（`backLabel`）は web-kit が invite-ui に依存しないので呼ぶ側が渡す。帯は `notice`（接続の告知の種類）を受け取って中で描き、位置は `bannerPlacement`（`before-main`: roulette・topic、`after-header`: agenda・checkin。揃えてはいない）
 - `useHubRedirect` — 玄関のそのルームへ送り返す（理由つきの `departed` を先に、次に `needsHub`）。`hubPathFor`・`redirectTo` は各アプリの `router.ts` のものを渡す
 - `usePrefersReducedMotion` — 動きを減らす設定か（変化を購読）。timer-web の `use-reduced-motion` は書き方が違うので寄せていない
+- `CutIn` — 画面の全体に重なるカットイン（#670。`{ cue }` を渡す。`CutInCue` は `id`・`title`（9 字以下）・`kicker`・`sub`・`tone`（`gold`・`rose`・`jade`・`ivory`）・`delayMs`）。
+  `id` が新しくなるたびに、`delayMs` 後に出し、`CUTIN_DURATION_MS`（1800ms）後に DOM から外す（同じ `id` の間は出し直さない。`cue` が null になる・`id` が替わると前の分はすぐ外し、新しい `id` は待ちからやり直す）。
+  **操作を奪わない**: `document.body` への portal・`pointer-events: none`・`aria-hidden`・中にフォーカスできる物なし。**動きを減らす設定では何も描かない**ので、読み上げ（`role="status"` など）と静かな 1 行は使う側が持つ。見た目は `packages/ui` の `.ui-cutin`
 - `ROOM_GATE_TEXT` — 入室の門の文 5 つの正本。書体の base 層に収まるかは `tests/room-gate-copy-fits-font-base.test.ts` が測る
 
 種類を決める規則（諦めるまでの回数を含む）は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引いて `notice` として返す。

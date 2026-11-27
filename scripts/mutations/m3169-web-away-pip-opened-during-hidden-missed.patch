@@ -1,0 +1,22 @@
+# 変異 3169: web-away-pip-opened-during-hidden-missed
+#
+# 検出を期待するテスト:
+#   - tests/use-page-away.test.tsx
+#
+# #476 非表示の間に開いてすぐ閉じたミニ表示の窓を数えない（戻ったときの開閉だけを見る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3169-*.patch
+# 復元: git apply -R scripts/mutations/m3169-*.patch
+diff --git a/apps/track-web/src/platform/use-page-away.ts b/apps/track-web/src/platform/use-page-away.ts
+--- a/apps/track-web/src/platform/use-page-away.ts
++++ b/apps/track-web/src/platform/use-page-away.ts
+@@ -48,7 +48,7 @@
+     document.addEventListener('visibilitychange', onVisibility);
+     // 非表示の間に窓が開いたら、戻ったときには閉じていても数える
+     const stopWatchingPip = onPipOpened(() => {
+-      if (hiddenRef.current !== null) hiddenRef.current = { ...hiddenRef.current, pip: true };
++      if (hiddenRef.current !== null) hiddenRef.current = { ...hiddenRef.current };
+     });
+     return () => {
+       document.removeEventListener('visibilitychange', onVisibility);

@@ -1,0 +1,22 @@
+# 変異 3164: web-away-prompt-while-resting
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#
+# #476 休憩が長く続いたときも、離れていたときの問いかけを出す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3164-*.patch
+# 復元: git apply -R scripts/mutations/m3164-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -140,7 +140,7 @@
+   const hiddenMs = nowMs - fromMs;
+   if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
+   const running = longRunningOf(view, nowMs);
+-  if (running === null || running.kind !== 'work' || running.id !== runningId || running.startMs >= fromMs) return null;
++  if (running === null || running.id !== runningId || running.startMs >= fromMs) return null;
+   return running;
+ }
+ 

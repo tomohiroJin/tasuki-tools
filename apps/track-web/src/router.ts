@@ -7,12 +7,38 @@
 import { parseRoomRoute, type RoomRoute } from '@tasuki/room-core';
 
 export { roomHubPath as hubPathFor } from '@tasuki/room-core';
-export type Route = RoomRoute;
+/**
+ * `display` = 映す画面（読むだけ・設計 §5 D1）。
+ * `saved` = 「この端末の記録」（#476 第 2 段 B4）。ルームの接続を持たないので、ルームのコードが無くても開ける。
+ */
+export type Route = RoomRoute | { name: 'display'; roomCode: string } | { name: 'saved'; roomCode: string | null };
 
 const BASE = '/track';
+const DISPLAY_VIEW = 'display';
+const SAVED_VIEW = 'saved';
 
 export function parseRoute(pathname: string, search = ''): Route {
-  return parseRoomRoute(BASE, pathname, search);
+  const params = new URLSearchParams(search);
+  // アプリの置き場そのもの（`/track` か `/track/`）の `?view=saved` だけ。知らない下位パスは今までどおり玄関へ送る
+  if (params.get('view') === SAVED_VIEW && (pathname === BASE || pathname === `${BASE}/`)) {
+    // 戻る道のためだけに、ルームのコードを預かる（接続はしない）
+    return { name: 'saved', roomCode: params.get('room') || null };
+  }
+  const route = parseRoomRoute(BASE, pathname, search);
+  if (route.name === 'room' && params.get('view') === DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
+  return route;
+}
+
+/** 映す画面の URL（ルームの画面から新しいタブで開く）。 */
+export function displayPathFor(roomCode: string): string {
+  return `${BASE}/?room=${encodeURIComponent(roomCode)}&view=${DISPLAY_VIEW}`;
+}
+
+/** 「この端末の記録」への URL。ルームの画面から行くときは、戻る道のためにコードを運ぶ。 */
+export function savedPathFor(roomCode: string | null): string {
+  const params = new URLSearchParams({ view: SAVED_VIEW });
+  if (roomCode !== null) params.set('room', roomCode);
+  return `${BASE}/?${params.toString()}`;
 }
 
 /**

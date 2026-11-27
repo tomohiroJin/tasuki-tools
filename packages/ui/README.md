@@ -54,6 +54,7 @@ src/
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
 | `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（64rem 以上だけ・札の中でスクロール）を載せる。64rem 未満は本文の代わりに 3 行の写し `.ui-reader-preview`（`inert`）を見せ、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
 | `.ui-drawer` | 下からせり上がるシート（`<dialog>`）。`.ui-drawer-head`（見出しと閉じる）・`.ui-drawer-body`（スクロールする本文）を持つ。地と字は `.ui-reader` と同じ | なし |
+| `.ui-cutin` | 画面の全体に重なるカットインの層（格闘ゲームの必殺技の見せ方。斜めの帯・集中線・大きな字・火花）。描くのは `CutIn`（`@tasuki/web-kit/room`）。色は `data-tone`（`gold`・`rose`・`jade`・`ivory`）が `color` だけを決める。中の `.ui-cutin-*` は `CutIn` が組む | なし |
 | `.ui-visually-hidden` | 目に出さず、支援技術には残す文字（読み上げだけに渡す見出し・状態の言葉・ライブリージョン）。#371 で 3 つのアプリの写しを 1 つにした | なし |
 
 **使い方**
@@ -80,6 +81,10 @@ src/
   面がつまみ `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` を宣言します（部品は宣言しません）。リンクは既定で字の色を継ぐので、画面のクラスで色を書きません。描画（React）は `@tasuki/web-kit/reader` の `Markdown` が持ちます（#371。見出しの段は置く場所に合わせて渡す）。
   クラス名は字面で書きます（組み立てた名前は検査が数えられず、死んだ部品として落ちます）。共有の入口に書いた字面は、
   その入口を取り込むアプリの使用として数えます（`scripts/audit-ui-components.mjs` の `SHARED_UI_ENTRIES`）
+
+**カットイン（`.ui-cutin`）は操作を奪いません。** `position: fixed`・`pointer-events: none`・`overflow: hidden` の層で、`aria-hidden` を付け、中にフォーカスできる物を置きません（`tests/cut-in.test.mjs` が固定）。
+時間の正本は TS の `CUTIN_DURATION_MS`（1800ms）で、CSS へは層の `--cutin-duration` で渡ります（CSS に秒数を写さない）。動かすのは transform・opacity・clip-path・filter だけです。
+**動きを減らす設定では描きません**（`CutIn` が描かず、CSS も `display: none`）。読み上げと静かな 1 行は使う側が持ちます。見本（`gallery.html`）は `data-still` で止めた姿です。
 
 **部品を足す条件**（ADR 0022 決定 2）: 同じ見た目の知識を持つこと・2 画面以上が使うこと。
 20 行に満たない重複でも足します。どのアプリも使わない部品は検査が落とします。

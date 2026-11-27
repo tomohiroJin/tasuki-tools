@@ -502,11 +502,30 @@
   animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
 }
 
+.results-effect[data-effect='break'] {
+  color: var(--ivory);
+  animation-name: effect-settle;
+}
+
 .results-effect[data-effect='unanimous'] {
   border-color: var(--gold-edge);
   background: var(--gold-tint);
   color: var(--gold-bright);
   animation-name: effect-cutin;
+}
+
+.results-effect[data-effect='split'] {
+  border-color: var(--rose-edge);
+  background: var(--rose-tint);
+  color: var(--rose-pale);
+  animation-name: effect-settle;
+}
+
+.results-effect[data-effect='near'] {
+  border-color: var(--gold-edge);
+  background: var(--gold-tint);
+  color: var(--gold-bright);
+  animation-name: effect-settle;
 }
 
 .results-effect[data-effect='scattered'] {
@@ -521,6 +540,15 @@
   background: var(--jade-tint);
   color: var(--jade-pale);
   animation-name: effect-settle;
+}
+
+/* 添え書き（連続の「N 回続けて」・休憩・割れの促し。#670）。題の下に小さく置く */
+.results-effect-sub {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
 /* 一致: 帯が左から横切り、光ってから落ち着く */

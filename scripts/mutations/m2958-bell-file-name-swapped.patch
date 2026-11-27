@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/platform/sound.ts b/apps/agenda-web/src/platform/sound.ts
+--- a/apps/agenda-web/src/platform/sound.ts
++++ b/apps/agenda-web/src/platform/sound.ts
+@@ -166,7 +166,7 @@
+   department: 'department',
+   melody: 'melody',
+   sustained: 'sustained',
+-  bell: 'bell',
++  bell: 'melody',
+   'voice-male': 'timeout-male',
+   'voice-female': 'timeout-female',
+   'voice-nise': 'timeout-nise',

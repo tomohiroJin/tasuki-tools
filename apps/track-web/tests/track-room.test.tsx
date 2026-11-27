@@ -9,6 +9,9 @@ import { App } from '../src/App';
 import {
   ANNOUNCE_AUTO_STOPPED,
   ANNOUNCE_STOPPED,
+  AWAY_BREAK_BUTTON,
+  AWAY_CUT_BUTTON,
+  AWAY_KEEP_BUTTON,
   AUTO_CLOSED_MARK,
   BACK_FIELD,
   BREAK_BUTTON,
@@ -36,8 +39,11 @@ import {
   INSERT_ERROR_TIME,
   INSERT_LENGTH_FIELD,
   INSERT_MODE_FIELD,
+  insertPreviewEdgeText,
+  insertPreviewText,
   INSERT_START_FIELD,
   INSERT_SUBMIT,
+  INSERT_YESTERDAY_NOTE,
   INTRO_TEXT,
   LABEL_FIELD,
   NOW_HEADING,
@@ -53,11 +59,20 @@ import {
   STOP_BUTTON,
   SWITCH_BUTTON,
   TIMELINE_HEADING,
+  RUNNING_MARK,
   TOPIC_MARK,
   TOTALS_HEADING,
+  NOTIFY_BUTTON,
+  NOTIFY_DENIED_TEXT,
+  NOTIFY_UNAVAILABLE_TEXT,
   UNDO_BUTTON,
+  UNDO_NOTE_AWAY,
   UNNAMED_NAME,
+  LONG_RUNNING_NOTIFY_BODY,
   announceStarted,
+  awayPromptText,
+  longRunningBreakNotifyTitle,
+  longRunningNotifyTitle,
   backOption,
   editLabel,
   edgeTimeLabel,
@@ -70,6 +85,7 @@ import {
   tabTitle,
   undoRemaining,
 } from '../src/copy';
+import { NOTIFY_PREFERENCE_KEY, resetNotificationAvailability } from '../src/platform/notify';
 import { localTzOffsetMin } from '../src/platform/timezone';
 import { clockOf } from '../src/track-view';
 import { EMPTY_TRACK, JOINED, MIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningTrack, seg, stoppedTrack, trackFrame, trackView } from './support/track-states';
@@ -227,20 +243,37 @@ describe('計測中', () => {
 describe('候補', () => {
   const TOPIC = { type: 'topic', state: { topic: { title: 'FizzBuzz', body: '', source: 'manual' }, generating: false, degraded: false, aiUnlocked: false } };
 
-  it('Given お題・定番・最近の作業 / When 画面を描く / Then お題 → 定番 → 最近の順に番号つきで並び、お題には印が付く', () => {
+  it('Given お題・定番・最近の作業 / When 画面を描く / Then お題 → 定番 → 最近の順に並び、番号は押せる候補だけに付き（計測中の Build は飛ばす）、お題には印が付く', () => {
     renderRoom(runningTrack(60 * MIN, { pinned: ['Plan'] }));
     act(() => latestSocket().deliver(TOPIC));
     const items = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem');
     expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['FizzBuzz', 'Plan', 'Build', 'Review']);
-    expect(items.map((li) => li.querySelector('.track-candidate-number')?.textContent)).toEqual(['1', '2', '3', '4']);
+    expect(items.map((li) => li.querySelector('.track-candidate-number')?.textContent)).toEqual(['1', '2', undefined, '3']);
     expect(within(items[0]!).getByText(TOPIC_MARK)).toBeInTheDocument();
     expect(within(items[1]!).queryByText(TOPIC_MARK)).toBeNull();
   });
 
   it('Given 候補 / When 押す / Then その名前へ切り替える', () => {
     renderRoom(runningTrack());
-    fireEvent.click(button(/^2\s*Review$/));
+    fireEvent.click(button(/^1\s*Review$/));
     expect(sentCommands()).toEqual([{ command: 'track.start', label: 'Review', kind: 'work' }]);
+  });
+
+  it('Given 計測中の作業名が候補にもある / When 画面を描く / Then 一覧に残すが、計測中と示して押せず、番号は押せる候補だけに振る', () => {
+    renderRoom(runningTrack(60 * MIN, { pinned: ['Build', 'Review'] }));
+    const items = within(screen.getByRole('list', { name: '候補' })).getAllByRole('listitem');
+    expect(items.map((li) => li.querySelector('.track-candidate-label')?.textContent)).toEqual(['Build', 'Review']);
+    const running = items[0]!;
+    expect(within(running).getByText(RUNNING_MARK)).toBeInTheDocument();
+    expect(running.querySelector('.track-candidate-number')).toBeNull();
+    expect(running.querySelector('.track-candidate-pick')).toBeDisabled();
+    expect(items[1]!.querySelector('.track-candidate-number')?.textContent).toBe('1');
+  });
+
+  it('Given 計測中の作業名が候補にもある / When 星を押す / Then 計測中の名前でも固定・解除を送る', () => {
+    renderRoom(runningTrack(60 * MIN, { pinned: ['Build'] }));
+    fireEvent.click(button(pinLabel('Build')));
+    expect(sentCommands()).toEqual([{ command: 'track.pin', label: 'Build', pinned: false }]);
   });
 
   it('Given 定番とそうでない候補 / When 星を押す / Then 固定・解除を送り、押した状態を aria-pressed で示す', () => {
@@ -447,6 +480,47 @@ describe('時系列と手直し', () => {
     expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
   });
 
+  it('Given 最初の区切りの始まり / When 終わりより後に見える時刻を入れる / Then 範囲に収まる読み方（前日）があれば受け、収まらなければ送らずに知らせる', () => {
+    // Review 0〜30 分・いま 60 分。始まりの下限は前日の 60 分の位置（11:00）。61 分の時刻は今日では終わりより後だが、前日の読みは下限に収まる
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 61 * MIN) } });
+    fireEvent.click(within(timeline.getByRole('group', { name: EDGE_START })).getByRole('button', { name: EDGE_SET_BUTTON }));
+    expect(sentCommands()).toEqual([{ command: 'track.segment.adjust', id: 'g-1', edge: 'start', atMs: 61 * MIN - 24 * 60 * MIN }]);
+  });
+
+  it('Given 最初の区切りの始まり / When 前日として読む時刻を入れた（押す前） / Then 前日を添えた時刻と動かした後の長さを欄の中に出す', () => {
+    // Review 0〜30 分・いま 60 分。61 分の時刻は前日として読まれ、区切りは 23:29 になる。押す前に見えて、読み上げの対象にはしない
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 61 * MIN) } });
+    const preview = timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 61 * MIN), true), insertPreviewEdgeText(clock(view, 30 * MIN), false), '23:29'));
+    expect(preview.closest('[aria-live]')).toBeNull();
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('Given 終わりを合わせる時刻を入れた（押す前） / When 範囲に収まる時刻 / Then 同じ書き方で時刻と長さを出し、読み取れない入力では出さない', () => {
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_END)), { target: { value: clock(view, 20 * MIN) } });
+    expect(timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 0), false), insertPreviewEdgeText(clock(view, 20 * MIN), false), '0:20'))).toBeInTheDocument();
+    // 始まりより前に動かす時刻は範囲に収まらないので出さない
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 59 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_END)), { target: { value: '' } });
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
+  });
+
+  it('Given 最初の区切りの始まり / When どの読み方も範囲に収まらない時刻を入れる / Then 送らずに知らせる', () => {
+    // 59 分の時刻は、今日では終わりより後・前日では下限（前日の 60 分の位置）より前
+    const view = stoppedTrack();
+    const timeline = openReview(view);
+    fireEvent.change(timeline.getByLabelText(edgeTimeLabel(EDGE_START)), { target: { value: clock(view, 59 * MIN) } });
+    fireEvent.click(within(timeline.getByRole('group', { name: EDGE_START })).getByRole('button', { name: EDGE_SET_BUTTON }));
+    expect(sentCommands()).toEqual([]);
+    expect(timeline.getByRole('alert')).toHaveTextContent(EDGE_OUT_OF_RANGE);
+  });
+
   it('Given 名前のない区切りが 2 つ / When 画面を描く / Then 件数を添えて、名前を付けるよう促す', () => {
     const view = trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', '', 0, 10 * MIN), seg('g-2', 'work', 'Build', 10 * MIN, 20 * MIN), seg('g-3', 'work', '', 20 * MIN, 30 * MIN)] });
     renderRoom(view);
@@ -504,6 +578,94 @@ describe('抜けを足す', () => {
     fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
     expect(sentCommands()).toEqual([{ command: 'track.segment.insert', startMs: 10 * MIN, endMs: 20 * MIN, label: 'Call', kind: 'work' }]);
     expect(timeline.queryByRole('button', { name: INSERT_SUBMIT })).toBeNull();
+  });
+
+  it('Given 終わりがいまより後（前日として読むと始まりより後にならない） / When 足す / Then 送らずに、前日の時刻として読んだことと順の誤りを示す', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 61 * MIN) } });
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toHaveTextContent(`${INSERT_YESTERDAY_NOTE}${INSERT_ERROR_ORDER}`);
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('Given 始まりと終わりを入れた / When 押す前 / Then 読み取った範囲と長さを出す（読み上げの対象にはしない）', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 10 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 25 * MIN) } });
+    const preview = timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 10 * MIN), false), insertPreviewEdgeText(clock(view, 25 * MIN), false), '0:15'));
+    expect(preview.closest('[aria-live]')).toBeNull();
+    expect(timeline.queryByRole('alert')).toBeNull();
+    expect(timeline.queryByRole('status')).toBeNull();
+  });
+
+  it('Given 始まりが前日に読み替わる（23.5 時間） / When 押す前 / Then 前日を添えた範囲と長さを出し、終わりで指定しても長さで指定しても同じ', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    // いまは 60 分の位置。90 分の位置の時刻は前日、50 分の位置は今日
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 90 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 50 * MIN) } });
+    const expected = insertPreviewText(insertPreviewEdgeText(clock(view, 90 * MIN), true), insertPreviewEdgeText(clock(view, 50 * MIN), false), '23:20');
+    expect(timeline.getByText(expected)).toBeInTheDocument();
+    fireEvent.change(timeline.getByRole('combobox', { name: INSERT_MODE_FIELD }), { target: { value: 'length' } });
+    fireEvent.change(timeline.getByRole('textbox', { name: INSERT_LENGTH_FIELD }), { target: { value: String(23 * 60 + 20) } });
+    expect(timeline.getByText(expected)).toBeInTheDocument();
+  });
+
+  it('Given 誤りを示した後 / When 入力を直す（始まり・終わり・指定のしかた・長さのどれでも） / Then 前の誤りは下ろし、新しい「読み取った時間」と並べない', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    const failOnce = (): void => {
+      fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
+      fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 10 * MIN) } });
+      fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+      expect(timeline.getByRole('alert')).toBeInTheDocument();
+    };
+    failOnce();
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 30 * MIN) } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+    expect(timeline.getByText(/^読み取った時間/)).toBeInTheDocument();
+    // 始まりを直した場合
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 10 * MIN) } });
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 5 * MIN) } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+    // 指定のしかたを変えた場合
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: '' } });
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(timeline.getByRole('combobox', { name: INSERT_MODE_FIELD }), { target: { value: 'length' } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+    // 長さを直した場合
+    fireEvent.click(timeline.getByRole('button', { name: INSERT_SUBMIT }));
+    expect(timeline.getByRole('alert')).toBeInTheDocument();
+    fireEvent.change(timeline.getByRole('textbox', { name: INSERT_LENGTH_FIELD }), { target: { value: '10' } });
+    expect(timeline.queryByRole('alert')).toBeNull();
+  });
+
+  it('Given 前日に読んだ範囲を出している / When 開いたまま「いま」が進む / Then 前日の添えを描き直して外す', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    // いまは 60 分の位置。70・80 分の位置の時刻は前日
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 70 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 80 * MIN) } });
+    expect(timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 70 * MIN), true), insertPreviewEdgeText(clock(view, 80 * MIN), true), '0:10'))).toBeInTheDocument();
+    nowMs += 30 * MIN;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(timeline.getByText(insertPreviewText(insertPreviewEdgeText(clock(view, 70 * MIN), false), insertPreviewEdgeText(clock(view, 80 * MIN), false), '0:10'))).toBeInTheDocument();
+  });
+
+  it('Given 読み取れない入力（順が逆） / When 押す前 / Then 範囲は出さない', () => {
+    const view = stoppedTrack();
+    const timeline = openInsert(view);
+    fireEvent.change(timeline.getByLabelText(INSERT_START_FIELD), { target: { value: clock(view, 20 * MIN) } });
+    fireEvent.change(timeline.getByLabelText(INSERT_END_FIELD), { target: { value: clock(view, 10 * MIN) } });
+    expect(timeline.queryByText(/^読み取った時間/)).toBeNull();
   });
 
   it('Given 始まりと長さ・種類は休憩 / When 足す / Then 終わりは始まりに長さを足した位置で、名前は空になる', () => {
@@ -585,6 +747,69 @@ describe('持ち帰り', () => {
     fireEvent.click(button(CLEAR_BUTTON));
     fireEvent.click(button(CLEAR_CONFIRM_YES));
     expect(sentCommands()).toEqual([{ command: 'track.clear' }]);
+  });
+
+  it('Given 確かめを開いた / When 消すを押す / Then 空の写しが届くまでフォーカスを動かさず、届いたら開始のボタンへ移す', () => {
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    expect(button(START_BUTTON)).not.toHaveFocus();
+    deliver(trackView({ nowMs: 60 * MIN, rev: 9 }));
+    expect(button(START_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 計測中 / When 記録を消して空の写しが届く / Then フォーカスは開始のボタンへ移る', () => {
+    renderRoom(trackView({ nowMs: 60 * MIN, segments: [seg('g-1', 'work', 'Build', 0, null)] }));
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    deliver(trackView({ nowMs: 60 * MIN, rev: 9 }));
+    expect(button(START_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 確かめを開いた / When 消すが拒まれる / Then フォーカスは元の「記録を消す」へ戻る', () => {
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '拒まれました' }));
+    expect(button(CLEAR_BUTTON)).toHaveFocus();
+    expect(button(START_BUTTON)).not.toHaveFocus();
+  });
+
+  it('Given 前の操作の拒否の文が画面に出たまま / When 記録を消して空の写しが届く / Then 前の文を今回の拒否と取り違えず、フォーカスは開始のボタンへ移る', () => {
+    renderRoom(stoppedTrack());
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '作業名は 80 字までです' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('作業名は 80 字までです');
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    deliver(trackView({ nowMs: 60 * MIN, rev: 9 }));
+    expect(button(START_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 前の操作の拒否の文が出たまま / When 記録を消すが同じ文で拒まれる / Then フォーカスは元の「記録を消す」へ戻る', () => {
+    renderRoom(stoppedTrack());
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '同じ拒否の文' }));
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    act(() => latestSocket().deliver({ type: 'error', code: 'TRACK_INVALID_LABEL', message: '同じ拒否の文' }));
+    expect(button(CLEAR_BUTTON)).toHaveFocus();
+  });
+
+  it('Given 消すを送った後に接続が切れた / When つながり直す / Then フォーカスは「記録を消す」へ飛ばない', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    renderRoom(stoppedTrack());
+    fireEvent.click(button(CLEAR_BUTTON));
+    fireEvent.click(button(CLEAR_CONFIRM_YES));
+    act(() => latestSocket().drop());
+    expect(button(CLEAR_BUTTON)).toBeDisabled();
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => {
+      latestSocket().open();
+      latestSocket().deliver(JOINED);
+      latestSocket().deliver(ROSTER_FRAME);
+      latestSocket().deliver(trackFrame(stoppedTrack()));
+    });
+    expect(button(CLEAR_BUTTON)).toBeEnabled();
+    expect(button(CLEAR_BUTTON)).not.toHaveFocus();
   });
 
   it('Given 空の記録 / When 画面を描く / Then 記録を消すは押せない', () => {
@@ -680,14 +905,14 @@ describe('キーボード', () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key, ...init });
   };
 
-  it('Given 入力欄にフォーカスが無い / When 2 を押す / Then 2 番目の候補へ切り替える', () => {
-    // 候補: 1 Build・2 Review
+  it('Given 入力欄にフォーカスが無い / When 1 を押す / Then 1 番目の候補へ切り替える', () => {
+    // 候補: 1 Review（計測中の Build は外れる）
     renderRoom(runningTrack());
-    press('2');
+    press('1');
     expect(sentCommands()).toEqual([{ command: 'track.start', label: 'Review', kind: 'work' }]);
   });
 
-  it('Given 候補が 2 件 / When 9 を押す / Then 何もしない', () => {
+  it('Given 候補が 1 件 / When 9 を押す / Then 何もしない', () => {
     renderRoom(runningTrack());
     press('9');
     expect(sentCommands()).toEqual([]);
@@ -774,7 +999,7 @@ describe('切断中', () => {
     expect(button(STOP_BUTTON)).toBeDisabled();
     expect(button(BREAK_BUTTON)).toBeDisabled();
     expect(button(SWITCH_BUTTON)).toBeDisabled();
-    expect(button(/^2\s*Review$/)).toBeDisabled();
+    expect(button(/^1\s*Review$/)).toBeDisabled();
     const sentBefore = latestSocket().sent.length;
     fireEvent.keyDown(document.body, { key: 's' });
     expect(latestSocket().sent.length).toBe(sentBefore);
@@ -791,5 +1016,345 @@ describe('操作の失敗', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('作業名は 80 字までです');
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button'));
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+/** `document.visibilityState` を差し替えて `visibilitychange` を起こす。 */
+function setVisibility(state: 'visible' | 'hidden'): void {
+  act(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+/**
+ * @requirements #476 FR-27・設計 §4 C1〜C5
+ */
+describe('離れていたとき', () => {
+  /** Build（g-3）が 45 分から計測中。135 分で、ちょうど 90 分続いている */
+  const LONG_NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'visibilityState');
+    Reflect.deleteProperty(window, 'documentPictureInPicture');
+  });
+
+  /** 隠れて、`awayMs` たって表に戻る（写しはまだ届かない）。 */
+  function leaveAndReturn(awayMs: number): void {
+    setVisibility('hidden');
+    nowMs += awayMs;
+    setVisibility('visible');
+  }
+
+  /** 戻った後に、サーバーの新しい写し（位置は非表示になった位置から `awayMs` 後）が届く。 */
+  function leaveReturnAndSync(awayMs: number, after: TrackView = runningTrack(LONG_NOW + awayMs)): void {
+    leaveAndReturn(awayMs);
+    deliver(after);
+  }
+
+  it('Given 90 分続く計測中 / When 12 分離れて戻り写しが届く / Then 戻った本人の画面に問いかけが出て、離れたことは送らない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    const before = sentCommands().length;
+    leaveReturnAndSync(12 * MIN);
+    expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
+    // 戻ったときに送るのは写しの取り直し（track.sync）だけ。離れたこと自体はサーバーへ送らない
+    expect(sentCommands().slice(before).map((c) => c['command'])).toEqual(['track.sync']);
+  });
+
+  it('Given 戻った直後で写しがまだ届かない / When 判定する / Then 問いかけを出さず、写しが届いてから出す', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveAndReturn(12 * MIN);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+    deliver(runningTrack(LONG_NOW + 12 * MIN));
+    expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
+  });
+
+  it('Given 問いかけが出ている / When 「離れた時刻で切る」 / Then 非表示になった位置で止める（track.stop の atMs）', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    fireEvent.click(button(AWAY_CUT_BUTTON));
+    expect(sentCommands().at(-1)).toEqual({ command: 'track.stop', atMs: LONG_NOW });
+    expect(screen.queryByText(awayPromptText(12))).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 「その間を休憩にする」 / Then 非表示になった位置からの track.away を送る', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    fireEvent.click(button(AWAY_BREAK_BUTTON));
+    expect(sentCommands().at(-1)).toEqual({ command: 'track.away', fromMs: LONG_NOW });
+    expect(screen.queryByText(awayPromptText(12))).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 「そのまま残す」 / Then 何も送らず、問いかけを下ろす', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    const before = sentCommands().length;
+    fireEvent.click(button(AWAY_KEEP_BUTTON));
+    expect(sentCommands()).toHaveLength(before);
+    expect(screen.queryByText(awayPromptText(12))).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 何も押さずに写しが届き続ける / Then 何も送らず、問いかけは出たまま', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    const before = sentCommands().length;
+    nowMs += 30_000;
+    deliver(runningTrack(LONG_NOW + 12 * MIN + 30_000));
+    expect(screen.getByText(awayPromptText(12))).toBeInTheDocument();
+    expect(sentCommands()).toHaveLength(before);
+  });
+
+  it('Given 離れたのが 10 分に満たない / When 戻る / Then 問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(10 * MIN - 1);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 計測中の区切りが 90 分に満たない / When 12 分離れて戻る / Then 問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW - 13 * MIN));
+    leaveReturnAndSync(12 * MIN, runningTrack(LONG_NOW - 13 * MIN + 12 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れている間に別の人が止めた / When 戻って新しい写しが届く / Then 問いかけは出ない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN, stoppedTrack(LONG_NOW + 12 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れている間に別の区切りへ切り替わった / When 戻って新しい写しが届く / Then 問いかけは出ない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    const switched = trackView({
+      nowMs: LONG_NOW + 12 * MIN,
+      rev: 9,
+      segments: [seg('g-3', 'work', 'Build', 45 * MIN, LONG_NOW + 2 * MIN), seg('g-4', 'work', 'Test', LONG_NOW + 2 * MIN, null)],
+    });
+    leaveReturnAndSync(12 * MIN, switched);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 他の人が止めた写しが届く / Then 問いかけを下ろす', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    deliver(stoppedTrack(LONG_NOW + 13 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 問いかけが出ている / When 区切りの始まりが問いかけの位置以後へ動いた写しが届く / Then 問いかけを下ろす', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    deliver(trackView({ nowMs: LONG_NOW + 13 * MIN, rev: 9, segments: [seg('g-3', 'work', 'Build', LONG_NOW, null)] }));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 短く離れて問いかけが出なかった / When 後で長く使い続ける / Then 古い記録で問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(MIN, runningTrack(LONG_NOW + MIN));
+    nowMs += 20 * MIN;
+    deliver(runningTrack(LONG_NOW + 21 * MIN));
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れている間ミニ表示の窓が開いていた / When 戻って写しが届く / Then 問いかけを出さない', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    Object.defineProperty(window, 'documentPictureInPicture', { configurable: true, value: { window: {} } });
+    leaveReturnAndSync(12 * MIN);
+    expect(screen.queryByText(/離れていました/)).toBeNull();
+  });
+
+  it('Given 離れた間を休憩にする操作が全員の写しに届く / When 写しの undo が away / Then 取り消しの帯に文が出る', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    deliver(runningTrack(LONG_NOW, { rev: 4, undo: { rev: 4, kind: 'away', remainingMs: 8000 } }));
+    expect(screen.getByText(UNDO_NOTE_AWAY)).toBeInTheDocument();
+    fireEvent.click(button(UNDO_BUTTON));
+    expect(sentCommands().at(-1)).toEqual({ command: 'track.undo', rev: 4 });
+  });
+
+  it('Given 切断中 / When 問いかけが出る / Then 送る 2 つは押せず、残すは押せる', () => {
+    renderRoom(runningTrack(LONG_NOW));
+    leaveReturnAndSync(12 * MIN);
+    act(() => latestSocket().drop());
+    expect(button(AWAY_CUT_BUTTON)).toBeDisabled();
+    expect(button(AWAY_BREAK_BUTTON)).toBeDisabled();
+    expect(button(AWAY_KEEP_BUTTON)).toBeEnabled();
+  });
+});
+
+/**
+ * @requirements #476 FR-6・設計 §4 C6・C7
+ */
+describe('止め忘れの通知', () => {
+  const LONG_NOW = 45 * MIN + LONG_RUNNING_NOTICE_MS;
+  const created: { title: string; options: NotificationOptions | undefined }[] = [];
+  let permission: NotificationPermission = 'default';
+  let requested = 0;
+
+  class FakeNotification {
+    static get permission(): NotificationPermission {
+      return permission;
+    }
+    static requestPermission(): Promise<NotificationPermission> {
+      requested += 1;
+      permission = nextAnswer;
+      return Promise.resolve(permission);
+    }
+    constructor(title: string, options?: NotificationOptions) {
+      created.push({ title, options });
+    }
+  }
+  let nextAnswer: NotificationPermission = 'granted';
+
+  beforeEach(() => {
+    resetNotificationAvailability();
+    created.length = 0;
+    permission = 'default';
+    nextAnswer = 'granted';
+    requested = 0;
+    vi.stubGlobal('Notification', FakeNotification);
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
+  /** 設定を入にして、裏に回し、知らせが出る境目を越える。 */
+  async function enable(): Promise<void> {
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    await act(async () => {
+      fireEvent.click(button(NOTIFY_BUTTON));
+      await Promise.resolve();
+    });
+  }
+
+  it('Given 既定 / When 画面を描く / Then 切のまま、許可は求めない', () => {
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(requested).toBe(0);
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toEqual([]);
+  });
+
+  it('Given 通知する / When 押す / Then その時に許可を求め、入にして端末へ覚える', async () => {
+    await enable();
+    expect(requested).toBe(1);
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem(NOTIFY_PREFERENCE_KEY)).toBe('1');
+  });
+
+  it('Given 許可が拒まれた / When 押す / Then 入にならず、拒まれたことを知らせる', async () => {
+    nextAnswer = 'denied';
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    await act(async () => {
+      fireEvent.click(button(NOTIFY_BUTTON));
+      await Promise.resolve();
+    });
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(NOTIFY_DENIED_TEXT)).toBeInTheDocument();
+    expect(localStorage.getItem(NOTIFY_PREFERENCE_KEY)).toBeNull();
+  });
+
+  it('Given 入 / When ページが裏のまま知らせが出る / Then 1 回だけ通知し、文に作業名を出さない', async () => {
+    await enable();
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toHaveLength(1);
+    expect(created[0]!.title).toBe(longRunningNotifyTitle(LONG_RUNNING_NOTICE_MS / MIN));
+    expect(created[0]!.options?.body).toBe(LONG_RUNNING_NOTIFY_BODY);
+    expect(JSON.stringify(created)).not.toContain('Build');
+    // 同じ区切りの写しがもう一度届いても重ねない
+    deliver(runningTrack(LONG_NOW + MIN));
+    expect(created).toHaveLength(1);
+  });
+
+  it('Given 通知した区切り / When 止まって取り消しで同じ区切りの知らせが出直す / Then 重ねて通知しない（区切りの id で 1 回）', async () => {
+    await enable();
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toHaveLength(1);
+    deliver(stoppedTrack(LONG_NOW + MIN));
+    deliver(runningTrack(LONG_NOW + 2 * MIN));
+    expect(created).toHaveLength(1);
+  });
+
+  it('Given 入 / When 別の区切りで次の知らせが出る / Then その区切りでもう 1 回通知する', async () => {
+    await enable();
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    const next = trackView({ nowMs: LONG_NOW + 100 * MIN, rev: 9, segments: [seg('g-9', 'work', 'Next', LONG_NOW, null)] });
+    deliver(trackView({ ...next, segments: [seg('g-9', 'work', 'Next', LONG_NOW + MIN, null)], nowMs: LONG_NOW + 2 * MIN }));
+    deliver(next);
+    expect(created).toHaveLength(2);
+  });
+
+  it('Given 入・計測中が休憩 / When ページが裏のまま知らせが出る / Then 題は「休憩が…」で、作業名は出さない', async () => {
+    renderRoom(trackView({ nowMs: LONG_NOW - 1000, segments: [seg('g-1', 'break', '', 45 * MIN, null)] }));
+    await act(async () => {
+      fireEvent.click(button(NOTIFY_BUTTON));
+      await Promise.resolve();
+    });
+    setVisibility('hidden');
+    deliver(trackView({ nowMs: LONG_NOW, rev: 4, segments: [seg('g-1', 'break', '', 45 * MIN, null)] }));
+    expect(created).toHaveLength(1);
+    expect(created[0]!.title).toBe(longRunningBreakNotifyTitle(LONG_RUNNING_NOTICE_MS / MIN));
+  });
+
+  it('Given 通知を作ると例外になる端末（Android の Chrome） / When 知らせが出る / Then 設定を切に戻して知らせ、以後トグルを出さない', async () => {
+    await enable();
+    class ThrowingNotification extends FakeNotification {
+      constructor() {
+        super('x');
+        throw new TypeError('Illegal constructor');
+      }
+    }
+    vi.stubGlobal('Notification', ThrowingNotification);
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(screen.getByText(NOTIFY_UNAVAILABLE_TEXT)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: NOTIFY_BUTTON })).toBeNull();
+    expect(localStorage.getItem(NOTIFY_PREFERENCE_KEY)).toBeNull();
+  });
+
+  it('Given 入 / When ページが前面のまま知らせが出る / Then 通知しない', async () => {
+    await enable();
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toEqual([]);
+  });
+
+  it('Given 切 / When ページが裏のまま知らせが出る / Then 通知しない', () => {
+    permission = 'granted';
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW));
+    expect(created).toEqual([]);
+  });
+
+  it('Given 通知に未対応のブラウザ / When 画面を描く / Then 設定のボタンを出さない', () => {
+    vi.stubGlobal('Notification', undefined);
+    Reflect.deleteProperty(globalThis, 'Notification');
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(screen.queryByRole('button', { name: NOTIFY_BUTTON })).toBeNull();
+  });
+
+  it('Given 入を覚えた端末 / When 画面を開き直す / Then 入のまま（許可が下りている間）', () => {
+    permission = 'granted';
+    localStorage.setItem(NOTIFY_PREFERENCE_KEY, '1');
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Given 入を覚えたが許可が取り消された / When 画面を開く / Then 切として読む', () => {
+    permission = 'denied';
+    localStorage.setItem(NOTIFY_PREFERENCE_KEY, '1');
+    renderRoom(runningTrack(LONG_NOW - 1000));
+    expect(button(NOTIFY_BUTTON)).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Given 画面を開いた時点で知らせが出ている / When 裏に回る / Then 通知しない（出る瞬間ではない）', () => {
+    permission = 'granted';
+    localStorage.setItem(NOTIFY_PREFERENCE_KEY, '1');
+    renderRoom(runningTrack(LONG_NOW + MIN));
+    setVisibility('hidden');
+    deliver(runningTrack(LONG_NOW + 2 * MIN));
+    expect(created).toEqual([]);
   });
 });

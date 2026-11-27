@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 2a8e2af7..5c04bdd1 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -82,7 +82,6 @@ export function resultsEffectOf(
+   const agreement = judgeAgreement(round.votes);
+   if (agreement !== null) return agreement;
+   if (findSpread(round.votes) !== null) return 'split';
+-  if (judgeNearAgreement(round.votes)) return 'near';
+   return 'complete';
+ }
+ 

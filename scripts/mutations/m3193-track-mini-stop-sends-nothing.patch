@@ -1,0 +1,23 @@
+# 変異 3193: track-mini-stop-sends-nothing
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 ミニ表示の［止める］が、計測中に止めを送らない（条件の反転）。D3。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3193-*.patch
+# 復元: git apply -R scripts/mutations/m3193-*.patch
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index bc8934d8..306567ae 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -195,7 +195,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
+           canOperate={canOperate}
+           // 「いつから」は本体と同じ選択を使い、使ったら「いまから」へ戻す
+           onStop={() => {
+-            if (running !== null) stop();
++            if (running === null) stop();
+           }}
+           onBreak={() => sync.start('', 'break', takeBack())}
+           onResume={resumePrevious}

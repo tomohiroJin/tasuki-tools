@@ -1,8 +1,7 @@
 diff --git a/apps/poker-web/src/components/Results.tsx b/apps/poker-web/src/components/Results.tsx
-index 568db882..c2092ecc 100644
 --- a/apps/poker-web/src/components/Results.tsx
 +++ b/apps/poker-web/src/components/Results.tsx
-@@ -73,7 +73,7 @@ function SpreadNote({ spread: { high, low } }: { spread: SpreadPrompt }) {
+@@ -75,7 +75,7 @@
   * CSS の `.results--after-flip .stats` と同じ式）。動きを減らす設定では札はめくれないので待たない。
   */
  export function effectAnnounceDelay(seatCount: number, afterFlip: boolean): number {
@@ -10,4 +9,4 @@ index 568db882..c2092ecc 100644
 +  return afterFlip ? 0 : 0;
  }
  
- export function Results({ stats, seatCount, afterFlip, spread, effect = null }: Props) {
+ export function Results({ stats, seatCount, afterFlip, spread, effect = null, effectSub = null }: Props) {

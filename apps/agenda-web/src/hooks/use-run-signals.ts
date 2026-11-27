@@ -2,7 +2,7 @@
  * 進行の合図（#429 spec §4.7・§7.4・§7.7）: 時打ち（音と縁の光）と読み上げの一言。
  *
  * 前に描いた盤（手元の時計で進めた写し）といまの盤を比べて、**変わり目でだけ**出す。
- * - 時打ち: `crossedZero` が true のときだけ。音ありなら `playStrike()`、動きを減らす設定でなければ縁を 600ms 光らせる
+ * - 時打ち: `crossedZero` が true のときだけ。音ありなら `playChime(選んだ音)`、動きを減らす設定でなければ縁を 600ms 光らせる
  * - 読み上げ: ステップの切り替わり・時間切れ・一時停止／再開・押し巻きが 0 をまたいだとき（と終了）。毎秒の残りは流さない
  *
  * **参加していない間（切断中・入り直し中）は前の盤を捨てる。** 入り直して受けた最初のフレームは「最初の盤」として扱い、
@@ -30,7 +30,7 @@ import {
   TIMEOUT_ANNOUNCE,
   announceStep,
 } from '../copy';
-import { playStrike } from '../platform/sound';
+import { playChime, type ChimeId } from '../platform/sound';
 import { crossedZero } from '../timeout-signal';
 
 /** 時打ちの光の長さ（spec §7.4） */
@@ -71,12 +71,14 @@ interface Options {
   /** 参加済みか（切断・入り直しの間は前の盤を捨てる） */
   readonly joined: boolean;
   readonly soundOn: boolean;
+  /** 時間切れに鳴らす音（#669） */
+  readonly chimeId: ChimeId;
   readonly reducedMotion: boolean;
 }
 
 export function useRunSignals(
   view: AgendaView | null,
-  { frame, joined, soundOn, reducedMotion }: Options,
+  { frame, joined, soundOn, chimeId, reducedMotion }: Options,
 ): { striking: boolean; announcement: string; announce: (text: string) => void } {
   const prevRef = useRef<AgendaView | null>(null);
   /** 切断した時点で持っていたフレーム。入り直してから次のフレームが届くまでは比べない */
@@ -103,8 +105,8 @@ export function useRunSignals(
   const announceRef = useRef(announce);
   announceRef.current = announce;
   // 効果の中で最新の設定を読む（設定の変化で前の盤を比べ直さない）
-  const settings = useRef({ soundOn, reducedMotion });
-  settings.current = { soundOn, reducedMotion };
+  const settings = useRef({ soundOn, chimeId, reducedMotion });
+  settings.current = { soundOn, chimeId, reducedMotion };
 
   useEffect(() => {
     if (!joined || view === null) {
@@ -124,7 +126,7 @@ export function useRunSignals(
     if (struck && key !== null && prev !== null && prev.currentId !== null) struckKeyRef.current = { key, stepId: prev.currentId };
     if (struckKeyRef.current?.stepId !== view.currentId) struckKeyRef.current = null;
     if (struck) {
-      if (settings.current.soundOn) playStrike();
+      if (settings.current.soundOn) playChime(settings.current.chimeId);
       if (!settings.current.reducedMotion) setStriking(true);
     }
     if (prev === null) return;
