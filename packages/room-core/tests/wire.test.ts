@@ -6,7 +6,14 @@
  */
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
-import { HubCommandSchema, HubServerMsgSchema, isHubCommand, type RosterRoom } from "../src/wire.js";
+import {
+  HubCommandSchema,
+  HubServerMsgSchema,
+  isHubCommand,
+  MAX_CALL_TOOL_LENGTH,
+  RoomCallFrameSchema,
+  type RosterRoom,
+} from "../src/wire.js";
 import { MAX_PASSPHRASE } from "../src/passphrase.js";
 
 /**
@@ -189,6 +196,69 @@ describe("合言葉の設定の wire", () => {
   });
 });
 
+/**
+ * 全員を同じ道具へ呼ぶ（#677）。コマンドは新設なので strict（`docs/adr/0011` 決定 2）。
+ * 道具の綴りが実在するかはサーバーが決める（この文脈は綴りを知らない）ので、ここは形と長さだけを見る。
+ */
+describe("呼びかけのコマンドの wire", () => {
+  it("Given 道具を指した呼びかけ / When 検証する / Then 通る", () => {
+    expect(v.safeParse(HubCommandSchema, { command: "room.call", tool: "poker" }).success).toBe(true);
+  });
+
+  it("Given 空の道具 / When 検証する / Then 落ちる", () => {
+    expect(v.safeParse(HubCommandSchema, { command: "room.call", tool: "" }).success).toBe(false);
+  });
+
+  it("Given 上限ちょうどと 1 字超えの道具 / When 検証する / Then 上限ちょうどは通り、超えると落ちる", () => {
+    const at = "t".repeat(MAX_CALL_TOOL_LENGTH);
+    expect(v.safeParse(HubCommandSchema, { command: "room.call", tool: at }).success).toBe(true);
+    expect(v.safeParse(HubCommandSchema, { command: "room.call", tool: `${at}t` }).success).toBe(false);
+  });
+
+  it("Given 道具の無い呼びかけ / When 検証する / Then 落ちる", () => {
+    expect(v.safeParse(HubCommandSchema, { command: "room.call" }).success).toBe(false);
+  });
+
+  it("Given 余剰フィールド（code）を混ぜた呼びかけ / When 検証する / Then 落ちる", () => {
+    expect(v.safeParse(HubCommandSchema, { command: "room.call", tool: "poker", code: "R" }).success).toBe(false);
+  });
+});
+
+/**
+ * 呼びかけの知らせ（#677）。**ルームの全接続へ届く**ので、ハブの言葉（`HubServerMsg`）とは別のフレームにして、
+ * 各画面が自分の契約より先に見分ける（お題の `topic` フレームと同じ置き方）。
+ * サーバーから画面へ送る言葉なので非 strict（このファイルの冒頭の規律）。
+ */
+describe("呼びかけの知らせの wire", () => {
+  const frame = { type: "room.call", call: { tool: "poker", fromParticipantId: "p1", fromName: "あや" } };
+
+  it("Given 呼びかけの知らせ / When 検証する / Then 通り値が残る", () => {
+    const parsed = v.safeParse(RoomCallFrameSchema, frame);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.output.call).toEqual(frame.call);
+  });
+
+  it("Given 未知の項目が増えた知らせ（新しいサーバー） / When 検証する / Then 通る", () => {
+    expect(v.safeParse(RoomCallFrameSchema, { ...frame, call: { ...frame.call, at: 1 }, extra: true }).success).toBe(true);
+  });
+
+  it.each([
+    ["道具", { ...frame.call, tool: "" }],
+    ["呼んだ人の ID", { ...frame.call, fromParticipantId: "" }],
+    ["呼んだ人の名前", { ...frame.call, fromName: "" }],
+  ])("Given %s が空の知らせ / When 検証する / Then 落ちる", (_name, call) => {
+    expect(v.safeParse(RoomCallFrameSchema, { type: "room.call", call }).success).toBe(false);
+  });
+
+  it("Given 別の type / When 検証する / Then 落ちる（お題やハブの言葉と取り違えない）", () => {
+    expect(v.safeParse(RoomCallFrameSchema, { ...frame, type: "roster" }).success).toBe(false);
+  });
+
+  it("Given 呼びかけの知らせ / When ハブの言葉として検証する / Then 落ちる（古い玄関は黙って捨てる）", () => {
+    expect(v.safeParse(HubServerMsgSchema, frame).success).toBe(false);
+  });
+});
+
 describe("名簿の合言葉の印", () => {
   it("Given passphraseProtected を持つ名簿 / When 検証する / Then 通り値が残る", () => {
     const parsed = parseRoster({ ...roster, passphraseProtected: true });
@@ -219,6 +289,7 @@ describe("isHubCommand", () => {
     ["room.join", { command: "room.join", code: "R", displayName: "d" }],
     ["room.check", { command: "room.check", code: "R" }],
     ["room.passphrase.set", { command: "room.passphrase.set", passphrase: "p" }],
+    ["room.call", { command: "room.call", tool: "poker" }],
   ])("Given ハブの言葉 %s / When 見分ける / Then true", (_name, cmd) => {
     expect(isHubCommand(cmd as { command: string })).toBe(true);
   });

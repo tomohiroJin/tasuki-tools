@@ -1,0 +1,12 @@
+diff --git a/packages/room-core/src/wire.ts b/packages/room-core/src/wire.ts
+index 41f188c5..d3bed05f 100644
+--- a/packages/room-core/src/wire.ts
++++ b/packages/room-core/src/wire.ts
+@@ -235,6 +235,6 @@ export const RoomCallFrameSchema: v.GenericSchema<RoomCallFrame> = v.object({
+   call: v.object({
+     tool: nonEmptyString,
+     fromParticipantId: nonEmptyString,
+-    fromName: nonEmptyString,
++    fromName: v.string(),
+   }),
+ });

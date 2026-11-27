@@ -56,3 +56,6 @@ export type { RoomRoute } from "./room-route.js";
 // 名簿そのもののスキーマは公開しない（`roster` メッセージとしてだけ運ばれる）。
 export { HubCommandSchema, HubServerMsgSchema, isHubCommand } from "./wire.js";
 export type { RosterParticipant, RosterRoom, HubCommand, HubServerMsg } from "./wire.js";
+// 呼びかけ（#677）: ルームの全接続へ届く知らせ。各画面が自分の契約より先に見分ける。
+export { MAX_CALL_TOOL_LENGTH, RoomCallFrameSchema } from "./wire.js";
+export type { RoomCall, RoomCallFrame } from "./wire.js";

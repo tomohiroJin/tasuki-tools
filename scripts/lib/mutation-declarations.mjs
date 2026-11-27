@@ -292,6 +292,9 @@ const RESERVED_2920_2929 =
 const RESERVED_2930_2949 =
   "**対応表より後に足した変異。** 2930〜2949 は #674（E2E の主な流れを WebKit でも CI で流す）に割り当てた範囲。";
 
+const RESERVED_3400_3499 =
+  "**対応表より後に足した変異。** 3400〜3499 は #677（ルームの 1 人が全員を同じ道具へ呼ぶ）に割り当てた範囲（3400〜3429 同期サーバー・3430〜3459 共通部品と道具の画面 5 つ・3460〜3489 玄関・timer・poker・3490〜3499 wire）。";
+
 const RESERVED_2050_2079 =
   "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
 
@@ -13953,5 +13956,29 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/turbo-env.test.ts"],
     note: RESERVED_2930_2949 + " " + "#674 のレビュー。本番向けの変数が残ったシェルで pnpm e2e:webkit を流しても、取り違えの検査が発火しない（e2e タスクで実際に起きた壊れ方と同じ）。",
+  },
+  {
+    id: 3490,
+    label: "呼びかけのコマンド（room.call）のスキーマを strict でない v.object にする（余剰の項目が通る）",
+    patch: "m3490-room-call-command-not-strict.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/wire.test.ts"],
+    note: RESERVED_3400_3499 + " " + "#677。docs/adr/0011 決定 2 の S3（余剰フィールドを拒む）が新設のコマンドで外れる。",
+  },
+  {
+    id: 3491,
+    label: "呼びかけのコマンドの道具の綴りから長さの上限を外す",
+    patch: "m3491-room-call-tool-no-max-length.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/wire.test.ts"],
+    note: RESERVED_3400_3499 + " " + "#677。長い値が境界を越えてサーバーの照合とログの手前まで届く。",
+  },
+  {
+    id: 3492,
+    label: "呼びかけの知らせの呼んだ人の名前に空文字を通す",
+    patch: "m3492-room-call-frame-allows-empty-name.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/wire.test.ts"],
+    note: RESERVED_3400_3499 + " " + "#677。名前の無い知らせ（「さんが呼んでいます」）が画面に出る。",
   },
 ];
