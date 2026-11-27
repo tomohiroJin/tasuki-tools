@@ -1,5 +1,5 @@
 diff --git a/packages/ui/src/components/cut-in.css b/packages/ui/src/components/cut-in.css
-index fdc916f9..40e4da75 100644
+index 3eba0880..6f99221a 100644
 --- a/packages/ui/src/components/cut-in.css
 +++ b/packages/ui/src/components/cut-in.css
 @@ -163,7 +163,7 @@
@@ -8,6 +8,6 @@ index fdc916f9..40e4da75 100644
    inset-inline: 15%;
 -  white-space: normal;
 +  white-space: nowrap;
-   text-wrap: balance;
+   text-wrap-style: balance; /* 一括指定の text-wrap は text-wrap-mode（折り返すか）も書き換えて white-space を打ち消すので、形だけの個別指定にする */
    line-height: 1.5;
    inset-block-start: 100%;

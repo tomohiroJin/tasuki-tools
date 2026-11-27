@@ -71,13 +71,25 @@ function lastValue(declarations, property) {
   return values.at(-1);
 }
 
+/**
+ * 折り返すかどうかを最後に決めた宣言（後勝ち）。`white-space`・一括指定の `text-wrap`・`text-wrap-mode` の 3 つが同じ性質を書き換えるので、
+ * 書かれた順で最後のものを見る（`white-space` だけを見ると、後ろの `text-wrap: nowrap` を見逃し、前の `nowrap` を後ろの `text-wrap: balance` が打ち消すのも読めない）
+ */
+function lastWrapDeclaration(declarations) {
+  const found = [...declarations.matchAll(/(?:^|[;\s])(white-space|text-wrap|text-wrap-mode):\s*([^;]+);/g)];
+  const last = found.at(-1);
+  return last === undefined ? undefined : { property: last[1], value: last[2].trim() };
+}
+
 test('添え書きは画面の幅の中に置き、長ければ折り返す（#670 のレビュー。320px で 23 字の要約の両端が切れた）', () => {
   const d = declarationsOf('.ui-cutin-sub');
-  assert.equal(lastValue(d, 'white-space'), 'normal');
-  // 舞台は画面の 120% 幅。左右を舞台の 10% 以上詰めないと、画面の外へ出る
+  const wrap = lastWrapDeclaration(d);
+  assert.ok(wrap !== undefined, '折り返しの宣言が無い');
+  assert.ok(!/\bnowrap\b/.test(wrap.value), `最後の折り返しの宣言が折り返さない: ${wrap.property}: ${wrap.value}`);
+  // 舞台は画面の 120% 幅で、帯は傾いている。左右を舞台の 15% 詰めて、320px でも傾いた外枠が画面に収まる（12% では 5px はみ出した）
   const inset = lastValue(d, 'inset-inline');
   assert.match(inset ?? '', /^\d+(\.\d+)?%$/, `inset-inline が割合でない: ${inset}`);
-  assert.ok(Number.parseFloat(inset) >= 10, `inset-inline が 10% 未満: ${inset}`);
+  assert.ok(Number.parseFloat(inset) >= 15, `inset-inline が 15% 未満: ${inset}`);
 });
 
 test('題は 1 行に収める（nowrap）', () => {

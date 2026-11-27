@@ -136,7 +136,7 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(3)], ['c', n(5)]]), three)).toBe('scattered');
   });
 
-  it('大きく割れた（2 段以上。1 と 13 は 6 段）なら、同じ札が 2 組あっても split', () => {
+  it('大きく割れた（2 段以上。1 と 13 は 5 段）なら、同じ札が 2 組あっても split', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(1)], ['c', n(13)]]), three)).toBe('split');
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(13)]]), [person('a'), person('b')])).toBe('split');
   });

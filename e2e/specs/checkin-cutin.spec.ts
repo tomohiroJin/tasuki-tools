@@ -40,6 +40,47 @@ async function openRoom(
   return { a: page, b: peer.page };
 }
 
+/**
+ * 帯が止まっている間（舞台の動きの 22〜80%。題の着地の山 24% を含む）を 2% ごとに止め、題と添え書きの**字そのもの**の外枠
+ * （`Range` の外枠。要素の箱ではない）が画面の左右の中にあるかを測る（#670 のレビュー）。
+ * - 層は overflow: hidden なので、横スクロールでは中身のはみ出しが見えない
+ * - 要素の箱は inset で細くしてあり、字が箱からはみ出しても箱は収まる（箱を測ると偽の緑になる）
+ * - 滑り込み（0〜21%）と抜け（80% より後）は画面の外を通る動きなので測らない
+ */
+async function expectGlyphsInsideWhileSettled(page: Page): Promise<void> {
+  const worst = await page.evaluate(() => {
+    const root = document.querySelector('body > .ui-cutin');
+    if (root === null) return null;
+    const anims = root.getAnimations({ subtree: true });
+    const glyphs = (sel: string) => {
+      const el = root.querySelector(sel);
+      if (el === null) return null;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const r = range.getBoundingClientRect();
+      return { left: r.left, right: r.right };
+    };
+    const out: { at: number; key: string; left: number; right: number }[] = [];
+    for (let pct = 22; pct <= 80; pct += 2) {
+      for (const anim of anims) {
+        anim.pause();
+        anim.currentTime = (Number(anim.effect?.getComputedTiming().endTime ?? 0) * pct) / 100;
+      }
+      for (const key of ['.ui-cutin-title', '.ui-cutin-sub']) {
+        const g = glyphs(key);
+        if (g !== null) out.push({ at: pct, key, ...g });
+      }
+    }
+    return { width: document.documentElement.clientWidth, frames: out };
+  });
+  expect(worst, '層が描かれている').not.toBeNull();
+  expect(worst!.frames.length, '測った姿の数').toBeGreaterThan(0);
+  for (const f of worst!.frames) {
+    expect(f.left, `${f.key} の字の左端（${f.at}%）`).toBeGreaterThanOrEqual(0);
+    expect(f.right, `${f.key} の字の右端（${f.at}%）`).toBeLessThanOrEqual(worst!.width);
+  }
+}
+
 const overflowOf = (page: Page): Promise<number> =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
@@ -96,9 +137,7 @@ test.describe('札が開いたときのカットイン', () => {
     await a.setViewportSize(original);
   });
 
-  test('Given 320px・長い要約（23 字）の添え書き / When 帯が止まった姿で測る / Then 題と添え書きが画面の左右の中に収まる', async ({ page, openPeer }) => {
-    // #670 のレビュー。層は overflow: hidden なので、横のスクロールでは中身のはみ出しが見えない（scrollWidth は常に収まる）。
-    // 字そのものの外枠を測る。動きの途中は帯が画面の外から滑り込むので、全部の動きを帯が止まった時刻（全体の 50%）で止めて測る
+  test('Given 320px・長い要約（23 字）の添え書き / When 帯が止まっている間を測る / Then 題と添え書きの字が画面の左右の中に収まる', async ({ page, openPeer }) => {
     const { a, b } = await openRoom(page, openPeer, 'long');
     await a.setViewportSize({ width: 320, height: 640 });
     await a.getByRole('button', { name: '別のやり方', exact: true }).click();
@@ -108,27 +147,18 @@ test.describe('札が開いたときのカットイン', () => {
     const layer = cutIn(a, 'チェックイン');
     await expect(layer).toBeVisible({ timeout: SHOWN_WITHIN_MS });
     await expect(layer.locator('.ui-cutin-sub')).toHaveText('どちらもわかる・どちらもあいまいが 1 人ずつ');
-    const boxes = await a.evaluate(() => {
-      const root = document.querySelector('body > .ui-cutin');
-      if (root === null) return null;
-      for (const anim of root.getAnimations({ subtree: true })) {
-        const total = Number(anim.effect?.getComputedTiming().endTime ?? 0);
-        anim.pause();
-        anim.currentTime = total / 2;
-      }
-      const box = (sel: string) => {
-        const r = root.querySelector(sel)?.getBoundingClientRect();
-        return r === undefined ? null : { left: r.left, right: r.right };
-      };
-      return { width: document.documentElement.clientWidth, title: box('.ui-cutin-title'), sub: box('.ui-cutin-sub') };
-    });
-    expect(boxes).not.toBeNull();
-    for (const key of ['title', 'sub'] as const) {
-      const box = boxes![key];
-      expect(box, key).not.toBeNull();
-      expect(box!.left, `${key} の左端`).toBeGreaterThanOrEqual(0);
-      expect(box!.right, `${key} の右端`).toBeLessThanOrEqual(boxes!.width);
-    }
+    await expectGlyphsInsideWhileSettled(a);
+  });
+
+  test('Given 320px・9 字の題（おつかれさまでした） / When 帯が止まっている間（題の着地の山を含む）を測る / Then 題の字が画面の左右の中に収まる', async ({ page, openPeer }) => {
+    const { a, b } = await openRoom(page, openPeer, 'long9');
+    await a.setViewportSize({ width: 320, height: 640 });
+    await a.getByRole('button', { name: '別のやり方', exact: true }).click();
+    await chooseMethod(a, 'チェックアウト', 'ROTI（時間に見合ったか）');
+    await handCard(a, '2').click();
+    await handCard(b, '4').click();
+    await expect(cutIn(a, 'おつかれさまでした')).toBeVisible({ timeout: SHOWN_WITHIN_MS });
+    await expectGlyphsInsideWhileSettled(a);
   });
 
   test('Given 動きを減らす設定 / When 開く / Then カットインは描かず、読み上げの文は出る', async ({ page, openPeer }) => {

@@ -164,7 +164,7 @@
 .ui-cutin-sub {
   inset-inline: 15%;
   white-space: normal;
-  text-wrap: balance;
+  text-wrap-style: balance; /* 一括指定の text-wrap は text-wrap-mode（折り返すか）も書き換えて white-space を打ち消すので、形だけの個別指定にする */
   line-height: 1.5;
   inset-block-start: 100%;
   padding-block-start: 0.6em;
@@ -178,7 +178,7 @@
   position: relative;
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 9.6vw, 5.5rem); /* scale-exempt: 画面いっぱいの見せ場の字。320px 幅でも 9 字が 1 行に収まる大きさ（5 段の外） */
+  font-size: clamp(1.75rem, 8.6vw, 5.5rem); /* scale-exempt: 画面いっぱいの見せ場の字（5 段の外）。320px 幅で 9 字が、動きの山（scale 1.14）でも画面に収まる大きさ（9.6vw では山で 5px 切れた・#670 のレビュー） */
   font-style: italic;
   font-weight: 700;
   line-height: 1;

@@ -14147,7 +14147,7 @@ export const MUTATIONS = [
     patch: "m2990-effect-near-before-split.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-view.test.ts"],
-    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。1・1・13 のように 3 段以上割れた回が「ほぼ同じ」と呼ばれ、割れの促し（SpreadNote）と食い違う。",
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。1・1・13 のように大きく（2 段以上）割れた回が「ほぼ同じ」と呼ばれ、割れの促し（SpreadNote）と食い違う。",
   },
   {
     id: 2991,
@@ -14163,7 +14163,7 @@ export const MUTATIONS = [
     patch: "m2992-effect-split-dropped.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-view.test.ts"],
-    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。3 段以上割れた回に割れの場面が出ない。",
+    note: RESERVED_2990_3019 + " " + "#670。room-view.ts。大きく（2 段以上）割れた回に割れの場面が出ない。",
   },
   {
     id: 2993,
