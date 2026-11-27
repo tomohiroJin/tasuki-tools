@@ -7,7 +7,7 @@
  * お題のコマンドの失敗（`GENERATION_COOLDOWN` 等）もハブの `error` の形（コードは非空文字列）に収まる。
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubServerMsg } from '@tasuki/room-core';
+import { HubServerMsgSchema, RoomCallFrameSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
 import { TopicFrameSchema, type TopicState } from '@tasuki/topic-core';
 
 export type TopicWebMessage = { type: 'topic'; state: TopicState } | HubServerMsg;
@@ -18,4 +18,10 @@ export function parseTopicWebMessage(raw: string): TopicWebMessage | null {
   if (topic.isOk()) return topic.value;
   const hub = parseBoundaryMessage(HubServerMsgSchema, raw);
   return hub.isOk() ? hub.value : null;
+}
+
+/** 呼びかけの知らせ（`room.call`・#677）なら中身を返す。そうでなければ `null`（同期フックが契約より先に呼ぶ）。 */
+export function parseTopicRoomCall(raw: string): RoomCall | null {
+  const parsed = parseBoundaryMessage(RoomCallFrameSchema, raw);
+  return parsed.isOk() ? parsed.value.call : null;
 }

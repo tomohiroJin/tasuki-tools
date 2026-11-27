@@ -8,8 +8,7 @@
 import * as v from "valibot";
 import { ServerMsgSchema } from "@tasuki/timer-core";
 import type { Room } from "@tasuki/timer-core";
-import type { RoomCall } from "@tasuki/room-core";
-import { parseRoomCallFrame } from "@tasuki/web-kit/sync";
+import { RoomCallFrameSchema, type RoomCall } from "@tasuki/room-core";
 import { TopicFrameSchema, type TopicState } from "@tasuki/topic-core";
 import type { NoticeSignal } from "./notice-message.js";
 
@@ -89,9 +88,9 @@ export function dispatchServerMessage(
 
   // **呼びかけの知らせも timer の契約より先に見分ける**（#677）。お題と同じ置き方。
   // 形の崩れた知らせは、ここで拾わず下の検証に落として知らせる。
-  const roomCall = parseRoomCallFrame(raw as string);
-  if (roomCall !== null) {
-    cb.onRoomCall?.(roomCall);
+  const roomCall = v.safeParse(RoomCallFrameSchema, json);
+  if (roomCall.success) {
+    cb.onRoomCall?.(roomCall.output.call);
     return;
   }
 

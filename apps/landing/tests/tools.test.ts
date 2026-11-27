@@ -20,7 +20,12 @@ describe('TOOLS', () => {
   });
 
   it('Given 行き先の表（web-kit） / When 札の名前と公開パスを見る / Then 表と同じ（正本は表の 1 か所・#677）', () => {
-    expect(TOOLS.map((tool) => tool.id)).toEqual(Object.keys(TOOL_DESTINATIONS));
+    const tableIds = Object.keys(TOOL_DESTINATIONS);
+    const cardIds = TOOLS.map((tool) => tool.id);
+    // 表に無い札・札に無い表の行が無い（順も同じ）
+    expect(cardIds.filter((id) => !tableIds.includes(id))).toEqual([]);
+    expect(tableIds.filter((id) => !cardIds.includes(id as ToolId))).toEqual([]);
+    expect(cardIds).toEqual(tableIds);
     for (const tool of TOOLS) {
       expect({ name: tool.name, href: tool.href }).toEqual(toolDestination(tool.id));
     }

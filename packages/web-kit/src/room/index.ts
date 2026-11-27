@@ -10,6 +10,7 @@ export { connectionNotice, type ConnectionNotice } from './connection-notice.js'
 export { LoadingView } from './loading-view.js';
 export { ROOM_GATE_TEXT } from './room-gate-copy.js';
 export { RoomCallNotice, type RoomCallNoticeProps } from './room-call-notice.js';
+export type { RoomCallView } from './room-call-view.js';
 export { RoomGoneView } from './room-gone-view.js';
 export { RoomJoiningView, type RoomJoiningViewProps } from './room-joining-view.js';
 export { TOOL_DESTINATIONS, toolDestination, type ToolDestination, type ToolDestinationId } from './tool-destinations.js';

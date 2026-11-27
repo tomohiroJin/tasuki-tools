@@ -14,31 +14,31 @@ diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
 index c8b5fe52..e039f641 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
-@@ -46,14 +46,6 @@ export const TOOLS = [
-     href: TOOL_DESTINATIONS.poker.href,
+@@ -42,14 +42,6 @@ export const TOOLS: readonly Tool[] = [
+     href: "/poker/",
      mark: "spade",
    },
 -  {
 -    id: "roulette",
 -    pip: "進行",
--    name: TOOL_DESTINATIONS.roulette.name,
+-    name: "Facilitator Roulette",
 -    summary: "その場で進行役を決める",
--    href: TOOL_DESTINATIONS.roulette.href,
+-    href: "/roulette/",
 -    mark: "wheel",
 -  },
    {
      id: "topic",
      pip: "お題",
-@@ -62,6 +54,14 @@ export const TOOLS = [
-     href: TOOL_DESTINATIONS.topic.href,
+@@ -58,6 +50,14 @@ export const TOOLS: readonly Tool[] = [
+     href: "/topic/",
      mark: "flag",
    },
 +  {
 +    id: "roulette",
 +    pip: "進行",
-+    name: TOOL_DESTINATIONS.roulette.name,
++    name: "Facilitator Roulette",
 +    summary: "その場で進行役を決める",
-+    href: TOOL_DESTINATIONS.roulette.href,
++    href: "/roulette/",
 +    mark: "wheel",
 +  },
    {

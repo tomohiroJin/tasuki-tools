@@ -39,7 +39,7 @@ import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { CardId, CheckinCommand, CheckinView, GroupId, MethodId, Side, Visibility } from '@tasuki/checkin-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseCheckinWebMessage } from '../server-message';
+import { parseCheckinRoomCall, parseCheckinWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function checkinSyncUrl(location: { protocol: string; host: string }): string {
@@ -110,6 +110,7 @@ export function useCheckinSync(roomCode: string): CheckinSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: checkinSyncUrl,
+    parseCall: parseCheckinRoomCall,
     parse: parseCheckinWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {

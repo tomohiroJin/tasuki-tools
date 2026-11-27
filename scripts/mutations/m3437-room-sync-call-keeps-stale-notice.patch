@@ -1,10 +1,9 @@
 diff --git a/packages/web-kit/src/sync/use-tool-room-sync.ts b/packages/web-kit/src/sync/use-tool-room-sync.ts
-index 3d43e82b..06e6e243 100644
 --- a/packages/web-kit/src/sync/use-tool-room-sync.ts
 +++ b/packages/web-kit/src/sync/use-tool-room-sync.ts
-@@ -213,7 +213,6 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
+@@ -219,7 +219,6 @@ export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>(
        // （渡すと「契約に合わないフレーム」として同期の告知が出る）。正しいフレームなので告知は下ろす。最新の 1 つだけ持つ。
-       const roomCall = parseRoomCallFrame(raw);
+       const roomCall = optionsRef.current.parseCall(raw);
        if (roomCall !== null) {
 -        setSyncStale(false);
          setCall(roomCall);

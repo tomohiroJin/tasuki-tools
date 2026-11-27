@@ -22,7 +22,7 @@ import type { TopicState } from '@tasuki/topic-core';
 import type { BackMinutes, SegmentEdge, SegmentKind, TrackCommand, TrackView } from '@tasuki/track-core';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseTrackWebMessage } from '../server-message';
+import { parseTrackRoomCall, parseTrackWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function trackSyncUrl(location: { protocol: string; host: string }): string {
@@ -97,6 +97,7 @@ export function useTrackSync(roomCode: string): TrackSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: trackSyncUrl,
+    parseCall: parseTrackRoomCall,
     parse: parseTrackWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {
