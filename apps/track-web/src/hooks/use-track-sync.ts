@@ -16,7 +16,7 @@
  * - **コマンドに、誰が操作したかを表す項目は無い**（設計 §6）
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import type { TopicState } from '@tasuki/topic-core';
 import type { BackMinutes, SegmentEdge, SegmentKind, TrackCommand, TrackView } from '@tasuki/track-core';
@@ -80,6 +80,10 @@ export interface TrackSync extends TrackActions {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
+  /** 呼びかけの知らせ（最新の 1 つ・#677）。無ければ null */
+  readonly call: RoomCall | null;
+  /** 知らせを閉じる（#677） */
+  dismissCall(): void;
 }
 
 export function useTrackSync(roomCode: string): TrackSync {
@@ -174,6 +178,8 @@ export function useTrackSync(roomCode: string): TrackSync {
       error: room.error,
       retryNotice: room.retryNotice,
       clearError: room.clearError,
+      call: room.call,
+      dismissCall: room.dismissCall,
       ...actions,
     }),
     [room, slot, roster, topic, actions],

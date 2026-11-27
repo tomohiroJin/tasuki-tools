@@ -21,7 +21,7 @@ import {
   type TrackView,
 } from '@tasuki/track-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion } from '@tasuki/web-kit/room';
+import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion, RoomCallNotice } from '@tasuki/web-kit/room';
 import { Notices } from '../components/Notices';
 import { NowPanel } from '../components/NowPanel';
 import { SwitchPanel } from '../components/SwitchPanel';
@@ -68,6 +68,7 @@ export function TrackRoom({ roomCode }: { roomCode: string }) {
   return (
     <>
       <ConnectionBanner kind={sync.notice} />
+      {sync.call !== null && <RoomCallNotice call={sync.call} roomCode={roomCode} onDismiss={sync.dismissCall} />}
       <main className="ui-page ui-page--wide">
         <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
         <div className="track-room">
