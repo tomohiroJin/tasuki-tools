@@ -51,7 +51,7 @@ export interface ToolRoomFrameHandlers {
   clearError(): void;
 }
 
-export interface ToolRoomSyncOptions<Frame> {
+export interface ToolRoomSyncOptions<Frame, Call extends RoomCallView = RoomCallView> {
   readonly roomCode: string;
   /** 同期サーバーへの URL（ツールの宣言つき。組み立ては `@tasuki/sync-client` の `buildSyncUrl`）。 */
   readonly syncUrl: (location: SyncUrlLocation) => string;
@@ -59,7 +59,7 @@ export interface ToolRoomSyncOptions<Frame> {
    * 受けた文字列が呼びかけの知らせ（`room.call`・#677）なら、その中身を返す。そうでなければ null。
    * 道具の `parse` より先に呼ぶ。見分けは道具の画面の純粋な層が持つ（web-kit は wire を読まない）。
    */
-  readonly parseCall: (raw: string) => RoomCallView | null;
+  readonly parseCall: (raw: string) => Call | null;
   /** 受けた文字列をフレームにする。契約に合わなければ null（同期が古い印を立てる）。 */
   readonly parse: (raw: string) => Frame | null;
   /** 契約に合ったフレーム。`room.joined` と `error` は `handlers` へ戻す。 */
@@ -74,7 +74,7 @@ export interface ToolRoomSyncOptions<Frame> {
   };
 }
 
-export interface ToolRoomSync {
+export interface ToolRoomSync<Call extends RoomCallView = RoomCallView> {
   readonly status: ConnectionStatus;
   readonly everConnected: boolean;
   readonly failedAttempts: number;
@@ -97,7 +97,7 @@ export interface ToolRoomSync {
   /** 混雑のやり直しの知らせ。 */
   readonly retryNotice: string | null;
   /** 受け取った呼びかけ（最新の 1 つ。#677）。新しい呼びかけは前のを置き換える。 */
-  readonly call: RoomCallView | null;
+  readonly call: Call | null;
   /** 呼びかけの知らせを閉じる。 */
   dismissCall(): void;
   clearError(): void;
@@ -105,7 +105,9 @@ export interface ToolRoomSync {
   send(command: Record<string, unknown>): void;
 }
 
-export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): ToolRoomSync {
+export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>(
+  options: ToolRoomSyncOptions<Frame, Call>,
+): ToolRoomSync<Call> {
   const { roomCode } = options;
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [everConnected, setEverConnected] = useState(false);
@@ -118,7 +120,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   const [departed, setDeparted] = useState<ToolRoomDeparture | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [call, setCall] = useState<RoomCallView | null>(null);
+  const [call, setCall] = useState<Call | null>(null);
 
   const retry = useJoinRetry({ waiting: options.texts.retryWaiting, exhausted: options.texts.retryExhausted });
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = retry;
