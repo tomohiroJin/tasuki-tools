@@ -8,7 +8,6 @@
  *   再接続の直後の古い状態では出さない（poker の `revealedLiveAfter` と同じ考え方）
  */
 import { METHODS, type MethodId, type PileView } from '@tasuki/checkin-core';
-import type { CutInCue } from '@tasuki/web-kit/room';
 import { CUTIN_ALL_SAME, CUTIN_CHECKIN, CUTIN_CHECKOUT, SIDE_KICKER } from './copy';
 import { METHOD_COPY } from './method-copy';
 import { REVEAL_FLIP_MS, revealSchedule, summaryLine } from './reveal-view';
@@ -16,8 +15,17 @@ import { REVEAL_FLIP_MS, revealSchedule, summaryLine } from './reveal-view';
 /** 「全員同じ」と呼ぶ出した人数の下限（1 人だけでは全員とは言わない） */
 const ALL_SAME_MIN_PLAYERS = 2;
 
-/** `CutInCue` のうち、開いた山の中身だけで決まる部分（id・待ちは画面が足す） */
-export type CheckinCutIn = Required<Pick<CutInCue, 'title' | 'sub' | 'tone' | 'kicker'>>;
+/**
+ * カットインの中身のうち、開いた山だけで決まる部分（id・待ちは画面が足す）。
+ * 部品の型（`@tasuki/web-kit/room` の `CutInCue`）は読まない: この層（web/pure）は web-kit を読めない（`docs/adr/0015` の追記の許可表）。
+ * 形は `CutInCue` の部分集合で、画面がそのまま渡せる（ずれれば画面の型検査が落ちる）
+ */
+export interface CheckinCutIn {
+  title: string;
+  sub: string;
+  tone: 'gold' | 'rose' | 'jade';
+  kicker: string;
+}
 
 /**
  * 開いた山からカットインの中身を決める。`piles` は `orderedPiles` を通した（札の順・0 枚の山つき）ものでよい。

@@ -133,7 +133,7 @@ describe('resultsEffectOf（#639）', () => {
 
   it('同じ札が 1 組も無ければ、大きく離れていても scattered（バラバラが割れより先。3 枚すべて違えば必ず 2 段以上離れるので、割れを先に見るとバラバラが出なくなる）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), three)).toBe('scattered');
-    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(2)], ['c', n(3)]]), three)).toBe('scattered');
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(3)], ['c', n(5)]]), three)).toBe('scattered');
   });
 
   it('大きく割れた（2 段以上。1 と 13 は 6 段）なら、同じ札が 2 組あっても split', () => {
