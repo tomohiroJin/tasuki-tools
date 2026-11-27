@@ -32,7 +32,8 @@ import {
   type RoomStateMessage,
 } from '@tasuki/poker-core';
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import type { DepartureReason } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall } from '@tasuki/room-core';
+import { parseRoomCallFrame } from '@tasuki/web-kit/sync';
 import { TopicFrameSchema, type Topic } from '@tasuki/topic-core';
 
 /** 接続状態（正本は `@tasuki/sync-client`。#369）。 */
@@ -149,10 +150,25 @@ export interface PokerSync {
   closeGame: () => void;
 }
 
-export function usePokerSync(): PokerSync {
+/**
+ * 呼びかけの知らせ（#677）。**poker は出すだけ**で、画面（`RoomPage` ほか）は読まない。出すのは `App` だけなので、
+ * {@link PokerSync} には足さず、{@link usePokerSync} の戻り値にだけ重ねる（`PokerSync` を組み立てる画面の検査を巻き込まない）。
+ *
+ * `room.call` フレームは poker の契約をまたぐ（`@tasuki/web-kit/sync` の `parseRoomCallFrame` で見分ける）ので、
+ * `snapshot` とは別に持つ。閉じるか新しいものが来るまで残る。
+ */
+export interface PokerRoomCall {
+  /** 受け取った呼びかけ（最新の 1 つ。無ければ null）。 */
+  roomCall: RoomCall | null;
+  /** 呼びかけの知らせを閉じる。 */
+  dismissRoomCall: () => void;
+}
+
+export function usePokerSync(): PokerSync & PokerRoomCall {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [snapshot, setSnapshot] = useState<RoomStateMessage | null>(null);
   const [topic, setTopic] = useState<Topic | null>(null);
+  const [roomCall, setRoomCall] = useState<RoomCall | null>(null);
   const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
   const [departed, setDeparted] = useState<DepartureReason | null>(null);
@@ -210,6 +226,15 @@ export function usePokerSync(): PokerSync {
       return;
     }
 
+    // **呼びかけの知らせも poker の契約より先に見分ける**（#677）。お題と同じ置き方で、順を逆にすると
+    // 未知の `type` として落とし、#212 の告知（同期できていません）が立つ。
+    // 知らせは契約を満たすフレームの数に入れない（`syncStale` を下ろさない。お題のフレームと同じ）。
+    const call = parseRoomCallFrame(raw);
+    if (call !== null) {
+      setRoomCall(call);
+      return;
+    }
+
     const result = parseServerMessage(raw);
     if (result.isErr()) {
       // 境界検証に失敗したフレームは画面へ渡さない（憲法原則 IV）。
@@ -257,6 +282,8 @@ export function usePokerSync(): PokerSync {
           if (currentRoomRef.current !== null) clearResumeIdentity(currentRoomRef.current);
           connectionRef.current?.dispose();
           setJoinedThisConnection(false);
+          // 呼びかけの知らせもルームのもの（#677）。抜けた後に、抜けたルームへの「移る」を残さない
+          setRoomCall(null);
           setDeparted(plan.reason);
           break;
         }
@@ -315,6 +342,8 @@ export function usePokerSync(): PokerSync {
       failedAttempts,
       snapshot,
       topic,
+      roomCall,
+      dismissRoomCall: () => setRoomCall(null),
       joinedThisConnection,
       error,
       departed,
@@ -328,6 +357,7 @@ export function usePokerSync(): PokerSync {
       failedAttempts,
       snapshot,
       topic,
+      roomCall,
       joinedThisConnection,
       error,
       departed,
