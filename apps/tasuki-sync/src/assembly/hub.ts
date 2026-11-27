@@ -4,6 +4,7 @@
  * ハブは道具の一覧（`application/tool-id.ts`）に載らないので、保管も破棄も後始末も持たない。
  */
 import { makeHubHandlers, type HubHandlers } from "../application/hub-handlers.js";
+import type { RoomCallGate } from "../application/room-call.js";
 import type { TopicBroadcaster } from "../application/topic-broadcast.js";
 import type { AssemblyBase, TimerSide } from "./context.js";
 
@@ -15,7 +16,12 @@ import type { AssemblyBase, TimerSide } from "./context.js";
  * **レート制限のゲートも {@link TimerSide.rateLimitGate} を渡す** —— 別に作ると `connId → 鍵` の
  * 対応が空になり、`/ws` は再接続で回避できる抜け道になる。
  */
-export function assembleHub(base: AssemblyBase, timer: TimerSide, topicBroadcaster: TopicBroadcaster): HubHandlers {
+export function assembleHub(
+  base: AssemblyBase,
+  timer: TimerSide,
+  topicBroadcaster: TopicBroadcaster,
+  roomCalls: RoomCallGate,
+): HubHandlers {
   return makeHubHandlers({
     store: base.store,
     timerBroadcaster: base.timerBroadcaster,
@@ -29,5 +35,9 @@ export function assembleHub(base: AssemblyBase, timer: TimerSide, topicBroadcast
     hub: base.hubBroadcaster,
     // 作成・参加の成功時に、いまのお題を本人へ 1 通送る（#91・E4）。
     topicBroadcaster,
+    // 呼びかけ（#677）。歯止めの時刻はルームの破棄で消える（破棄の束は `create-sync-server.ts`）。
+    // 知らせはルームの全接続へ届くので、宛先の接続 ID はハブに限らない（口はハブのものを借りる）。
+    roomCalls,
+    sendCall: (connIds, frame) => base.ws.get().to.hub.broadcast(connIds, frame),
   });
 }

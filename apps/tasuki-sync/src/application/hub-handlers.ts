@@ -24,7 +24,9 @@
  */
 import {
   HubCommandSchema,
+  findParticipantByConnId,
   type HubCommand,
+  type RoomCallFrame,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { errorMessageFor } from "@tasuki/timer-core";
@@ -40,7 +42,8 @@ import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
 import { applyRoomPassphrase } from "./room-passphrase.js";
 import { buildRoster } from "./roster-dto.js";
 import { joinToolRoom } from "./join-tool-room.js";
-import { TOOL_HUB } from "./tool-id.js";
+import { CALL_TOO_SOON_MESSAGE, callRecipients, type RoomCallGate } from "./room-call.js";
+import { TOOL_HUB, isKnownToolId } from "./tool-id.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 
 /**
@@ -63,6 +66,18 @@ export interface HubHandlerDeps extends CreateRoomDeps, JoinRoomDeps, SaveRoster
    * 落ちても全テストが緑のまま、玄関にだけお題が届かない。
    */
   topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
+  /**
+   * 呼びかけの連打の歯止め（#677）。**ルームの破棄で `clearRoom` が呼ばれる配線にすること**（`destroy-room.ts`）。
+   *
+   * **必須にしてある**（`topicBroadcaster` と同じ理由）。省略可にすると、本番の配線から落ちても全テストが緑のまま、
+   * 連打の歯止めが黙って外れる。
+   */
+  roomCalls: Pick<RoomCallGate, "tryAccept">;
+  /**
+   * 呼びかけの知らせを、接続へ配る口（#677）。**宛先はハブに限らない**（ほかの道具の接続へも届く）。
+   * お題の配信（`topic-broadcast.ts`）と同じ置き方で、実体は WS アダプタの `to.hub.broadcast`。
+   */
+  sendCall: (connIds: string[], frame: RoomCallFrame) => void;
 }
 
 export interface HubHandlers {
@@ -195,6 +210,41 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     hub.sendTo(connId, { type: "roster", room: buildRoster(room, nowProtected) });
   }
 
+  /**
+   * ルームのほかの在室者を、指した道具へ呼ぶ（#677）。宛先・連打の規則は `room-call.ts`。
+   *
+   * 順は「在席 → 道具の綴り → 連打」。**拒んだ呼びかけは歯止めの時刻を更新しない**（綴りが誤りの呼びかけが
+   * 正しい呼びかけの枠を食わない）。受け付けは**呼んだ接続にだけ**返す（宛先が 0 人でも返す。玄関はこれを受けて移る）。
+   * 知らせに載せる名前は名簿の表示名で、ログには何も書かない。
+   */
+  function handleCall(connId: string, cmd: Extract<HubCommand, { command: "room.call" }>): void {
+    const room = findRoomByToolConnection(deps.store, connId, TOOL_HUB);
+    if (room === undefined) {
+      fail(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
+      return;
+    }
+    const tool = cmd.tool;
+    if (!isKnownToolId(tool)) {
+      fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
+      return;
+    }
+    const caller = findParticipantByConnId(room, connId);
+    if (caller === undefined) {
+      // 在席の判定を通っているので起きない（型を絞るための確かめ）。
+      fail(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
+      return;
+    }
+    if (!deps.roomCalls.tryAccept(room.code)) {
+      fail(connId, "CALL_TOO_SOON", CALL_TOO_SOON_MESSAGE);
+      return;
+    }
+    deps.sendCall(callRecipients(room, connId, tool), {
+      type: "room.call",
+      call: { tool, fromParticipantId: caller.id, fromName: caller.displayName },
+    });
+    hub.sendTo(connId, { type: "room.called", tool });
+  }
+
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
     // 参加の流れは topic・roulette と共有する（`join-tool-room.ts`）。2 度目の参加の拒否・表示名の規約・
     // 失敗の文言（ハブは「存在しないルーム」と「合言葉が要るルーム」を区別して返す）もそちらが持つ。
@@ -235,6 +285,10 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       }
       if (cmd.command === "room.passphrase.set") {
         handlePassphraseSet(connId, cmd);
+        return;
+      }
+      if (cmd.command === "room.call") {
+        handleCall(connId, cmd);
         return;
       }
       handleJoin(connId, cmd);

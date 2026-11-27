@@ -104,6 +104,12 @@ export interface RoomDestroyerDeps {
    */
   trackAutoStop: { clearRoom(roomCode: string): void };
   /**
+   * 呼びかけの連打の歯止めの時刻（#677）。破棄で捨てる（消えたルームの時刻を残さない・憲法 III）。
+   *
+   * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
+   */
+  roomCalls: { clearRoom(roomCode: string): void };
+  /**
    * お題の生成（#91・`TopicGenerator`）。破棄で進行中の生成を中断する（子プロセスを止める）。
    *
    * ⚠ **optional にしてはならない。** 省略時の構成を持たない ——
@@ -133,6 +139,7 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     checkinGrace,
     tracks,
     trackAutoStop,
+    roomCalls,
     scheduler,
     topicGenerator,
     presence,
@@ -144,6 +151,7 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     agendaDeadlines.clear(roomCode);
     checkinGrace.clearRoom(roomCode);
     trackAutoStop.clearRoom(roomCode);
+    roomCalls.clearRoom(roomCode);
     // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
     // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
     topicGenerator.cancel(roomCode);
