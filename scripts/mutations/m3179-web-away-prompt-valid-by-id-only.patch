@@ -1,0 +1,21 @@
+# 変異 3179: web-away-prompt-valid-by-id-only
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#   - tests/track-room.test.tsx
+#
+# #476 出している問いかけを、区切りの番号だけで見直す（始まりが動いた・24 時間を越えても出し続ける）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3179-*.patch
+# 復元: git apply -R scripts/mutations/m3179-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -162,5 +162,5 @@
+  * 外れたら（誰かが止めた・切り替えた・始まりが動いた・24 時間を越えた）下ろす。
+  */
+ export function isAwayPromptStillValid(view: TrackView, nowMs: number, prompt: AwayPrompt): boolean {
+-  return awayTargetOf(view, nowMs, prompt.fromMs, prompt.runningId) !== null;
++  return runningSegmentOf(view)?.id === prompt.runningId;
+ }

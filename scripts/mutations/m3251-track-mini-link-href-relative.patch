@@ -1,0 +1,22 @@
+# 変異 3251: track-mini-link-href-relative
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/mini-window-copy.test.ts
+#
+# #476 窓へ写す外部シートの link を、絶対 URL にしない。相対の href が窓の基準 URL で読まれ、外部シートが読めない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3251-*.patch
+# 復元: git apply -R scripts/mutations/m3251-*.patch
+diff --git a/apps/track-web/src/platform/mini-window.ts b/apps/track-web/src/platform/mini-window.ts
+--- a/apps/track-web/src/platform/mini-window.ts
++++ b/apps/track-web/src/platform/mini-window.ts
+@@ -72,7 +72,7 @@
+     if (sheet.href !== null) {
+       const link = target.createElement('link');
+       link.rel = 'stylesheet';
+-      link.href = new URL(sheet.href, source.baseURI).href;
++      link.href = sheet.href;
+       target.head.appendChild(link);
+       continue;
+     }

@@ -1,0 +1,23 @@
+# 変異 3192: track-mini-break-sends-work
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 ミニ表示の［休憩にする］が、休憩でなく作業の開始を送る。D3。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3192-*.patch
+# 復元: git apply -R scripts/mutations/m3192-*.patch
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index bc8934d8..050fe072 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -197,7 +197,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
+           onStop={() => {
+             if (running !== null) stop();
+           }}
+-          onBreak={() => sync.start('', 'break', takeBack())}
++          onBreak={() => sync.start('', 'work', takeBack())}
+           onResume={resumePrevious}
+         />
+       )}

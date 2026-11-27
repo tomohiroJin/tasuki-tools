@@ -1,0 +1,22 @@
+# 変異 3177: web-away-prompt-ignores-90min
+#
+# 検出を期待するテスト:
+#   - tests/track-view.test.ts
+#
+# #476 離れていたときの問いかけが、計測中の区切りが 90 分に満たなくても出る（短い区切りを切ってしまう）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3177-*.patch
+# 復元: git apply -R scripts/mutations/m3177-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -139,7 +139,7 @@
+ function awayTargetOf(view: TrackView, nowMs: number, fromMs: number, runningId: string | null): SegmentView | null {
+   const hiddenMs = nowMs - fromMs;
+   if (hiddenMs < Math.max(AWAY_PROMPT_MIN_HIDDEN_MS, MIN_SEGMENT_MS) || hiddenMs > MAX_LOOKBACK_MS) return null;
+-  const running = longRunningOf(view, nowMs);
++  const running = runningSegmentOf(view);
+   if (running === null || running.kind !== 'work' || running.id !== runningId || running.startMs >= fromMs) return null;
+   return running;
+ }

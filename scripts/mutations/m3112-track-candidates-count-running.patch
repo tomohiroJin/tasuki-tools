@@ -1,0 +1,23 @@
+# 変異 3112: track-candidates-count-running
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/projection.test.ts
+#
+# #476 計測中の 1 件を、押せる候補の上限に数える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3112-*.patch
+# 復元: git apply -R scripts/mutations/m3112-*.patch
+diff --git a/packages/track-core/src/projection.ts b/packages/track-core/src/projection.ts
+index d0e57233..a649a370 100644
+--- a/packages/track-core/src/projection.ts
++++ b/packages/track-core/src/projection.ts
+@@ -103,7 +103,7 @@ export function candidatesOf(view: TrackView, topicTitle: string | null): Candid
+     if (!isRunning && pressable >= MAX_CANDIDATES) return;
+     seen.add(label);
+     out.push({ label, source, pinned: pinned.has(label), running: isRunning });
+-    if (!isRunning) pressable++;
++    pressable++;
+   };
+   const topic = topicLabel(topicTitle);
+   if (topic !== null) push(topic, "topic");

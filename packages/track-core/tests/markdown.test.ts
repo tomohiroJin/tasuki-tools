@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adjustSegment } from "../src/edit.js";
-import { formatClock, formatDuration, toMarkdown } from "../src/markdown.js";
+import { formatClock, formatDuration, formatMonthDay, toMarkdown } from "../src/markdown.js";
 import { autoStop, start, stop, toView } from "../src/track.js";
 import type { TrackState } from "../src/types.js";
 import { MIN, at, empty, must, sample } from "./support/states.js";
@@ -145,5 +145,12 @@ describe("toMarkdown", () => {
     const md = markdownAt(20, s);
     expect(md).toContain("| 作業の合計 | 0:00 | |");
     expect(md).toContain("| 休憩 | 0:15 | |");
+  });
+});
+
+describe("formatMonthDay", () => {
+  it("端末の時間帯の月/日にする（日付をまたぐ）", () => {
+    expect(formatMonthDay(Date.UTC(2026, 10, 23, 1, 0, 0), JST)).toBe("11/23");
+    expect(formatMonthDay(Date.UTC(2026, 10, 23, 16, 0, 0), JST)).toBe("11/24");
   });
 });

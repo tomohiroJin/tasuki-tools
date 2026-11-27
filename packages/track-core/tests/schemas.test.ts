@@ -12,6 +12,8 @@ describe("TrackCommandSchema", () => {
     { command: "track.start", label: "", kind: "break", backMin: 5 },
     { command: "track.stop" },
     { command: "track.stop", backMin: 15 },
+    { command: "track.stop", atMs: 600_000 },
+    { command: "track.away", fromMs: 600_000 },
     { command: "track.undo", rev: 3 },
     { command: "track.segment.set", id: "g-1", label: "設計", kind: "work" },
     { command: "track.segment.adjust", id: "g-1", edge: "start", atMs: -60_000 },
@@ -36,6 +38,14 @@ describe("TrackCommandSchema", () => {
     ["知らない種類", { command: "track.start", label: "a", kind: "pause" }],
     ["刻みに無いさかのぼり", { command: "track.start", label: "a", kind: "work", backMin: 3 }],
     ["さかのぼりが 0", { command: "track.stop", backMin: 0 }],
+    ["停止の atMs とさかのぼりを同時に", { command: "track.stop", atMs: 1, backMin: 5 }],
+    ["停止の atMs が小数", { command: "track.stop", atMs: 1.5 }],
+    ["停止の atMs が桁外れ", { command: "track.stop", atMs: 1e15 }],
+    ["離れた位置が無い", { command: "track.away" }],
+    ["離れた位置が小数", { command: "track.away", fromMs: 0.5 }],
+    ["離れた位置が桁外れ", { command: "track.away", fromMs: 1e15 }],
+    ["離れた位置が文字列", { command: "track.away", fromMs: "1" }],
+    ["離れたときの余計な項目", { command: "track.away", fromMs: 1, by: "p-1" }],
     ["作業名が文字列でない", { command: "track.start", label: 1, kind: "work" }],
     ["作業名が長すぎる", { command: "track.start", label: "あ".repeat(MAX_LABEL_INPUT + 1), kind: "work" }],
     ["作業名に制御文字", { command: "track.start", label: "a\nb", kind: "work" }],
@@ -82,6 +92,10 @@ describe("TrackFrameSchema", () => {
     );
     expect(parsed.state.segments[0]!.kind).toBe("work");
     expect(parsed.state.undo!.kind).toBe("start");
+  });
+  it("取り消しの種類 away を受ける", () => {
+    const parsed = v.parse(TrackFrameSchema, frame({ ...base, undo: { rev: 1, kind: "away", remainingMs: 10 } }));
+    expect(parsed.state.undo!.kind).toBe("away");
   });
   it("形が違えば拒む", () => {
     expect(ok(TrackFrameSchema, { type: "agenda", state: base })).toBe(false);

@@ -1,0 +1,34 @@
+# 変異 3173: web-notify-while-visible
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 ページが前面のままでも通知を出す（画面で見えている知らせと二重になる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3173-*.patch
+# 復元: git apply -R scripts/mutations/m3173-*.patch
+diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
+--- a/apps/track-web/src/hooks/use-long-running-notify.ts
++++ b/apps/track-web/src/hooks/use-long-running-notify.ts
+@@ -44,7 +44,7 @@
+       return;
+     }
+     if (longRunningId === null || longRunningId === previous || notifiedRef.current.has(longRunningId)) return;
+-    if (enabledRef.current && pageHidden()) {
++    if (enabledRef.current) {
+       notifiedRef.current.add(longRunningId);
+       const minutes = LONG_RUNNING_NOTICE_MS / MS_PER_MIN;
+       const title = kindRef.current === 'break' ? longRunningBreakNotifyTitle(minutes) : longRunningNotifyTitle(minutes);
+diff --git a/apps/track-web/src/platform/notify.ts b/apps/track-web/src/platform/notify.ts
+--- a/apps/track-web/src/platform/notify.ts
++++ b/apps/track-web/src/platform/notify.ts
+@@ -77,7 +77,7 @@
+  * **`new Notification()` が投げたら `failed` を返し、以後この端末では出さない**（黙って握りつぶさない。呼ぶ側が設定を切に戻して知らせる）。
+  */
+ export function notifyWhenHidden(title: string, body: string): 'sent' | 'skipped' | 'failed' {
+-  if (!notificationGranted() || !pageHidden()) return 'skipped';
++  if (!notificationGranted()) return 'skipped';
+   try {
+     // 同じ知らせが重ならないよう tag を付ける
+     new Notification(title, { body, tag: 'tasuki-track-long-running' });

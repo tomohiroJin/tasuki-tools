@@ -242,6 +242,62 @@ describe("うちわけのコマンド", () => {
     expect(lastView(h, "a-1").segments.at(-1)!.endMs).toBeNull();
   });
 
+  it("離れていたとき: stop の atMs で切る・track.away で休憩にする。どちらも全員へ配り、取り消せる", async () => {
+    // Given: 設計が 0 分から計測中・いまは 120 分
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await joined(h, "b-1", "Bob");
+    await h.handle("a-1", { command: "track.start", label: "設計", kind: "work" });
+    h.advance(120 * MIN);
+    h.sent.length = 0;
+
+    // When: 90 分の位置からいままでを休憩にする
+    await h.handle("a-1", { command: "track.away", fromMs: 90 * MIN });
+
+    // Then: 全員に同じ写しが届き、取り消しの種類は away
+    expect(viewsTo(h, "b-1")).toEqual(viewsTo(h, "a-1"));
+    const away = lastView(h, "b-1");
+    expect(away.undo!.kind).toBe("away");
+    expect(away.segments.map((g) => [g.kind, g.label, g.startMs, g.endMs])).toEqual([
+      ["work", "設計", 0, 90 * MIN],
+      ["break", "", 90 * MIN, 120 * MIN],
+      ["work", "設計", 120 * MIN, null],
+    ]);
+
+    // When: 取り消す
+    await h.handle("b-1", { command: "track.undo", rev: away.undo!.rev });
+    expect(lastView(h, "a-1").segments.map((g) => [g.kind, g.startMs, g.endMs])).toEqual([["work", 0, null]]);
+
+    // When: 60 分の位置で切る
+    await h.handle("a-1", { command: "track.stop", atMs: 60 * MIN });
+    expect(lastView(h, "b-1").segments.map((g) => [g.kind, g.startMs, g.endMs])).toEqual([["work", 0, 60 * MIN]]);
+    expect(lastView(h, "b-1").undo!.kind).toBe("stop");
+  });
+
+  it("離れていたとき: 始まり以前・同時指定・計測していない away は、状態を変えない", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await joined(h, "b-1", "Bob");
+    await h.handle("a-1", { command: "track.away", fromMs: 1_000 });
+    expect(errorsTo(h, "a-1")).toEqual([]);
+    expect(h.tracks.get(ROOM)!.segments).toEqual([]);
+    await h.handle("a-1", { command: "track.start", label: "設計", kind: "work" });
+    h.advance(30 * MIN);
+    const before = h.tracks.get(ROOM);
+    h.sent.length = 0;
+
+    // When
+    await h.handle("a-1", { command: "track.away", fromMs: 0 });
+    await h.handle("a-1", { command: "track.stop", atMs: 10 * MIN, backMin: 5 });
+    await h.handle("a-1", { command: "track.stop", atMs: 31 * MIN });
+
+    // Then: 境界で拒まれた 1 件は INVALID_COMMAND、ほか 2 件は TRACK_BACKDATE_TOO_FAR
+    expect(errorsTo(h, "a-1")).toEqual(["TRACK_BACKDATE_TOO_FAR", "INVALID_COMMAND", "TRACK_BACKDATE_TOO_FAR"]);
+    expect(h.sent.filter((s) => s.connId === "b-1")).toEqual([]);
+    expect(h.tracks.get(ROOM)).toBe(before);
+  });
+
   it("期限を過ぎた取り消しは何もせず、送り主にだけ写しを返す", async () => {
     // Given
     const h = setup();

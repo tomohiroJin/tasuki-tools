@@ -1,0 +1,23 @@
+# 変異 3206: track-mini-stop-ignores-back
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 ミニ表示の［止める］が、「いつから」の選択を使わない。本体の［止める］と違い、選んだ分前から止まらない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3206-*.patch
+# 復元: git apply -R scripts/mutations/m3206-*.patch
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index bc8934d8..b02692b4 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -195,7 +195,7 @@ function RoomBody({ roomCode, view, sync }: { roomCode: string; view: TrackView;
+           canOperate={canOperate}
+           // 「いつから」は本体と同じ選択を使い、使ったら「いまから」へ戻す
+           onStop={() => {
+-            if (running !== null) stop();
++            if (running !== null) sync.stop();
+           }}
+           onBreak={() => sync.start('', 'break', takeBack())}
+           onResume={resumePrevious}

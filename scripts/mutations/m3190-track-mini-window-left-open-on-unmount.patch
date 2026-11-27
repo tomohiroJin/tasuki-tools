@@ -1,0 +1,22 @@
+# 変異 3190: track-mini-window-left-open-on-unmount
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/use-mini-window.test.tsx
+#   - apps/track-web/tests/track-display.test.tsx
+#
+# #476 画面を外しても、開いた小さな窓を閉じない。D3。ルームを抜けた後も窓が残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3190-*.patch
+# 復元: git apply -R scripts/mutations/m3190-*.patch
+diff --git a/apps/track-web/src/hooks/use-mini-window.ts b/apps/track-web/src/hooks/use-mini-window.ts
+--- a/apps/track-web/src/hooks/use-mini-window.ts
++++ b/apps/track-web/src/hooks/use-mini-window.ts
+@@ -88,7 +88,6 @@
+       mountedRef.current = false;
+       const win = windowRef.current;
+       release();
+-      win?.close();
+     };
+   }, [release]);
+ 

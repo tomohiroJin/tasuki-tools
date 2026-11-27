@@ -20,6 +20,7 @@ import type { TrackActions } from '../hooks/use-track-sync';
 import { isUnnamed, nameOf, rangeTextOf } from '../track-view';
 import { InsertForm } from './InsertForm';
 import { SegmentEditor } from './SegmentEditor';
+import { TimeBand } from './TimeBand';
 
 interface Props {
   view: TrackView;
@@ -56,6 +57,7 @@ export function Timeline({ view, nowMs, getNow, tzOffsetMin, canOperate, actions
           {INSERT_BUTTON}
         </button>
       </div>
+      <TimeBand view={view} nowMs={nowMs} tzOffsetMin={tzOffsetMin} />
       {inserting && (
         <div id={insertId}>
           <InsertForm

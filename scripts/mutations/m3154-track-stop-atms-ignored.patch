@@ -1,0 +1,22 @@
+# 変異 3154: track-stop-atms-ignored
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#
+# #476 停止の atMs を読み飛ばして、いまで止める。離れた時刻で切れない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3154-*.patch
+# 復元: git apply -R scripts/mutations/m3154-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -118,7 +118,7 @@
+   if (running === undefined) return ok(s);
+   if (input.atMs !== undefined && input.backMin !== undefined) return fail("TRACK_BACKDATE_TOO_FAR");
+   const nowMs = input.now - s.epochMono;
+-  const t = input.atMs ?? nowMs - (input.backMin ?? 0) * MS_PER_MIN;
++  const t = nowMs - (input.backMin ?? 0) * MS_PER_MIN;
+   if ((input.backMin !== undefined || input.atMs !== undefined) && !isBackdatePosition(running, t, nowMs)) return fail("TRACK_BACKDATE_TOO_FAR");
+   return ok(timed(s, "stop", input.now, { segments: closeRunning(s.segments, running, t, false) }));
+ }

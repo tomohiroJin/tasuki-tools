@@ -1,0 +1,22 @@
+# 変異 3155: track-away-covers-as-work
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 離れていた間を休憩でなく作業として上書きする（合計に入る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3155-*.patch
+# 復元: git apply -R scripts/mutations/m3155-*.patch
+diff --git a/packages/track-core/src/edit.ts b/packages/track-core/src/edit.ts
+--- a/packages/track-core/src/edit.ts
++++ b/packages/track-core/src/edit.ts
+@@ -190,7 +190,7 @@
+   if (running === undefined || running.kind === "break") return ok(s);
+   const nowMs = input.now - s.epochMono;
+   if (!isBackdatePosition(running, input.fromMs, nowMs)) return fail("TRACK_BACKDATE_TOO_FAR");
+-  const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "break", now: input.now });
++  const inserted = insertSegment(s, { startMs: input.fromMs, endMs: nowMs, label: "", kind: "work", now: input.now });
+   // 範囲はここで確かめたので、insertSegment が拒むのは区切りの上限だけ
+   if (inserted.isErr()) return fail(inserted.error.code === "TRACK_FULL" ? "TRACK_FULL" : "TRACK_BACKDATE_TOO_FAR");
+   // 上書きは後ろの残りに新しい番号を振るので、計測中の続きが元の番号を保つよう、前の残りと入れ替える

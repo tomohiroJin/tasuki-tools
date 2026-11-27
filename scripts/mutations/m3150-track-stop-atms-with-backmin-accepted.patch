@@ -1,0 +1,21 @@
+# 変異 3150: track-stop-atms-with-backmin-accepted
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/schemas.test.ts
+#
+# #476 track.stop が atMs と backMin の同時指定を境界で拒まない。どちらを使うかが曖昧になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3150-*.patch
+# 復元: git apply -R scripts/mutations/m3150-*.patch
+diff --git a/packages/track-core/src/schemas.ts b/packages/track-core/src/schemas.ts
+--- a/packages/track-core/src/schemas.ts
++++ b/packages/track-core/src/schemas.ts
+@@ -34,7 +34,6 @@
+   // 停止の位置は `backMin`（分前）か `atMs`（時刻軸の位置）のどちらか。同時に送ると拒む（離れていたときの問いかけ・FR-27）
+   v.pipe(
+     v.strictObject({ command: v.literal("track.stop"), backMin, atMs: v.optional(positionMs) }),
+-    v.check((c) => c.backMin === undefined || c.atMs === undefined, "backMin and atMs must not be given together"),
+   ),
+   // 離れていた間（`fromMs` からいままで）を休憩にする
+   v.strictObject({ command: v.literal("track.away"), fromMs: positionMs }),

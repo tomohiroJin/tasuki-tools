@@ -1,0 +1,23 @@
+# 変異 3283: track-insert-no-tick
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 抜けを足す欄を開いている間、描き直さない（前日の添えが古いまま残る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3283-*.patch
+# 復元: git apply -R scripts/mutations/m3283-*.patch
+diff --git a/apps/track-web/src/components/InsertForm.tsx b/apps/track-web/src/components/InsertForm.tsx
+index e7c71b9c..773a6aee 100644
+--- a/apps/track-web/src/components/InsertForm.tsx
++++ b/apps/track-web/src/components/InsertForm.tsx
+@@ -69,7 +69,7 @@ export function InsertForm({ epochWallMs, getNow, tzOffsetMin, canOperate, onIns
+   // 開いている間は 1 秒ごとに描き直す（0 時をまたぐと、前日の添えが古くなる）
+   const [, setTick] = useState(0);
+   useEffect(() => {
+-    const id = setInterval(() => setTick((n) => n + 1), OPEN_TICK_MS);
++    const id = setInterval(() => undefined, OPEN_TICK_MS);
+     return () => clearInterval(id);
+   }, []);
+ 

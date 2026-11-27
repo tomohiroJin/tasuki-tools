@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..89982080 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -39,7 +39,7 @@ export const SavedRecordSchema = v.object({
+   savedAtMs: v.pipe(v.number(), v.finite()),
+   /** 時刻軸の 0 に当たる壁時計の ms */
+   epochWallMs: v.pipe(v.number(), v.finite()),
+-  segments: v.pipe(v.array(SavedSegmentSchema), v.maxLength(MAX_SEGMENTS)),
++  segments: v.array(SavedSegmentSchema),
+ });
+ 
+ export type SavedSegment = v.InferOutput<typeof SavedSegmentSchema>;

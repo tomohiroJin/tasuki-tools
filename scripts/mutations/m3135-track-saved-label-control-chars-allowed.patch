@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..2d97c6c3 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -23,7 +23,7 @@ const SavedSegmentSchema = v.pipe(
+     label: v.pipe(
+       v.string(),
+       v.maxLength(MAX_LABEL),
+-      v.check((s) => !hasControlChars(s), 'label must not contain control characters'),
++      v.check(() => true, 'label must not contain control characters'),
+     ),
+     startMs: position,
+     endMs: position,

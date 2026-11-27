@@ -1,0 +1,12 @@
+diff --git a/apps/track-web/src/hooks/use-saved-count.ts b/apps/track-web/src/hooks/use-saved-count.ts
+index 3d066638..2fef2045 100644
+--- a/apps/track-web/src/hooks/use-saved-count.ts
++++ b/apps/track-web/src/hooks/use-saved-count.ts
+@@ -42,7 +42,6 @@ export function useSaveToDevice(view: TrackView, getNow: () => number): SaveToDe
+   }, []);
+ 
+   useEffect(() => {
+-    setStatus('idle');
+   }, [view.rev]);
+ 
+   const save = useCallback(async () => {

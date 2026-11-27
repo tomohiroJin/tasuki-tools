@@ -1,0 +1,29 @@
+# 変異 3278: track-clear-focus-waits-after-disconnect
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 「記録を消す」へ戻すフォーカスが、押せるようになるまで待ち続ける（つながり直したときに飛ぶ）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3278-*.patch
+# 復元: git apply -R scripts/mutations/m3278-*.patch
+diff --git a/apps/track-web/src/components/TakeHome.tsx b/apps/track-web/src/components/TakeHome.tsx
+index 01f2219f..a49300d3 100644
+--- a/apps/track-web/src/components/TakeHome.tsx
++++ b/apps/track-web/src/components/TakeHome.tsx
+@@ -91,11 +91,11 @@ function ClearControl({
+   useEffect(() => {
+     // 押せないボタンにはフォーカスが乗らない。すぐに受けられないときは戻すのをやめる
+     // （待ち続けると、つながり直した後に、使っていない人の「記録を消す」へフォーカスが飛ぶ）
+-    if (!asking && returnFocus) {
+-      if (openRef.current !== null && !openRef.current.disabled) openRef.current.focus();
++    if (!asking && returnFocus && openRef.current !== null && !openRef.current.disabled) {
++      openRef.current.focus();
+       setReturnFocus(false);
+     }
+-  }, [asking, returnFocus]);
++  }, [asking, returnFocus, enabled, canOperate]);
+   useEffect(() => {
+     if (!pending) return;
+     if (!enabled) {

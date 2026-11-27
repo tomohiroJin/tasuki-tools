@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..b924cb4a 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -53,7 +53,7 @@ export function recordFromView(view: TrackView, nowMs: number, id: string): Save
+   return {
+     version: SAVED_RECORD_VERSION,
+     id,
+-    savedAtMs: view.epochWallMs + nowMs,
++    savedAtMs: Date.now(),
+     epochWallMs: view.epochWallMs,
+     segments: view.segments.map((g) => ({
+       kind: g.kind,

@@ -1,0 +1,23 @@
+# 変異 3182: track-band-running-zero-width
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/band.test.ts
+#
+# #476 時系列の帯が、始めたばかりの計測中の区切りを幅 0 にして落とす。開始から 1 分の間、計測中の部分が帯に出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3182-*.patch
+# 復元: git apply -R scripts/mutations/m3182-*.patch
+diff --git a/packages/track-core/src/band.ts b/packages/track-core/src/band.ts
+index 6c36c77a..88888060 100644
+--- a/packages/track-core/src/band.ts
++++ b/packages/track-core/src/band.ts
+@@ -39,7 +39,7 @@ export function bandOf(view: TrackView, nowMs: number): Band | null {
+   const last = view.segments.at(-1);
+   if (first === undefined || last === undefined) return null;
+   const running = runningSegmentOf(view);
+-  const endMs = running === null ? last.endMs! : Math.max(stepDown(nowMs), running.startMs + 1);
++  const endMs = running === null ? last.endMs! : Math.max(stepDown(nowMs), running.startMs);
+   const parts: BandPart[] = [];
+   let cursor = first.startMs;
+   for (const segment of view.segments) {

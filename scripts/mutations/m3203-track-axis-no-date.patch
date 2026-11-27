@@ -1,0 +1,23 @@
+# 変異 3203: track-axis-no-date
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/band-view.test.ts
+#
+# #476 時系列の帯の両端の日付が違っても、月/日を添えない。日をまたぐ記録の右端が、前の日の時刻に読める。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3203-*.patch
+# 復元: git apply -R scripts/mutations/m3203-*.patch
+diff --git a/apps/track-web/src/track-view.ts b/apps/track-web/src/track-view.ts
+index 75fa9695..2ed6d39d 100644
+--- a/apps/track-web/src/track-view.ts
++++ b/apps/track-web/src/track-view.ts
+@@ -125,7 +125,7 @@ export function toneIndexOf(rows: readonly { readonly label: string }[], label:
+ export function axisLabelsOf(view: Pick<TrackView, 'epochWallMs'>, band: Band, nowMs: number, tzOffsetMin: number): { start: string; end: string } {
+   const startWall = view.epochWallMs + band.startMs;
+   const endWall = view.epochWallMs + Math.max(band.endMs, band.running ? nowMs : band.endMs);
+-  const spans = formatMonthDay(startWall, tzOffsetMin) !== formatMonthDay(endWall, tzOffsetMin);
++  const spans = false;
+   const label = (wall: number): string => (spans ? `${formatMonthDay(wall, tzOffsetMin)} ${formatClock(wall, tzOffsetMin)}` : formatClock(wall, tzOffsetMin));
+   return { start: label(startWall), end: label(endWall) };
+ }

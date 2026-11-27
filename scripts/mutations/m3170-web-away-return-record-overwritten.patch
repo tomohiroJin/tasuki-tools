@@ -1,0 +1,22 @@
+# 変異 3170: web-away-return-record-overwritten
+#
+# 検出を期待するテスト:
+#   - tests/use-page-away.test.tsx
+#
+# #476 判定の前にもう一度隠れて戻ると、長い離席の記録を短い戻りの記録で上書きする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3170-*.patch
+# 復元: git apply -R scripts/mutations/m3170-*.patch
+diff --git a/apps/track-web/src/platform/use-page-away.ts b/apps/track-web/src/platform/use-page-away.ts
+--- a/apps/track-web/src/platform/use-page-away.ts
++++ b/apps/track-web/src/platform/use-page-away.ts
+@@ -43,7 +43,7 @@
+       hiddenRef.current = null;
+       if (hidden === null || hidden.pip) return;
+       const next: AwayReturn = { fromMs: hidden.position, runningId: hidden.runningId, returnedAt: performance.now() };
+-      setReturned((current) => current ?? next);
++      setReturned(() => next);
+     };
+     document.addEventListener('visibilitychange', onVisibility);
+     // 非表示の間に窓が開いたら、戻ったときには閉じていても数える

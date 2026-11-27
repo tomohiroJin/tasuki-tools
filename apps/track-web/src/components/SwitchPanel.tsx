@@ -6,7 +6,7 @@
  * 「いつから」の選択は止める・休憩にするにも効くので、値は画面（`TrackRoom`）が持つ。
  * 作業名の長さの上限は、サーバーが文で返す（正規化した後の長さで数えるので、ここでは粗い上限だけを付ける）。
  */
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type Ref } from 'react';
 import { BACK_MINUTES, MAX_LABEL_INPUT, type BackMinutes, type Candidate } from '@tasuki/track-core';
 import {
   BACK_FIELD,
@@ -15,6 +15,7 @@ import {
   CANDIDATES_LABEL,
   LABEL_FIELD,
   LABEL_PLACEHOLDER,
+  RUNNING_MARK,
   START_BUTTON,
   SWITCH_BUTTON,
   SWITCH_HEADING,
@@ -33,9 +34,11 @@ interface Props {
   /** 作業名で開始・切り替え（空は名前なし） */
   onStart: (label: string) => void;
   onPin: (label: string, pinned: boolean) => void;
+  /** 主のボタン（開始・切り替え）。「記録を消す」の後にフォーカスを移す先 */
+  submitRef?: Ref<HTMLButtonElement>;
 }
 
-export function SwitchPanel({ running, candidates, backMin, onBackMinChange, canOperate, onStart, onPin }: Props) {
+export function SwitchPanel({ running, candidates, backMin, onBackMinChange, canOperate, onStart, onPin, submitRef }: Props) {
   const headingId = useId();
   const labelId = useId();
   const backId = useId();
@@ -47,6 +50,9 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
     onStart(label);
     setLabel('');
   };
+
+  // 数字キーは、押せる候補だけに上から 1〜9 を振る（`TrackRoom` の `useTrackKeys` と同じ並び）
+  let number = 0;
 
   return (
     <section className="track-switch ui-stack" aria-labelledby={headingId}>
@@ -84,17 +90,18 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
             ))}
           </select>
         </div>
-        <button type="submit" className={running ? 'ui-button' : 'ui-button ui-button--lg'} disabled={!canOperate}>
+        <button ref={submitRef} type="submit" className={running ? 'ui-button' : 'ui-button ui-button--lg'} disabled={!canOperate}>
           {running ? SWITCH_BUTTON : START_BUTTON}
         </button>
       </form>
       {candidates.length > 0 && (
         <div className="ui-stack ui-stack--tight">
           <ol className="track-candidates" aria-label={CANDIDATES_LABEL}>
-            {candidates.map((candidate, index) => (
+            {candidates.map((candidate) => (
               <li key={candidate.label} className="track-candidate">
-                <button type="button" className="track-candidate-pick" disabled={!canOperate} onClick={() => onStart(candidate.label)}>
-                  <span className="track-candidate-number">{index + 1}</span>
+                {/* 計測中の名前は押せない（切り替えても何も起きない）。番号も振らない。星は使える */}
+                <button type="button" className="track-candidate-pick" disabled={!canOperate || candidate.running} onClick={() => onStart(candidate.label)}>
+                  {candidate.running ? <span className="track-candidate-topic">{RUNNING_MARK}</span> : <span className="track-candidate-number">{++number}</span>}
                   {candidate.source === 'topic' && <span className="track-candidate-topic">{TOPIC_MARK}</span>}
                   <span className="track-candidate-label">{candidate.label}</span>
                 </button>

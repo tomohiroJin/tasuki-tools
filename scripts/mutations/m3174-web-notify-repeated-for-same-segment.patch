@@ -1,0 +1,22 @@
+# 変異 3174: web-notify-repeated-for-same-segment
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 同じ区切りの知らせが出直すたびに、通知を重ねる（区切りの id で 1 回にしない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3174-*.patch
+# 復元: git apply -R scripts/mutations/m3174-*.patch
+diff --git a/apps/track-web/src/hooks/use-long-running-notify.ts b/apps/track-web/src/hooks/use-long-running-notify.ts
+--- a/apps/track-web/src/hooks/use-long-running-notify.ts
++++ b/apps/track-web/src/hooks/use-long-running-notify.ts
+@@ -43,7 +43,7 @@
+       if (longRunningId !== null) notifiedRef.current.add(longRunningId);
+       return;
+     }
+-    if (longRunningId === null || longRunningId === previous || notifiedRef.current.has(longRunningId)) return;
++    if (longRunningId === null || longRunningId === previous) return;
+     if (enabledRef.current && pageHidden()) {
+       notifiedRef.current.add(longRunningId);
+       const minutes = LONG_RUNNING_NOTICE_MS / MS_PER_MIN;

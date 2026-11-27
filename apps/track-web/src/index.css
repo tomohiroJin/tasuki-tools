@@ -54,6 +54,13 @@
   font-size: var(--font-size-xs);
 }
 
+/* 通知の設定（押すまで許可を求めない。拒まれたときだけ 1 行足す） */
+.track-notify {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
 /* ── 知らせ ───────────────────────────────────────────────── */
 .track-notices {
   display: grid;
@@ -441,6 +448,33 @@
   justify-content: space-between;
   gap: var(--space-3);
 }
+.track-save-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+/* ── この端末の記録（第 2 段 B） ───────────────────────────── */
+.track-saved-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.track-saved-item {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--felt-700);
+  border-radius: var(--radius-lg);
+}
+.track-saved-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
 .track-copy-status {
   min-height: 1lh;
   color: var(--ivory-dim);
@@ -475,4 +509,120 @@
 }
 .track-confirm-actions .ui-button {
   white-space: nowrap;
+}
+
+/* ── 時系列の帯（#476 第 2 段・D4） ─────────────────────────── */
+/* 飾り。色だけに頼らない: 休憩は斜めの縞・隙間は空き（地の色のまま）。作業の色は割合の帯と同じ `.track-tone--n` */
+.track-band-wrap {
+  display: grid;
+  gap: var(--space-1);
+}
+.track-band-line {
+  display: flex;
+  height: var(--space-5);
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--felt-sink);
+}
+/* 幅は割合だけ（min-width・gap は部分の数だけ幅を足して溢れる）。区切りの線は内側の影で、幅を取らない */
+.track-band-part {
+  flex: var(--share) 1 0;
+  box-shadow: inset -1px 0 var(--felt-sink);
+}
+.track-band-part--break {
+  background: repeating-linear-gradient(135deg, var(--ivory-dim) 0 2px, transparent 2px 6px);
+}
+.track-band-part--gap {
+  background: transparent;
+}
+.track-band-axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+
+/* ── 見せ方（映す画面・ミニ表示。D1・D3） ─────────────────── */
+.track-view-tools-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* 映す画面: 押せる部品を置かない。広い画面で大きく読め、320px で溢れない */
+.track-display {
+  min-height: 100vh;
+  padding: var(--space-5) var(--space-4);
+}
+.track-display-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  max-width: 80rem;
+  margin-inline: auto;
+}
+.track-display-title {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+.track-display-name {
+  margin: 0;
+  color: var(--ivory);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  line-height: var(--line-tight);
+  overflow-wrap: anywhere;
+}
+.track-display-elapsed {
+  margin: 0;
+  color: var(--gold-bright);
+  font-size: var(--font-size-xl);
+  line-height: var(--line-tight);
+}
+.track-display .track-band-line {
+  height: var(--space-6);
+}
+/* 広い画面では大きく読める（字の大きさは 5 段のトークンのまま、`zoom` で拡げる） */
+@media (width >= 64rem) {
+  .track-display-name {
+    zoom: 2;
+  }
+  .track-display-elapsed {
+    zoom: 1.6;
+  }
+  .track-display-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .track-display-title,
+  .track-display-now,
+  .track-display-band {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ミニ表示（Picture-in-Picture の窓。元のページの CSS を写して使う） */
+.track-mini-root {
+  padding: var(--space-3);
+}
+.track-mini-name {
+  margin: 0;
+  color: var(--ivory);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.track-mini-elapsed {
+  margin: 0;
+  color: var(--gold-bright);
+  font-size: var(--font-size-xl);
+  line-height: var(--line-tight);
+}
+.track-mini-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.track-mini-actions .ui-button {
+  flex: 1 1 auto;
 }

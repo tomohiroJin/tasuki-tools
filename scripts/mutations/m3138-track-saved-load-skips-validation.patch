@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-store.ts b/apps/track-web/src/storage/saved-store.ts
+index 572df91b..117d88dd 100644
+--- a/apps/track-web/src/storage/saved-store.ts
++++ b/apps/track-web/src/storage/saved-store.ts
+@@ -44,7 +44,7 @@ export async function loadSaved(): Promise<SavedRecord[]> {
+   return new Promise((resolve, reject) => {
+     const tx = db.transaction(STORE_NAME, 'readonly');
+     const request = tx.objectStore(STORE_NAME).getAll();
+-    request.onsuccess = () => resolve(newestFirst(recordsFromStore(request.result as unknown[])));
++    request.onsuccess = () => resolve(newestFirst(request.result as SavedRecord[]));
+     request.onerror = () => reject(request.error);
+     tx.oncomplete = () => db.close();
+   });
