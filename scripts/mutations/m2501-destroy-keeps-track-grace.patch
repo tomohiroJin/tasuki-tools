@@ -16,6 +16,6 @@ diff --git a/apps/tasuki-sync/src/application/destroy-room.ts b/apps/tasuki-sync
      agendaDeadlines.clear(roomCode);
      checkinGrace.clearRoom(roomCode);
 -    trackAutoStop.clearRoom(roomCode);
+     roomCalls.clearRoom(roomCode);
      // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
      // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
-     topicGenerator.cancel(roomCode);
