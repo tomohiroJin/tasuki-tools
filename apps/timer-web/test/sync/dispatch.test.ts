@@ -269,3 +269,43 @@ describe("dispatchServerMessage: 契約を満たさないフレーム", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * @requirements #677（呼びかけの知らせは timer の契約より先に見分ける）
+ */
+describe("呼びかけの知らせを振り分ける", () => {
+  const call = { tool: "poker", fromParticipantId: "p2", fromName: "いお" };
+
+  it("Given 呼びかけの知らせ / When 振り分ける / Then onRoomCall に中身が渡り、捨てたとは言わない", () => {
+    // Given
+    const onRoomCall = vi.fn();
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "room.call", call }), { onRoomCall, onInvalidFrame });
+    // Then
+    expect(onRoomCall).toHaveBeenCalledExactlyOnceWith(call);
+    expect(onInvalidFrame).not.toHaveBeenCalled();
+  });
+
+  it("Given 呼びかけの知らせ / When 振り分ける / Then timer の契約の処理（onRoom・onError）へは渡らない", () => {
+    // Given
+    const onRoom = vi.fn();
+    const onError = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "room.call", call }), { onRoom, onError, onRoomCall: vi.fn() });
+    // Then
+    expect(onRoom).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("Given 形の崩れた呼びかけ / When 振り分ける / Then 渡さず、捨てたことを知らせる", () => {
+    // Given
+    const onRoomCall = vi.fn();
+    const onInvalidFrame = vi.fn();
+    // When
+    dispatchServerMessage(JSON.stringify({ type: "room.call", call: { tool: "poker" } }), { onRoomCall, onInvalidFrame });
+    // Then
+    expect(onRoomCall).not.toHaveBeenCalled();
+    expect(onInvalidFrame).toHaveBeenCalled();
+  });
+});

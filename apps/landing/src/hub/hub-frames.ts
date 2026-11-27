@@ -5,26 +5,30 @@
  * 実行は `use-hub-sync.ts` が受け持つ。
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubServerMsg } from '@tasuki/room-core';
+import { HubServerMsgSchema, type HubServerMsg, type RoomCall } from '@tasuki/room-core';
 import type { JoinErrorPlan } from '@tasuki/sync-client';
 import { TopicFrameSchema } from '@tasuki/topic-core';
+import { parseRoomCallFrame } from '@tasuki/web-kit/sync';
 
 /** 受信した 1 通の分類。 */
 export type HubFrame =
   | { readonly kind: 'topic'; readonly title: string | null }
+  | { readonly kind: 'call'; readonly call: RoomCall }
   | { readonly kind: 'hub'; readonly msg: HubServerMsg }
   | { readonly kind: 'drop' };
 
 /**
  * 受信した生のテキストを分類する（**境界の検証**・原則 IV）。
  *
- * お題の状態（spec T3）はハブの言葉ではないので、ハブのスキーマより先に topic-core の
- * スキーマで見分ける（見分けるのはアプリ層・spec §5.5）。契約に合わないフレームは**捨てる** ——
+ * お題の状態（spec T3）と呼びかけの知らせ（#677）はハブの言葉ではないので、ハブのスキーマより先に
+ * それぞれのスキーマで見分ける（見分けるのはアプリ層・spec §5.5）。契約に合わないフレームは**捨てる** ——
  * 画面の状態を壊すより、更新されないほうが害が小さい。
  */
 export function classifyHubFrame(raw: string): HubFrame {
   const topic = parseBoundaryMessage(TopicFrameSchema, raw);
   if (topic.isOk()) return { kind: 'topic', title: topic.value.state.topic?.title ?? null };
+  const call = parseRoomCallFrame(raw);
+  if (call !== null) return { kind: 'call', call };
   const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);
   if (parsed.isErr()) return { kind: 'drop' };
   return { kind: 'hub', msg: parsed.value };

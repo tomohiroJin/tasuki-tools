@@ -56,6 +56,7 @@ import { persistRecordIfComplete } from "../records/persist.js";
 import { displayMessageFor } from "@tasuki/timer-core";
 import type { CompletionRecord, Room } from "@tasuki/timer-core";
 import type { Topic } from "@tasuki/topic-core";
+import type { RoomCall } from "@tasuki/room-core";
 
 /** ルームの中で表示する画面（正本は `app-mode.ts`）。 */
 export type { AppMode } from "./app-mode.js";
@@ -114,6 +115,13 @@ export interface TimerSync extends TimerActions {
    * snapshot には含まれない（spec T3）。
    */
   topic: Topic | null;
+  /**
+   * 受け取った呼びかけ（最新の 1 つ。無ければ null・#677）。**timer は出すだけ**。
+   * `room.call` フレームで届き（timer の契約より先に見分ける）、閉じるか新しいものが来るまで残る。
+   */
+  roomCall: RoomCall | null;
+  /** 呼びかけの知らせを閉じる（#677）。 */
+  dismissRoomCall: () => void;
 
   /** 引数をそのまま載せて送るだけの操作。 */
   commands: TimerCommands;
@@ -154,6 +162,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // ルームのいまのお題（#91）。`topic` フレームで届く。setter だけなので handlersRef に
   // 載せる必要は無い（onConnectionChange と同じ理由。makeClient で直接渡す）。
   const [topic, setTopic] = useState<Topic | null>(null);
+  // 呼びかけの知らせ（#677）。`room.call` フレームで届く。setter だけなので `topic` と同じく handlersRef を挟まない
+  const [roomCall, setRoomCall] = useState<RoomCall | null>(null);
   // 注: timer 内でのお題の作成・生成・AI 解錠は #91 PR 3 で撤去した。お題は
   // お題ツール（別アプリ）が作り、timer は `topic` フレームで読むだけになった。
 
@@ -307,6 +317,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
         setRoom(null);
         // お題はルームのもの。抜けたら畳む
         setTopic(null);
+        // 呼びかけの知らせもルームのもの（#677）。抜けた後に、抜けたルームへの「移る」を残さない
+        setRoomCall(null);
         // このルームの話は終わった。残すと、次に別ルームへ入る前の再送が
         // 消えたルームを指す（#95 S4b）。
         roomCodeRef.current = null;
@@ -409,6 +421,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
       // お題はルームの共有資産（#91）。setter 呼び出し1行なので、onConnectionChange と
       // 同じ理由で転送を挟まない。
       onTopic: (state) => setTopic(state.topic),
+      // 呼びかけの知らせ（#677）。お題と同じ理由で転送を挟まない
+      onRoomCall: (call) => setRoomCall(call),
     });
     newClient.connect();
     setClient(newClient);
@@ -464,6 +478,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
     joinTimedOut,
     clockOffset: client?.clockOffset ?? 0,
     topic,
+    roomCall,
+    dismissRoomCall: () => setRoomCall(null),
     commands,
     ...actions,
   };

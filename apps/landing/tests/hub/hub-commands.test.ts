@@ -5,7 +5,7 @@
  * `hub-commands.ts` の 1 か所に寄せた。形を固定するのがこのテストである。
  */
 import { describe, it, expect } from 'vitest';
-import { checkCommand, createCommand, joinCommand, lastJoinOf, passphraseCommand, resumeCommand, retryCommand } from '../../src/hub/hub-commands.js';
+import { callCommand, checkCommand, createCommand, joinCommand, lastJoinOf, passphraseCommand, resumeCommand, retryCommand } from '../../src/hub/hub-commands.js';
 
 describe('ハブへ送るコマンド', () => {
   it('Given 保存済みの組 / When 復帰のコマンドを作る / Then 復帰の印を持つ', () => {
@@ -62,5 +62,10 @@ describe('ハブへ送るコマンド', () => {
 
   it('Given 空文字 / When 設定のコマンドを作る / Then 解除として同じ形で送る', () => {
     expect(passphraseCommand('')).toEqual({ command: 'room.passphrase.set', passphrase: '' });
+  });
+
+  // #677: 宛先のルームは接続が決める（コードを載せない）。
+  it('Given 道具の ID / When 呼びかけのコマンドを作る / Then コードを持たない room.call になる', () => {
+    expect(callCommand('poker')).toEqual({ command: 'room.call', tool: 'poker' });
   });
 });

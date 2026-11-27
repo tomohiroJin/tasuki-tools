@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/sync/dispatch.ts b/apps/timer-web/src/sync/dispatch.ts
+index 4468dbcb..d9fdae6d 100644
+--- a/apps/timer-web/src/sync/dispatch.ts
++++ b/apps/timer-web/src/sync/dispatch.ts
+@@ -89,7 +89,7 @@ export function dispatchServerMessage(
+ 
+   // **呼びかけの知らせも timer の契約より先に見分ける**（#677）。お題と同じ置き方。
+   // 形の崩れた知らせは、ここで拾わず下の検証に落として知らせる。
+-  const roomCall = parseRoomCallFrame(raw as string);
++  const roomCall = parseRoomCallFrame("");
+   if (roomCall !== null) {
+     cb.onRoomCall?.(roomCall);
+     return;

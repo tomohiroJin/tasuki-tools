@@ -1,10 +1,12 @@
-import { participantLabel, type RosterRoom } from '@tasuki/room-core';
+import { participantLabel, type RoomCall, type RosterRoom } from '@tasuki/room-core';
 import { useId, useState, type CSSProperties } from 'react';
 import { useCopyText, useInviteQr } from '@tasuki/invite-ui';
+import { RoomCallNotice } from '@tasuki/web-kit/room';
 import { handPlacements, type HandPlacement } from '../hand-rows.js';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
 import { HistoryLink } from './HistoryLink.js';
+import { RoomCallPanel } from './RoomCallPanel.js';
 import { RoomPassphrase } from './RoomPassphrase.js';
 
 /**
@@ -35,9 +37,21 @@ export interface RoomChoiceProps {
   readonly passphraseError?: string | null;
   /** 合言葉の設定・変更・解除（空文字で解除）。ルームに居る誰でも実行できる（#638）。 */
   onSetPassphrase(passphrase: string): void;
+  /** 受け取った呼びかけ（最新の 1 つ。無ければ null・#677）。 */
+  readonly roomCall?: RoomCall | null;
+  /** 呼びかけの知らせを閉じる（#677）。 */
+  onDismissRoomCall?(): void;
+  /** 呼びかけを送って受け付けを待っているか（#677）。 */
+  readonly calling?: boolean;
+  /** 呼びかけの失敗の文言（無ければ null・#677）。 */
+  readonly callError?: string | null;
+  /** 「みんなを呼ぶ」。道具の ID を渡す（#677）。受け付けを受けて移るのは同期フックの仕事。 */
+  onCall?(tool: string): void;
 }
 
-export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, passphraseError = null, onSetPassphrase }: RoomChoiceProps) {
+const noop = (): void => undefined;
+
+export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, passphraseError = null, onSetPassphrase, roomCall = null, onDismissRoomCall = noop, calling = false, callError = null, onCall = noop }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
   const copy = useCopyText(inviteUrl);
   const [showQr, setShowQr] = useState(false);
@@ -47,6 +61,8 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
 
   return (
     <main className="ui-page landing landing-choice">
+      {/* 呼びかけの知らせ（#677）。自動では移さない。「移る」「閉じる」は部品が持つ */}
+      {roomCall !== null && <RoomCallNotice call={roomCall} roomCode={code} onDismiss={onDismissRoomCall} />}
       <header className="landing-hero">
         <h1 className="wordmark">Tasuki</h1>
         <div className="hub-room-summary">
@@ -99,7 +115,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
                 </li>
               ))}
             </ul>
-
+            <RoomCallPanel connection={connection} calling={calling} error={callError} onCall={onCall} />
           </section>
           <section className="hub-panel ui-panel" aria-labelledby="hub-invite-heading">
             <h2 className="hub-heading" id="hub-invite-heading">仲間を招く</h2>

@@ -51,6 +51,21 @@ describe('受信フレームの見分け', () => {
     expect(classifyHubFrame(JSON.stringify(msg))).toEqual({ kind: 'hub', msg });
   });
 
+  // #677: 呼びかけの知らせはハブの言葉ではない（全接続へ届く別のフレーム）。ハブの言葉より先に見分ける。
+  it('Given 呼びかけの知らせ / When 見分ける / Then 呼びかけの中身を取り出す', () => {
+    const call = { tool: 'poker', fromParticipantId: 'p2', fromName: 'いお' };
+    expect(classifyHubFrame(JSON.stringify({ type: 'room.call', call }))).toEqual({ kind: 'call', call });
+  });
+
+  it('Given 形の崩れた呼びかけ / When 見分ける / Then 捨てる', () => {
+    expect(classifyHubFrame(JSON.stringify({ type: 'room.call', call: { tool: 'poker' } }))).toEqual({ kind: 'drop' });
+  });
+
+  it('Given 受け付けのフレーム room.called / When 見分ける / Then ハブの言葉として返す（知らせと取り違えない）', () => {
+    const msg = { type: 'room.called', tool: 'poker' };
+    expect(classifyHubFrame(JSON.stringify(msg))).toEqual({ kind: 'hub', msg });
+  });
+
   it('Given 契約に合わないフレーム / When 見分ける / Then 捨てる', () => {
     expect(classifyHubFrame(JSON.stringify({ type: 'unknown' }))).toEqual({ kind: 'drop' });
     expect(classifyHubFrame('not json')).toEqual({ kind: 'drop' });

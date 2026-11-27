@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 0c3e622b..278516fb 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -424,7 +424,7 @@ export function useHubSync(): HubSync {
+             // 入ったあとのエラーは、呼びかけを待っていたならそれの失敗、そうでなければ合言葉の設定の失敗である。
+             // 入る前の画面の `error` と混ぜない。
+             if (joinedRef.current) {
+-              if (callWasPending) setCallError(intent.message);
++              if (callWasPending && !joinedRef.current) setCallError(intent.message);
+               else setPassphraseError(intent.message);
+             }
+             else setError(intent.message);

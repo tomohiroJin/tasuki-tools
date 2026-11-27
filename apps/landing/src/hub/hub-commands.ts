@@ -54,6 +54,14 @@ export function passphraseCommand(passphrase: string): HubCommand {
 }
 
 /**
+ * ルームの全員を同じ道具へ呼ぶ（#677）。宛先のルームは接続が在席しているルームで、コードは載せない。
+ * 道具の綴りの実在はサーバーが検める（知らない綴りは形の誤りで返る）。
+ */
+export function callCommand(tool: string): HubCommand {
+  return { command: 'room.call', tool };
+}
+
+/**
  * 混雑で弾かれた後の送り直し。
  *
  * **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである（#274）。
