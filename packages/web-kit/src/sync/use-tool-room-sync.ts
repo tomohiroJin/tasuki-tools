@@ -8,6 +8,7 @@
  * - 参加の応答（`room.joined`）で、名乗った名前のまま新しい組を保存する
  * - 参加の失敗の扱い（判断は `@tasuki/sync-client` の `planForJoinError`）と、混雑のやり直し（`useJoinRetry`）
  * - 繋ぎ直したら入り直す・切れたらやり直しの予約を捨てる
+ * - 呼びかけの知らせ（`room.call`・#677）の見分け。道具ごとの `parse` より先に見分け、最新の 1 つを `call` に持つ
  *
  * **ツール固有のフレームとコマンドは持たない。** 受け取ったフレームはツールのフック（`onFrame`）へ渡す。
  * ツールのフックは、`room.joined` と `error` を {@link ToolRoomFrameHandlers} で戻す
@@ -27,6 +28,8 @@ import {
   type JoinErrorPlan,
   type SyncUrlLocation,
 } from '@tasuki/sync-client';
+import type { RoomCall } from '@tasuki/room-core';
+import { parseRoomCallFrame } from './parse-room-call-frame.js';
 import { useJoinRetry } from './use-join-retry.js';
 
 /** 抜けた理由（`planForJoinError` の `left`）。 */
@@ -89,6 +92,10 @@ export interface ToolRoomSync {
   readonly error: string | null;
   /** 混雑のやり直しの知らせ。 */
   readonly retryNotice: string | null;
+  /** 受け取った呼びかけ（最新の 1 つ。#677）。新しい呼びかけは前のを置き換える。 */
+  readonly call: RoomCall | null;
+  /** 呼びかけの知らせを閉じる。 */
+  dismissCall(): void;
   clearError(): void;
   /** コマンドを送る（送る前に操作の失敗の知らせを下ろす）。 */
   send(command: Record<string, unknown>): void;
@@ -107,6 +114,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   const [departed, setDeparted] = useState<ToolRoomDeparture | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [call, setCall] = useState<RoomCall | null>(null);
 
   const retry = useJoinRetry({ waiting: options.texts.retryWaiting, exhausted: options.texts.retryExhausted });
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = retry;
@@ -201,6 +209,14 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
     };
 
     const handleMessage = (raw: string): void => {
+      // 呼びかけの知らせ（#677）は道具ごとの契約より先に見分ける。道具の `parse` には渡さない
+      // （渡すと「契約に合わないフレーム」として同期の告知が出る）。正しいフレームなので告知は下ろす。最新の 1 つだけ持つ。
+      const roomCall = parseRoomCallFrame(raw);
+      if (roomCall !== null) {
+        setSyncStale(false);
+        setCall(roomCall);
+        return;
+      }
       const frame = optionsRef.current.parse(raw);
       if (frame === null) {
         // 境界検証に落ちたフレームは画面へ渡さない（原則 IV）。**捨てたことは必ず伝える**（#212）。
@@ -248,6 +264,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   }, [roomCode, rateLimited, cancelRetry, resetRetry]);
 
   const clearError = useCallback(() => setError(null), []);
+  const dismissCall = useCallback(() => setCall(null), []);
   const send = useCallback((command: Record<string, unknown>) => {
     setError(null);
     connRef.current?.send(command);
@@ -268,9 +285,11 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
       selfId,
       error,
       retryNotice: retry.notice,
+      call,
+      dismissCall,
       clearError,
       send,
     }),
-    [status, everConnected, failedAttempts, syncStale, joined, gone, needsHub, departed, roomCode, selfId, error, retry.notice, clearError, send],
+    [status, everConnected, failedAttempts, syncStale, joined, gone, needsHub, departed, roomCode, selfId, error, retry.notice, call, dismissCall, clearError, send],
   );
 }

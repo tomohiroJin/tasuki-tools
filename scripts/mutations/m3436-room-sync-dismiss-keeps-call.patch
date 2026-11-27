@@ -1,0 +1,13 @@
+diff --git a/packages/web-kit/src/sync/use-tool-room-sync.ts b/packages/web-kit/src/sync/use-tool-room-sync.ts
+index 3d43e82b..37d80a79 100644
+--- a/packages/web-kit/src/sync/use-tool-room-sync.ts
++++ b/packages/web-kit/src/sync/use-tool-room-sync.ts
+@@ -264,7 +264,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
+   }, [roomCode, rateLimited, cancelRetry, resetRetry]);
+ 
+   const clearError = useCallback(() => setError(null), []);
+-  const dismissCall = useCallback(() => setCall(null), []);
++  const dismissCall = useCallback(() => undefined, []);
+   const send = useCallback((command: Record<string, unknown>) => {
+     setError(null);
+     connRef.current?.send(command);

@@ -39,6 +39,7 @@ src/
 | `.ui-input` | `<input>`・`<textarea>`（1 行・複数行の欄） | `--ui-field-bg` |
 | `.ui-select` | `<select>`（一覧は `base-select` でページの中に描く） | `--ui-field-bg`・`--ui-field-hover` |
 | `.ui-banner` | 接続の告知の帯の `<p>`。繋がらないときは `.ui-banner--unreachable` を重ねる | なし |
+| `.ui-call` | 呼びかけの知らせ（#677）の容器。一文の `<p class="ui-call-text">`（名前に `.ui-call-name`）と `.ui-actions`（「閉じる」「移る」）を入れる。上端に貼りつく（`.ui-banner` の 1 つ下）。部品は `@tasuki/web-kit/room` の `RoomCallNotice` | なし |
 | `.ui-note` | 待ち・知らせ・エラーの一言の `<p>`。エラーは `.ui-note--error` を重ねる | なし |
 | `.ui-panel` | 見出しを持つまとまりの面（`<section>`・`<form>`）。地・枠・角丸・内側の余白を持つ | なし |
 | `.ui-page-header` | 画面の見出し（h1）と戻る導線を 1 行の両端に組む容器。戻る導線の `<a>` に `.ui-page-header-back` を当てる | なし |

@@ -1,11 +1,14 @@
 /**
  * LP に並べるツール。
  *
- * href は**公開パス**で、変える場所はここ 1 箇所。
+ * 名前と href（**公開パス**）の正本は `@tasuki/web-kit/room` の行き先の表（`TOOL_DESTINATIONS`・#677）。
+ * 呼びかけの知らせも同じ表で行き先を決めるので、ここへ写しを書かない（変える場所は表の 1 箇所）。
  * ただし公開パスは web 側だけでは決まらない。ツールを足す・移すときは
  * `vite.config.ts` の `base`・`deploy/<app>/app.env` の `PUBLIC_PATH`・
  * Caddy 断片を必ず揃える（1 つでも取り残すと白画面か 404 になる）。
  */
+import { TOOL_DESTINATIONS } from "@tasuki/web-kit/room";
+
 /** 札 1 枚の形。`TOOLS` の要素がこれを満たすことを `satisfies` で確かめる。 */
 interface ToolSpec {
   /**
@@ -30,57 +33,57 @@ export const TOOLS = [
   {
     id: "timer",
     pip: "交代",
-    name: "TDD Mob Pro Timer",
+    name: TOOL_DESTINATIONS.timer.name,
     summary: "ドライバーの交代を計る",
-    href: "/timer/",
+    href: TOOL_DESTINATIONS.timer.href,
     mark: "ring",
   },
   {
     id: "poker",
     pip: "見積",
-    name: "Planning Poker",
+    name: TOOL_DESTINATIONS.poker.name,
     summary: "見積もりを揃える",
-    href: "/poker/",
+    href: TOOL_DESTINATIONS.poker.href,
     mark: "spade",
   },
   {
     id: "roulette",
     pip: "進行",
-    name: "Facilitator Roulette",
+    name: TOOL_DESTINATIONS.roulette.name,
     summary: "その場で進行役を決める",
-    href: "/roulette/",
+    href: TOOL_DESTINATIONS.roulette.href,
     mark: "wheel",
   },
   {
     id: "topic",
     pip: "お題",
-    name: "Topic Board",
+    name: TOOL_DESTINATIONS.topic.name,
     summary: "お題を用意して全員に見せる",
-    href: "/topic/",
+    href: TOOL_DESTINATIONS.topic.href,
     mark: "flag",
   },
   {
     id: "agenda",
     pip: "予定",
-    name: "Agenda Timer",
+    name: TOOL_DESTINATIONS.agenda.name,
     summary: "ステップを順に計って進める",
-    href: "/agenda/",
+    href: TOOL_DESTINATIONS.agenda.href,
     mark: "watch",
   },
   {
     id: "checkin",
     pip: "始終",
-    name: "Check-in Cards",
+    name: TOOL_DESTINATIONS.checkin.name,
     summary: "始めと終わりに札を出し合う",
-    href: "/checkin/",
+    href: TOOL_DESTINATIONS.checkin.href,
     mark: "cards",
   },
   {
     id: "track",
     pip: "内訳",
-    name: "Uchiwake",
+    name: TOOL_DESTINATIONS.track.name,
     summary: "何に何分使ったかを記録する",
-    href: "/track/",
+    href: TOOL_DESTINATIONS.track.href,
     mark: "bars",
   },
 ] as const satisfies readonly ToolSpec[];

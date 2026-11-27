@@ -4,6 +4,7 @@
  *
  * **`export *` を書かない**（`scripts/audit-public-surface.mjs`）。公開する記号はここに列挙する。
  */
+export { parseRoomCallFrame } from './parse-room-call-frame.js';
 export { useJoinRetry, type JoinRetry, type JoinRetryTexts } from './use-join-retry.js';
 export {
   useToolRoomSync,
