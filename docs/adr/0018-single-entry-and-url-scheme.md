@@ -82,9 +82,9 @@
   - **合言葉の失敗（`PASSPHRASE_REQUIRED`・`PASSPHRASE_MISMATCH`）**: topic・roulette・agenda・checkin だけ。
     timer と poker は、復帰の組で入り直して合言葉を求められても玄関へは送らず、帯にエラーを出すだけである（timer は `error-action.ts` で一時的なエラーとして、poker は `useSync.ts` で帯に）
 
-## 追記（2026-11-26・#476） — 端末の記録を見るだけの画面は、ルームコードが無くても開く（Proposed）
+## 追記（2026-11-26・#476） — 端末の記録を見るだけの画面は、ルームコードが無くても開く（Accepted）
 
-> 冒頭のステータスは、この追記より前の決定を指す。この追記は Proposed で、採択は利用者が行う。
+> 冒頭のステータスは、この追記より前の決定を指す。この追記は利用者が採択した（Accepted・2026-11-27）。
 
 決定 1 の「ルームコードを伴わずにツールの URL が開かれた場合は LP へ送る」には、記録の無いまま例外が 1 つあった。
 timer の `?view=history`（端末の完成記録を見る画面）は `?room=` の有無を問わず開き、接続しない（`apps/timer-web/src/sync/use-timer-entry.ts`）。
