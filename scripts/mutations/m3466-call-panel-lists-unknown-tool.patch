@@ -1,0 +1,22 @@
+diff --git a/apps/landing/src/screens/RoomCallPanel.tsx b/apps/landing/src/screens/RoomCallPanel.tsx
+index 286e3469..206a5952 100644
+--- a/apps/landing/src/screens/RoomCallPanel.tsx
++++ b/apps/landing/src/screens/RoomCallPanel.tsx
+@@ -22,7 +22,7 @@ export interface RoomCallPanelProps {
+   onCall(tool: string): void;
+ }
+ 
+-const CALLABLE = Object.keys(TOOL_DESTINATIONS) as ToolDestinationId[];
++const CALLABLE = [...Object.keys(TOOL_DESTINATIONS), 'chat'] as ToolDestinationId[];
+ 
+ export function RoomCallPanel({ connection, calling, error, onCall }: RoomCallPanelProps) {
+   const [tool, setTool] = useState('');
+@@ -44,7 +44,7 @@ export function RoomCallPanel({ connection, calling, error, onCall }: RoomCallPa
+           <option value="">道具を選んでください</option>
+           {CALLABLE.map((id) => (
+             <option key={id} value={id}>
+-              {TOOL_DESTINATIONS[id].name}
++              {TOOL_DESTINATIONS[id]?.name ?? id}
+             </option>
+           ))}
+         </select>

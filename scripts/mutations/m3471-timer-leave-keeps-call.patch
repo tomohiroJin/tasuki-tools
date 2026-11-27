@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index 886eea9e..2084fa65 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -318,7 +318,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+         // お題はルームのもの。抜けたら畳む
+         setTopic(null);
+         // 呼びかけの知らせもルームのもの（#677）。抜けた後に、抜けたルームへの「移る」を残さない
+-        setRoomCall(null);
+         // このルームの話は終わった。残すと、次に別ルームへ入る前の再送が
+         // 消えたルームを指す（#95 S4b）。
+         roomCodeRef.current = null;

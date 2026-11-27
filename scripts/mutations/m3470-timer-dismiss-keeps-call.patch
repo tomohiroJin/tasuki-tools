@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+index 886eea9e..01f78901 100644
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -479,7 +479,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
+     clockOffset: client?.clockOffset ?? 0,
+     topic,
+     roomCall,
+-    dismissRoomCall: () => setRoomCall(null),
++    dismissRoomCall: () => undefined,
+     commands,
+     ...actions,
+   };

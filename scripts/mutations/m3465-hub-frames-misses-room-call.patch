@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/hub-frames.ts b/apps/landing/src/hub/hub-frames.ts
+index 423badf4..39d1b250 100644
+--- a/apps/landing/src/hub/hub-frames.ts
++++ b/apps/landing/src/hub/hub-frames.ts
+@@ -27,7 +27,7 @@ export type HubFrame =
+ export function classifyHubFrame(raw: string): HubFrame {
+   const topic = parseBoundaryMessage(TopicFrameSchema, raw);
+   if (topic.isOk()) return { kind: 'topic', title: topic.value.state.topic?.title ?? null };
+-  const call = parseRoomCallFrame(raw);
++  const call = parseRoomCallFrame('');
+   if (call !== null) return { kind: 'call', call };
+   const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);
+   if (parsed.isErr()) return { kind: 'drop' };

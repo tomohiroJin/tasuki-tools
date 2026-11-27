@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 0c3e622b..f78c8de1 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -320,7 +320,7 @@ export function useHubSync(): HubSync {
+           const destination = pendingCallRef.current === null ? undefined : toolDestination(msg.tool);
+           settleCall();
+           if (destination !== undefined) {
+-            navigateTo(`${destination.href}?room=${encodeURIComponent(codeRef.current ?? '')}`);
++            navigateTo(destination.href);
+           }
+           return;
+         }

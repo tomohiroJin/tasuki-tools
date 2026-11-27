@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/screens/RoomCallPanel.tsx b/apps/landing/src/screens/RoomCallPanel.tsx
+index 286e3469..62e6202f 100644
+--- a/apps/landing/src/screens/RoomCallPanel.tsx
++++ b/apps/landing/src/screens/RoomCallPanel.tsx
+@@ -27,7 +27,7 @@ const CALLABLE = Object.keys(TOOL_DESTINATIONS) as ToolDestinationId[];
+ export function RoomCallPanel({ connection, calling, error, onCall }: RoomCallPanelProps) {
+   const [tool, setTool] = useState('');
+   const headingId = useId();
+-  const canCall = connection === 'online' && !calling && tool !== '';
++  const canCall = !calling && tool !== '';
+ 
+   const submit = (event: FormEvent): void => {
+     event.preventDefault();

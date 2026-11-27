@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 0c3e622b..4e63b67b 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -317,7 +317,7 @@ export function useHubSync(): HubSync {
+         }
+         if (msg.type === 'room.called') {
+           // 頼んだ呼びかけの受け付け。**これを受けてから**移る（送ってすぐ移ると、ページを離れる時にコマンドが届かないことがある）。
+-          const destination = pendingCallRef.current === null ? undefined : toolDestination(msg.tool);
++          const destination = toolDestination(msg.tool);
+           settleCall();
+           if (destination !== undefined) {
+             navigateTo(`${destination.href}?room=${encodeURIComponent(codeRef.current ?? '')}`);
