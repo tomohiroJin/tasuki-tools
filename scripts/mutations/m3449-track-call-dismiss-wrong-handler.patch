@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/screens/TrackRoom.tsx b/apps/track-web/src/screens/TrackRoom.tsx
+index d5c422b3..ecc02487 100644
+--- a/apps/track-web/src/screens/TrackRoom.tsx
++++ b/apps/track-web/src/screens/TrackRoom.tsx
+@@ -68,7 +68,7 @@ export function TrackRoom({ roomCode }: { roomCode: string }) {
+   return (
+     <>
+       <ConnectionBanner kind={sync.notice} />
+-      {sync.call !== null && <RoomCallNotice call={sync.call} roomCode={roomCode} onDismiss={sync.dismissCall} />}
++      {sync.call !== null && <RoomCallNotice call={sync.call} roomCode={roomCode} onDismiss={sync.clearError} />}
+       <main className="ui-page ui-page--wide">
+         <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
+         <div className="track-room">
