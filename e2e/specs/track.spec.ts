@@ -11,6 +11,7 @@
  * 受けた WS のフレームを JSON として読み、構造で判定する（文字列の含みでは見ない）。
  * 実時間の待ち（90 分の知らせ・全員切断の猶予）は待たない。`apps/tasuki-sync` と `packages/track-core` の偽の時計の検査が持つ。
  */
+import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectScreenAcrossWidths } from '../support/a11y';
@@ -87,13 +88,12 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(candidate(page, '設計')).toBeVisible();
     await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '').toMatch(/0:00:0[2-9]/);
     // 入力欄からフォーカスを外してから押す（入力中の数字は拾わない）。
-    // 押すのは「設計」の番号。いま計測中の「実装」の番号を押しても何も起きないので、キーが効いたことにならない
+    // 数字キーは押せる候補だけに振る（いま計測中の「実装」は一覧に残るが番号を持たない）ので、「設計」の番号は一覧の表示から読む
     await page.getByRole('heading', { level: 1, name: 'うちわけ', exact: true }).click();
-    const labels = await page.getByRole('list', { name: '候補' }).locator('.track-candidate-label').allTextContents();
-    const designIndex = labels.indexOf('設計');
-    expect(designIndex, `候補に「設計」がある（${labels.join(',')}）`).toBeGreaterThanOrEqual(0);
+    const designNumber = await candidate(page, '設計').locator('.track-candidate-number').textContent();
+    expect(designNumber, '「設計」の候補に番号がある').toMatch(/^[1-9]$/);
     await expect(nowName(b)).toHaveText('実装');
-    await page.keyboard.press(String(designIndex + 1));
+    await page.keyboard.press(designNumber!);
     await expect(nowName(b)).toHaveText('設計');
 
     // When / Then その5: A が「休憩にする」→ 両方の画面で休憩になり、うちわけの表の「休憩」の行が進む
@@ -156,6 +156,59 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     await expect(segments(page)).toHaveCount(closedCount);
   });
 
+  test('Given 記録のあるルーム / When 端末に残す・CSV で保存・ルームなしで記録の画面を開く / Then 一覧に出て読め、CSV が落ち、接続しない', async ({ page }) => {
+    // Given: 1 区切り（作業 → 停止）
+    await openTrackTool(page, 'e2e-track-saved');
+    await startWork(page, '残す作業');
+    await expect(nowName(page)).toHaveText('残す作業');
+    // 1 秒（MIN_SEGMENT_MS）に満たない区切りは残さない（track-core の stop）。経過が 2 秒を超えてから止める
+    await expect.poll(async () => (await nowPanel(page).locator('.track-digits').textContent()) ?? '', { message: '経過が 2 秒を超える' }).toMatch(/0:00:0[2-9]/);
+    await nowPanel(page).getByRole('button', { name: '止める', exact: true }).click();
+    await expect(segments(page)).toHaveCount(1);
+
+    // (3) CSV で保存: ダウンロードが起き、名前は track-…csv、先頭は BOM（EF BB BF）と見出しの行
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV で保存', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^track-\d{8}-\d{4}\.csv$/);
+    const path = await download.path();
+    const bytes = await readFile(path);
+    expect([...bytes.subarray(0, 3)], 'UTF-8 の BOM').toEqual([0xef, 0xbb, 0xbf]);
+    expect(bytes.subarray(3).toString('utf8').split('\r\n')[0]).toBe('start_date,start,end_date,end,minutes,kind,label,auto_closed');
+
+    // (1) この端末に残す
+    await page.getByRole('button', { name: 'この端末に残す', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'この端末に残しました' })).toBeVisible();
+
+    // ルームの画面からのリンクは新しいタブで開く（元のタブのルームの接続を切らない）
+    const popupPromise = page.context().waitForEvent('page');
+    await page.getByRole('link', { name: 'この端末の記録（新しいタブで開きます）', exact: true }).click();
+    const popup = await popupPromise;
+    await expect(popup.getByRole('heading', { level: 1, name: 'この端末の記録', exact: true })).toBeVisible();
+    expect(new URL(popup.url()).searchParams.get('view')).toBe('saved');
+    await expect(page.getByRole('heading', { level: 1, name: 'うちわけ', exact: true })).toBeVisible();
+    await expect(nowPanel(page)).toBeVisible();
+    await popup.close();
+
+    // (2) ルームのコードなしで開く（同じ文脈＝名乗りは端末にある。それでも玄関へ送らず、接続しない）
+    const saved = await page.context().newPage();
+    let sockets = 0;
+    saved.on('websocket', () => (sockets += 1));
+    await saved.goto('/track/?view=saved');
+    await expect(saved.getByRole('heading', { level: 1, name: 'この端末の記録', exact: true })).toBeVisible();
+    expect(new URL(saved.url()).pathname + new URL(saved.url()).search).toBe('/track/?view=saved');
+
+    // (1) 一覧に 1 件。開くと表と時系列が読める
+    await expect(saved.locator('[data-saved]')).toHaveCount(1);
+    await saved.getByRole('button', { name: /の記録を開く/ }).click();
+    await expect(saved.getByRole('region', { name: 'ここまでのうちわけ' }).getByRole('row').filter({ hasText: '残す作業' })).toBeVisible();
+    await expect(saved.getByRole('region', { name: '時系列' }).locator('.track-segment')).toHaveCount(1);
+    // 記録の画面も、4 つの幅で溢れず、押せる大きさを保つ（一覧・開いた記録・全部消す）
+    await expectScreenAcrossWidths(saved, 'この端末の記録（開いた記録）', 6);
+    expect(sockets, 'ルームに接続しない（名簿に載らない）').toBe(0);
+    await saved.close();
+  });
+
   test('Given うちわけの画面 / When 再読み込みする / Then 計測中の区切りと経過がサーバーの時計から戻る', async ({ page }) => {
     // Given: 計測中
     await openTrackTool(page, 'e2e-track-reload');
@@ -175,5 +228,40 @@ test.describe('@core うちわけは全員の画面で同じ内訳を積み上�
     expect(Number(match![1]), '再読み込みの直後の経過（秒）').toBeGreaterThanOrEqual(4);
     await expect(segments(page)).toHaveCount(1);
     await expect(switchPanel(page).getByRole('button', { name: '切り替える', exact: true })).toBeVisible();
+  });
+
+  test('Given 計測中のうちわけ / When ページが非表示になってすぐ表に戻る / Then 計測は続いて離れていたときの問いかけは出ず、通知の設定は切のまま', async ({ page }) => {
+    // Given: 計測中（90 分と 10 分の実時間は待てない。条件に当たる側は `apps/track-web` の単体が持つ）。
+    // 受信フレームの記録は、玄関へ入る前に始める（最初のハンドシェイクの後に始めても、取り直しの返事は拾えるが、揃えておく）
+    const received = watchWebSocketFrames(page);
+    await openTrackTool(page, 'e2e-track-away');
+    await startWork(page, '調べもの');
+    await expect(nowName(page)).toHaveText('調べもの');
+    const framesBefore = trackStates(received).length;
+
+    // When: ページの状態を偽装して、非表示 → 表示の順に変える
+    const setVisibility = (state: 'hidden' | 'visible') =>
+      page.evaluate((next) => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => next });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, state);
+    await setVisibility('hidden');
+    await setVisibility('visible');
+
+    // Then: 戻ったときの取り直し（track.sync）の写しが届いた＝判定が済んだ後で、問いかけが 0 件であることを測る
+    await expect
+      .poll(() => trackStates(received).length, { message: '表に戻ったら写しを取り直し、新しい写しが届く' })
+      .toBeGreaterThan(framesBefore);
+    await expect(page.getByRole('button', { name: 'そのまま残す' })).toHaveCount(0);
+    await expect(nowName(page)).toHaveText('調べもの');
+
+    // 通知の設定は既定で切（押すまで許可を求めない）。ブラウザが通知に対応するかで、期待を分けて必ず確かめる
+    const supportsNotification = await page.evaluate(() => typeof Notification !== 'undefined');
+    const toggle = page.getByRole('button', { name: '長く続いたら通知する' });
+    if (supportsNotification) {
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    } else {
+      await expect(toggle).toHaveCount(0);
+    }
   });
 });

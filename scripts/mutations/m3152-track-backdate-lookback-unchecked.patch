@@ -1,0 +1,23 @@
+# 変異 3152: track-backdate-lookback-unchecked
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/track.test.ts
+#   - packages/track-core/tests/edit.test.ts
+#
+# #476 停止の位置・休憩の始まりが、いまから 24 時間より前でも通る（置ける範囲の上限が消える）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3152-*.patch
+# 復元: git apply -R scripts/mutations/m3152-*.patch
+diff --git a/packages/track-core/src/track.ts b/packages/track-core/src/track.ts
+--- a/packages/track-core/src/track.ts
++++ b/packages/track-core/src/track.ts
+@@ -103,7 +103,7 @@
+  * `backMin`（15 分まで）にとっては、始まりより後かどうかだけが効く。
+  */
+ export function isBackdatePosition(running: Segment, t: number, nowMs: number): boolean {
+-  return t > running.startMs && nowMs - t >= MIN_SEGMENT_MS && nowMs - t <= MAX_LOOKBACK_MS;
++  return t > running.startMs && nowMs - t >= MIN_SEGMENT_MS;
+ }
+ 
+ /**

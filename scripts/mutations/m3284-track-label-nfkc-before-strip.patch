@@ -1,0 +1,22 @@
+# 変異 3284: track-label-nfkc-before-strip
+#
+# 検出を期待するテスト:
+#   - packages/track-core/tests/label.test.ts
+#
+# #476 作業名の正規化が、NFKC を掛けてから見えない字を落とす（基底字と結合文字の間の見えない字で、同じ見た目が別の名前になる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3284-*.patch
+# 復元: git apply -R scripts/mutations/m3284-*.patch
+diff --git a/packages/track-core/src/label.ts b/packages/track-core/src/label.ts
+--- a/packages/track-core/src/label.ts
++++ b/packages/track-core/src/label.ts
+@@ -32,7 +32,7 @@
+  * NFKC が見えない書式の字を生むことは無いので、後で落とし直す必要は無い。
+  */
+ export function normalizeLabel(raw: string): string {
+-  return raw.replace(INVISIBLE_FORMAT, "").normalize("NFKC").trim();
++  return raw.normalize("NFKC").replace(INVISIBLE_FORMAT, "").trim();
+ }
+ 
+ /** 正規化済みの作業名が受け取れる形か（空は名前なしとして通す）。 */

@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..ae8e0e79 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -33,7 +33,7 @@ const SavedSegmentSchema = v.pipe(
+ );
+ 
+ export const SavedRecordSchema = v.object({
+-  version: v.literal(SAVED_RECORD_VERSION),
++  version: v.optional(v.literal(SAVED_RECORD_VERSION)),
+   id: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_ID_LENGTH)),
+   /** 残した時刻（壁時計の ms。時刻軸から求める: `epochWallMs + nowMs`） */
+   savedAtMs: v.pipe(v.number(), v.finite()),

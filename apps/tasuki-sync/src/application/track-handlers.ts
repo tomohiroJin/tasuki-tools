@@ -23,6 +23,7 @@ import { HubCommandSchema, isHubCommand, type HubCommand } from "@tasuki/room-co
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import {
   adjustSegment,
+  away,
   clear,
   dismissOffer,
   insertSegment,
@@ -85,7 +86,9 @@ function apply(state: TrackState, cmd: MutatingCommand, now: number): Result<Tra
     case "track.start":
       return start(state, { label: cmd.label, kind: cmd.kind, ...backOf(cmd.backMin), now });
     case "track.stop":
-      return stop(state, { ...backOf(cmd.backMin), now });
+      return stop(state, { ...backOf(cmd.backMin), ...(cmd.atMs === undefined ? {} : { atMs: cmd.atMs }), now });
+    case "track.away":
+      return away(state, { fromMs: cmd.fromMs, now });
     case "track.undo":
       return ok(undo(state, { rev: cmd.rev, now }));
     case "track.segment.set":

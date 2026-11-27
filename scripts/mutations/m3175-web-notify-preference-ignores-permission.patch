@@ -1,0 +1,22 @@
+# 変異 3175: web-notify-preference-ignores-permission
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 通知の許可が取り消されていても、端末に覚えた入のまま読む。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3175-*.patch
+# 復元: git apply -R scripts/mutations/m3175-*.patch
+diff --git a/apps/track-web/src/hooks/use-notify-setting.ts b/apps/track-web/src/hooks/use-notify-setting.ts
+--- a/apps/track-web/src/hooks/use-notify-setting.ts
++++ b/apps/track-web/src/hooks/use-notify-setting.ts
+@@ -27,7 +27,7 @@
+ }
+ 
+ export function useNotifySetting(): NotifySetting {
+-  const [enabled, setEnabled] = useState(() => loadNotifyPreference() && notificationGranted());
++  const [enabled, setEnabled] = useState(() => loadNotifyPreference());
+   const [denied, setDenied] = useState(false);
+   const [unavailable, setUnavailable] = useState(() => notificationUnavailable());
+   const markUnavailable = useCallback(() => {

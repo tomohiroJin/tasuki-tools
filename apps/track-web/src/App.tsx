@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LoadingView } from '@tasuki/web-kit/room';
 import { TrackDisplay } from './screens/TrackDisplay';
+import { SavedRecords } from './screens/SavedRecords';
 import { TrackRoom } from './screens/TrackRoom';
 import { parseRoute, redirectTo } from './router';
 
@@ -15,5 +16,6 @@ export function App() {
 
   if (route.name === 'display') return <TrackDisplay roomCode={route.roomCode} />;
   if (route.name === 'room') return <TrackRoom roomCode={route.roomCode} />;
+  if (route.name === 'saved') return <SavedRecords roomCode={route.roomCode} />;
   return <LoadingView />;
 }

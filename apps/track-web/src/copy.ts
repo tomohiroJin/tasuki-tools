@@ -27,6 +27,7 @@ export const UNDO_BUTTON = '取り消す';
 export const UNDO_NOTE_START = '切り替えました。';
 export const UNDO_NOTE_STOP = '止めました。';
 export const UNDO_NOTE_CLEAR = '記録を消しました。';
+export const UNDO_NOTE_AWAY = '離れていた間を休憩にしました。';
 export const undoRemaining = (seconds: number): string => `残り ${seconds} 秒`;
 
 // 切り替える
@@ -97,6 +98,12 @@ export const INSERT_ERROR_TIME = '時刻を入れてください。';
 export const INSERT_ERROR_LENGTH = '長さは 1 分以上の整数で入れてください。';
 export const INSERT_ERROR_ORDER = '終わりは始まりより後にしてください。';
 export const INSERT_ERROR_FUTURE = 'いまより先の時間は足せません。';
+/** 押す前に欄の中へ出す、読み取った範囲と長さ（抜けを足す欄と、始まり・終わりを合わせる欄で共通。読み上げの対象にしない）。前日に読んだ端に添える */
+export const INSERT_PREVIEW_YESTERDAY = '前日';
+export const insertPreviewEdgeText = (clock: string, yesterday: boolean): string => (yesterday ? `${INSERT_PREVIEW_YESTERDAY} ${clock}` : clock);
+export const insertPreviewText = (startText: string, endText: string, lengthText: string): string => `読み取った時間 ${startText} から ${endText}（長さ ${lengthText}）`;
+/** 前日として読み替えた時刻があるときに、誤りの文の前へ添える */
+export const INSERT_YESTERDAY_NOTE = '前日の時刻として読みました。';
 
 // 持ち帰り
 export const COPY_BUTTON = 'Markdown でコピー';
@@ -108,12 +115,57 @@ export const CLEAR_CONFIRM_TEXT = '全員の画面から記録を消しますか
 export const CLEAR_CONFIRM_YES = '消す';
 export const CLEAR_CONFIRM_NO = 'やめる';
 
+// 端末に残す・CSV（第 2 段 B）
+export const SAVE_BUTTON = 'この端末に残す';
+export const CSV_BUTTON = 'CSV で保存';
+export const SAVE_NOTE =
+  'この端末のブラウザにだけ残ります。ほかの人には見えません。ブラウザのデータを消すと消えます。Safari では、しばらく開かないと消えることがあります。';
+export const saveFullNote = (max: number): string => `残せるのは ${max} 件までです。残すと、最初に残した 1 件が消えます。`;
+export const SAVE_DONE = 'この端末に残しました';
+export const SAVE_FAILED = 'この端末に残せませんでした';
+export const SAVED_LINK = 'この端末の記録';
+/** リンクの読み上げの名前。新しいタブで開くことを伝える（見える文言は SAVED_LINK のまま） */
+export const SAVED_LINK_LABEL = `${SAVED_LINK}（新しいタブで開きます）`;
+
+// この端末の記録（第 2 段 B5）
+export const SAVED_HEADING = 'この端末の記録';
+export const SAVED_BACK_ROOM = 'ルームへ戻る';
+export const SAVED_BACK_HOME = '最初の画面へ戻る';
+export const SAVED_LOADING = '読み込んでいます';
+export const SAVED_LOAD_FAILED = 'この端末の記録を読めませんでした';
+export const SAVED_DELETE_FAILED = 'この端末の記録を消せませんでした';
+export const SAVED_EMPTY = 'まだ残した記録はありません。ルームの画面の「この端末に残す」で残せます。';
+export const savedCountNote = (count: number, max: number): string => `${count} 件（残せるのは ${max} 件まで）`;
+export const savedItemText = (when: string, total: string, count: number): string => `${when} 全体 ${total} 作業名 ${count} 件`;
+export const SAVED_OPEN_BUTTON = '開く';
+export const SAVED_CLOSE_BUTTON = '閉じる';
+export const savedOpenLabel = (when: string): string => `${when} の記録を開く`;
+export const SAVED_DELETE_BUTTON = 'この記録を消す';
+export const SAVED_DELETE_ALL_BUTTON = '全部消す';
+export const SAVED_DELETE_ALL_CONFIRM = 'この端末に残した記録をすべて消しますか。元には戻せません';
+export const SAVED_DELETE_ALL_YES = '全部消す';
+export const SAVED_DELETE_ALL_NO = 'やめる';
+
 // 知らせ
 export const resumeOfferText = (name: string, clock: string): string => `全員が離れたので「${name}」を ${clock} で止めました。`;
 export const RESUME_BUTTON = '再開する';
 export const DISMISS_BUTTON = 'このまま';
 export const longRunningText = (name: string, minutes: number): string =>
   `「${name}」が ${minutes} 分続いています。切り替え忘れではありませんか`;
+
+// 離れていたとき（FR-27。戻ってきた本人の画面にだけ出す）
+export const awayPromptText = (minutes: number): string => `${minutes} 分ほど離れていました。計測は続いています。`;
+export const AWAY_KEEP_BUTTON = 'そのまま残す';
+export const AWAY_CUT_BUTTON = '離れた時刻で切る';
+export const AWAY_BREAK_BUTTON = 'その間を休憩にする';
+
+// 通知（既定は切。押したときにだけ許可を求める。通知の文に作業名を出さない）
+export const NOTIFY_BUTTON = '長く続いたら通知する';
+export const NOTIFY_DENIED_TEXT = '通知が許可されませんでした。ブラウザの設定で許可すると使えます。';
+export const NOTIFY_UNAVAILABLE_TEXT = 'この端末では通知を使えません。';
+export const longRunningBreakNotifyTitle = (minutes: number): string => `休憩が ${minutes} 分続いています`;
+export const longRunningNotifyTitle = (minutes: number): string => `同じ作業が ${minutes} 分続いています`;
+export const LONG_RUNNING_NOTIFY_BODY = '切り替え忘れではありませんか';
 
 // 読み上げ（切り替え・停止・自動の停止のときだけ差し替える）
 export const announceStarted = (name: string): string => `${name} を計測しています`;

@@ -4,7 +4,7 @@
  */
 import type { Result } from "neverthrow";
 import { describe, expect, it } from "vitest";
-import { adjustSegment, insertSegment, removeSegment, setSegment, splitSegment } from "../src/edit.js";
+import { adjustSegment, away, insertSegment, removeSegment, setSegment, splitSegment } from "../src/edit.js";
 import { BACK_MINUTES, MAX_PINNED, MAX_SEGMENTS, MIN_SEGMENT_MS } from "../src/limits.js";
 import { totalsOf } from "../src/projection.js";
 import { autoStop, clear, createTrackState, dismissOffer, pin, start, stop, toView, undo } from "../src/track.js";
@@ -94,13 +94,15 @@ function step(s: TrackState, rnd: () => number, now: number): TrackState {
   const anyId = s.segments.length === 0 ? "g-0" : pick(rnd, s.segments).id;
   const kind = rnd() < 0.2 ? ("break" as const) : ("work" as const);
   const backMin = rnd() < 0.2 ? pick(rnd, BACK_MINUTES) : undefined;
-  const roll = int(rnd, 0, 11);
+  const roll = int(rnd, 0, 12);
   switch (roll) {
     case 0:
     case 1:
     case 2:
       return count("start", s, okOr(s, start(s, { label: pick(rnd, LABELS), kind, ...(backMin === undefined ? {} : { backMin }), now })));
     case 3:
+      // 位置で止める（離れていたときの問いかけ）。さかのぼりとは同時に使わない
+      if (backMin === undefined && rnd() < 0.3) return count("stopAt", s, okOr(s, stop(s, { atMs: nowPos - int(rnd, 0, 600_000), now })));
       return count("stop", s, okOr(s, stop(s, { ...(backMin === undefined ? {} : { backMin }), now })));
     case 4:
       return count("undo", s, undo(s, { rev: s.undo?.rev ?? -1, now }));
@@ -116,6 +118,8 @@ function step(s: TrackState, rnd: () => number, now: number): TrackState {
     }
     case 9:
       return count("remove", s, okOr(s, removeSegment(s, { id: anyId })));
+    case 12:
+      return count("away", s, okOr(s, away(s, { fromMs: nowPos - int(rnd, 0, 900_000), now })));
     case 10:
       return count("pin", s, okOr(s, pin(s, { label: pick(rnd, LABELS), pinned: rnd() < 0.7 })));
     default: {
@@ -196,7 +200,7 @@ describe("うちわけの不変条件", () => {
         }
       }
       // どの操作も、実際に効いた回がある（生成器が的を外していない）
-      for (const op of ["start", "stop", "undo", "set", "adjust", "split", "insert", "remove", "pin", "autoStop", "dismiss", "clear"]) {
+      for (const op of ["start", "stop", "undo", "set", "adjust", "split", "insert", "remove", "pin", "stopAt", "away", "autoStop", "dismiss", "clear"]) {
         expect(effective[op] ?? 0, `${op} が一度も効いていない`).toBeGreaterThan(0);
       }
     },
@@ -204,7 +208,7 @@ describe("うちわけの不変条件", () => {
   );
 
   it(
-    "開始・切り替え・停止・消す操作は、すぐ取り消すと直前の区切りの列に戻る",
+    "開始・切り替え・停止・離れた間の休憩・消す操作は、すぐ取り消すと直前の区切りの列に戻る",
     () => {
       for (let seed = 1; seed <= RUNS; seed++) {
         const rnd = lcg(seed * 7919);
@@ -217,9 +221,11 @@ describe("うちわけの不変条件", () => {
           const after =
             r < 0.6
               ? okOr(s, start(s, { label: pick(rnd, LABELS), kind: "work", now }))
-              : r < 0.9
+              : r < 0.8
                 ? okOr(s, stop(s, { now }))
-                : clear(s, now);
+                : r < 0.9
+                  ? okOr(s, rnd() < 0.5 ? away(s, { fromMs: now - s.epochMono - int(rnd, 1_000, 300_000), now }) : stop(s, { atMs: now - s.epochMono - int(rnd, 0, 300_000), now }))
+                  : clear(s, now);
           if (after !== before) {
             const undone = undo(after, { rev: after.undo!.rev, now: now + 1 });
             expect(undone.segments).toEqual(before.segments);

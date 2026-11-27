@@ -1,0 +1,12 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..707d6385 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -51,6 +51,7 @@ export type SavedRecord = v.InferOutput<typeof SavedRecordSchema>;
+  */
+ export function recordFromView(view: TrackView, nowMs: number, id: string): SavedRecord {
+   return {
++    ...view,
+     version: SAVED_RECORD_VERSION,
+     id,
+     savedAtMs: view.epochWallMs + nowMs,

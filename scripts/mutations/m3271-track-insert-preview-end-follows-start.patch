@@ -1,0 +1,23 @@
+# 変異 3271: track-insert-preview-end-follows-start
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/time-input.test.ts
+#
+# #476 「読み取った時間」の終わりの前日の添えが、始まりのものと同じになる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3271-*.patch
+# 復元: git apply -R scripts/mutations/m3271-*.patch
+diff --git a/apps/track-web/src/time-input.ts b/apps/track-web/src/time-input.ts
+index 1d057ce0..630af86d 100644
+--- a/apps/track-web/src/time-input.ts
++++ b/apps/track-web/src/time-input.ts
+@@ -171,7 +171,7 @@ export function insertPreviewOf(input: InsertInput, nowMs: number, epochWallMs:
+     startClock: start.clock,
+     startYesterday: start.yesterday,
+     endClock: end.clock,
+-    endYesterday: end.yesterday,
++    endYesterday: start.yesterday,
+     lengthMin: Math.floor((range.endMs - range.startMs) / MS_PER_MIN),
+   };
+ }

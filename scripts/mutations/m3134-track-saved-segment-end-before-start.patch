@@ -1,0 +1,13 @@
+diff --git a/apps/track-web/src/storage/saved-record.ts b/apps/track-web/src/storage/saved-record.ts
+index fcdef1a6..dc8162bd 100644
+--- a/apps/track-web/src/storage/saved-record.ts
++++ b/apps/track-web/src/storage/saved-record.ts
+@@ -29,7 +29,7 @@ const SavedSegmentSchema = v.pipe(
+     endMs: position,
+     autoClosed: v.boolean(),
+   }),
+-  v.check((s) => s.endMs >= s.startMs, 'segment must not end before it starts'),
++  v.check(() => true, 'segment must not end before it starts'),
+ );
+ 
+ export const SavedRecordSchema = v.object({

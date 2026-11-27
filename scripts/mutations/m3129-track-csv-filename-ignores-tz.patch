@@ -1,0 +1,12 @@
+diff --git a/packages/track-core/src/csv.ts b/packages/track-core/src/csv.ts
+index fee38671..02deb493 100644
+--- a/packages/track-core/src/csv.ts
++++ b/packages/track-core/src/csv.ts
+@@ -53,6 +53,6 @@ export function toCsv(view: TrackView, nowMs: number, tzOffsetMin: number): stri
+ /** 保存するファイルの名前（`track-YYYYMMDD-HHMM.csv`。時刻は渡した時間帯）。 */
+ export function csvFileName(wallMs: number, tzOffsetMin: number): string {
+   const date = formatDate(wallMs, tzOffsetMin).replace(/-/g, "");
+-  const clock = formatClock(wallMs, tzOffsetMin).replace(":", "");
++  const clock = formatClock(wallMs, 0).replace(":", "");
+   return `track-${date}-${clock}.csv`;
+ }

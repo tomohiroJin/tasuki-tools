@@ -1,0 +1,23 @@
+# 変異 3212: web-notify-constructor-failure-swallowed
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 new Notification() が投げても握りつぶし、設定を切に戻さず・知らせない（Android の Chrome）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3212-*.patch
+# 復元: git apply -R scripts/mutations/m3212-*.patch
+diff --git a/apps/track-web/src/platform/notify.ts b/apps/track-web/src/platform/notify.ts
+--- a/apps/track-web/src/platform/notify.ts
++++ b/apps/track-web/src/platform/notify.ts
+@@ -83,8 +83,7 @@
+     new Notification(title, { body, tag: 'tasuki-track-long-running' });
+     return 'sent';
+   } catch {
+-    constructorFailed = true;
+-    return 'failed';
++    return 'sent';
+   }
+ }
+ 

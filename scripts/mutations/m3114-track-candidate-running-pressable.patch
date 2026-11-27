@@ -1,0 +1,23 @@
+# 変異 3114: track-candidate-running-pressable
+#
+# 検出を期待するテスト:
+#   - apps/track-web/tests/track-room.test.tsx
+#
+# #476 計測中の名前の候補が押せる（押しても何も起きない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3114-*.patch
+# 復元: git apply -R scripts/mutations/m3114-*.patch
+diff --git a/apps/track-web/src/components/SwitchPanel.tsx b/apps/track-web/src/components/SwitchPanel.tsx
+index 74108c04..c9e9e5e4 100644
+--- a/apps/track-web/src/components/SwitchPanel.tsx
++++ b/apps/track-web/src/components/SwitchPanel.tsx
+@@ -100,7 +100,7 @@ export function SwitchPanel({ running, candidates, backMin, onBackMinChange, can
+             {candidates.map((candidate) => (
+               <li key={candidate.label} className="track-candidate">
+                 {/* 計測中の名前は押せない（切り替えても何も起きない）。番号も振らない。星は使える */}
+-                <button type="button" className="track-candidate-pick" disabled={!canOperate || candidate.running} onClick={() => onStart(candidate.label)}>
++                <button type="button" className="track-candidate-pick" disabled={!canOperate} onClick={() => onStart(candidate.label)}>
+                   {candidate.running ? <span className="track-candidate-topic">{RUNNING_MARK}</span> : <span className="track-candidate-number">{++number}</span>}
+                   {candidate.source === 'topic' && <span className="track-candidate-topic">{TOPIC_MARK}</span>}
+                   <span className="track-candidate-label">{candidate.label}</span>

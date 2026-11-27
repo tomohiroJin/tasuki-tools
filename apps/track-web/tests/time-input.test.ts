@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { edgePositionOf, insertRangeOf, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
+import { edgePositionOf, edgePreviewOf, insertPreviewOf, insertRangeOf, lengthHm, parseClock, positionBefore, splitPositionOf } from '../src/time-input';
+import { MIN_SEGMENT_MS } from '@tasuki/track-core';
 import { EPOCH_WALL_MS, MIN, seg } from './support/track-states';
 
 const HOUR = 60 * MIN;
@@ -56,8 +57,9 @@ describe('時刻を時刻軸の位置へ直す', () => {
 
 describe('抜けを足す範囲', () => {
   const now = 80 * MIN + 30_000;
-  const range = (input: Partial<Parameters<typeof insertRangeOf>[0]>) =>
-    insertRangeOf({ start: '', mode: 'end', end: '', lengthMin: '', ...input }, now, EPOCH_WALL_MS, JST);
+  const range = (input: Partial<Parameters<typeof insertRangeOf>[0]>, nowMs = now) =>
+    insertRangeOf({ start: '', mode: 'end', end: '', lengthMin: '', ...input }, nowMs, EPOCH_WALL_MS, JST);
+  const AFTER_MIDNIGHT = 14 * HOUR + 10 * MIN;
 
   it('Given 始まりと終わり / When 範囲を求める / Then 2 つの時刻の位置になる', () => {
     expect(range({ start: '10:20', end: '10:40' })).toEqual({ ok: true, startMs: 20 * MIN, endMs: 40 * MIN });
@@ -68,29 +70,100 @@ describe('抜けを足す範囲', () => {
   });
 
   it('Given 日付をまたぐ範囲（いまは 00:10） / When 範囲を求める / Then 前日の始まりから今日の終わりまでになる', () => {
-    const afterMidnight = 14 * HOUR + 10 * MIN;
-    const result = insertRangeOf({ start: '23:50', mode: 'end', end: '00:05', lengthMin: '' }, afterMidnight, EPOCH_WALL_MS, JST);
-    expect(result).toEqual({ ok: true, startMs: 13 * HOUR + 50 * MIN, endMs: 14 * HOUR + 5 * MIN });
+    expect(range({ start: '23:50', end: '00:05' }, AFTER_MIDNIGHT)).toEqual({ ok: true, startMs: 13 * HOUR + 50 * MIN, endMs: 14 * HOUR + 5 * MIN });
   });
 
-  it('Given 時刻が空・読めない / When 範囲を求める / Then 時刻の誤りになる', () => {
-    expect(range({ start: '', end: '10:40' })).toEqual({ ok: false, error: 'time' });
-    expect(range({ start: '10:20', end: '' })).toEqual({ ok: false, error: 'time' });
+  it('Given 時刻が空・読めない / When 範囲を求める / Then 時刻の誤りになる（前日の読みは添えない）', () => {
+    expect(range({ start: '', end: '10:40' })).toEqual({ ok: false, error: 'time', yesterday: false });
+    expect(range({ start: '10:20', end: '' })).toEqual({ ok: false, error: 'time', yesterday: false });
   });
 
   it.each(['', '0', '-3', '1.5', 'abc', '1441'])('Given 長さが %j / When 範囲を求める / Then 長さの誤りになる', (lengthMin) => {
-    expect(range({ start: '10:20', mode: 'length', lengthMin })).toEqual({ ok: false, error: 'length' });
+    expect(range({ start: '10:20', mode: 'length', lengthMin })).toEqual({ ok: false, error: 'length', yesterday: false });
   });
 
-  it('Given 終わりが始まり以前 / When 範囲を求める / Then 順の誤りになる', () => {
-    expect(range({ start: '10:40', end: '10:20' })).toEqual({ ok: false, error: 'order' });
-    expect(range({ start: '10:40', end: '10:40' })).toEqual({ ok: false, error: 'order' });
+  it('Given 終わりが始まり以前（前日の読みなし） / When 範囲を求める / Then 順の誤りで、前日の読みは添えない', () => {
+    expect(range({ start: '10:40', end: '10:20' })).toEqual({ ok: false, error: 'order', yesterday: false });
+    expect(range({ start: '10:40', end: '10:40' })).toEqual({ ok: false, error: 'order', yesterday: false });
   });
 
-  it('Given 長さを足すといまを越える / When 範囲を求める / Then いまより先の誤りになる', () => {
-    expect(range({ start: '11:00', mode: 'length', lengthMin: '30' })).toEqual({ ok: false, error: 'future' });
+  it('Given 終わりがいまより後（前日の読みになり、始まりより前） / When 範囲を求める / Then 順の誤りに前日の読みを添える', () => {
+    // いまは 11:20:30。11:21 は前日の 11:21 として読まれ、今日の 10:20 の始まりより前になる
+    expect(range({ start: '10:20', end: '11:21' })).toEqual({ ok: false, error: 'order', yesterday: true });
+    expect(range({ start: '09:00', end: '23:50' })).toEqual({ ok: false, error: 'order', yesterday: true });
+  });
+
+  it('Given 前日の読みで成り立つ / When 範囲を求める / Then 前日の範囲になる（0:10 に 23:00〜23:30 を足せる）', () => {
+    expect(range({ start: '23:00', end: '23:30' })).toEqual({ ok: true, startMs: 13 * HOUR - DAY, endMs: 13 * HOUR + 30 * MIN - DAY });
+    expect(range({ start: '23:00', end: '23:30' }, AFTER_MIDNIGHT)).toEqual({ ok: true, startMs: 13 * HOUR, endMs: 13 * HOUR + 30 * MIN });
+    // いまと同じ分の頭までは今日の時刻のまま
+    expect(range({ start: '10:20', end: '11:20' })).toEqual({ ok: true, startMs: 20 * MIN, endMs: 80 * MIN });
+  });
+
+  it('Given 始まりも終わりも前日に読み替わり、順が逆 / When 範囲を求める / Then 順の誤りになる', () => {
+    expect(range({ start: '23:30', end: '23:00' })).toEqual({ ok: false, error: 'order', yesterday: true });
+  });
+
+  it('Given 始まりだけが前日に読み替わり、12 時間より長い / When 範囲を求める / Then 上限は無く受ける（夜をまたぐ正当な長い抜けを拒まない）', () => {
+    // いまは 11:20:30。11:30 は前日の 11:30。終わりの今日の 11:00 まで 23.5 時間（長さは表示で気づかせる）
+    expect(range({ start: '11:30', end: '11:00' })).toEqual({ ok: true, startMs: 90 * MIN - DAY, endMs: 60 * MIN });
+    // いまが 08:00 のとき、18:00〜07:30（13.5 時間）
+    const eight = -2 * HOUR;
+    expect(range({ start: '18:00', end: '07:30' }, eight)).toEqual({ ok: true, startMs: 8 * HOUR - DAY, endMs: -150 * MIN });
+  });
+
+  it('Given 始まりを前日に読み替えた長さが、いまを越える / When 範囲を求める / Then いまより先の誤りに前日の読みを添える', () => {
+    // いまは 00:10。23:30 は前日の 23:30。60 分の長さの終わりは 00:30 でいまより先
+    expect(range({ start: '23:30', mode: 'length', lengthMin: '60' }, AFTER_MIDNIGHT)).toEqual({ ok: false, error: 'future', yesterday: true });
+  });
+
+  it('Given 長さを足すといまを越える（前日の読みなし） / When 範囲を求める / Then いまより先の誤りで、前日の読みは添えない', () => {
+    expect(range({ start: '11:00', mode: 'length', lengthMin: '30' })).toEqual({ ok: false, error: 'future', yesterday: false });
     // いまと同じ分の頭までは置ける
     expect(range({ start: '11:00', mode: 'length', lengthMin: '20' })).toEqual({ ok: true, startMs: 60 * MIN, endMs: 80 * MIN });
+  });
+});
+
+describe('抜けを足す欄に出す、読み取った範囲と長さ', () => {
+  const now = 80 * MIN + 30_000;
+  const AFTER_MIDNIGHT = 14 * HOUR + 10 * MIN;
+  const preview = (input: Partial<Parameters<typeof insertPreviewOf>[0]>, nowMs = now) =>
+    insertPreviewOf({ start: '', mode: 'end', end: '', lengthMin: '', ...input }, nowMs, EPOCH_WALL_MS, JST);
+
+  it('Given 今日の範囲 / When 読み取る / Then 時刻と長さ（分）を返し、前日の添えは付かない', () => {
+    expect(preview({ start: '10:20', end: '10:40' })).toEqual({ startClock: '10:20', startYesterday: false, endClock: '10:40', endYesterday: false, lengthMin: 20 });
+  });
+
+  it('Given 始まりだけが前日に読み替わる（8:00 に 18:00〜07:30） / When 読み取る / Then 始まりにだけ前日を添え、長さは 13 時間 30 分', () => {
+    expect(preview({ start: '18:00', end: '07:30' }, -2 * HOUR)).toEqual({ startClock: '18:00', startYesterday: true, endClock: '07:30', endYesterday: false, lengthMin: 810 });
+  });
+
+  it('Given 両方が前日に読み替わる / When 読み取る / Then 両方に前日を添える', () => {
+    expect(preview({ start: '23:00', end: '23:30' })).toEqual({ startClock: '23:00', startYesterday: true, endClock: '23:30', endYesterday: true, lengthMin: 30 });
+  });
+
+  it('Given 長さで指定（終わりと同じ範囲） / When 読み取る / Then 終わりで指定したときと同じ値になる', () => {
+    expect(preview({ start: '18:00', mode: 'length', lengthMin: '810' }, -2 * HOUR)).toEqual(preview({ start: '18:00', end: '07:30' }, -2 * HOUR));
+    // 前日の 23:30 から 60 分。終わりは今日（00:30 は過ぎた 00:40 のとき）なので前日は添えない
+    expect(preview({ start: '23:30', mode: 'length', lengthMin: '60' }, 14 * HOUR + 40 * MIN)).toEqual({ startClock: '23:30', startYesterday: true, endClock: '00:30', endYesterday: false, lengthMin: 60 });
+  });
+
+  it('Given 長さ（分） / When h:mm にする / Then 分は 2 桁で出す', () => {
+    expect(lengthHm(5)).toBe('0:05');
+    expect(lengthHm(810)).toBe('13:30');
+    expect(lengthHm(1440)).toBe('24:00');
+  });
+
+  it('Given 秒つきの時刻 / When 読み取る / Then 分までを出す', () => {
+    expect(preview({ start: '10:20:45', end: '10:40' })?.startClock).toBe('10:20');
+  });
+
+  it('Given 読み取れない入力（空・順が逆・いまより先・長さの誤り） / When 読み取る / Then 出さない', () => {
+    expect(preview({})).toBeNull();
+    expect(preview({ start: '10:40', end: '10:20' })).toBeNull();
+    expect(preview({ start: '11:00', mode: 'length', lengthMin: '30' })).toBeNull();
+    expect(preview({ start: '10:20', mode: 'length', lengthMin: 'x' })).toBeNull();
+    expect(preview({ start: '23:30', mode: 'length', lengthMin: '60' }, AFTER_MIDNIGHT)).toBeNull();
   });
 });
 
@@ -130,20 +203,118 @@ describe('分ける時刻は、いまから 24 時間より前に置けない', 
   });
 });
 
+/**
+ * @requirements #476 FR-17（始まり・終わりを時刻で合わせる）
+ */
 describe('始まり・終わりを合わせる時刻', () => {
-  // 動かせる範囲は 10:10:00〜10:40:20（位置 10 分〜40 分 20 秒）
+  // いまは 12:00（位置 2 時間）。動かせる範囲は 10:10:00〜10:40:20（位置 10 分〜40 分 20 秒）。動かす前の端は 10:25
+  const now = 2 * HOUR;
+  const current = 25 * MIN;
   const range = { minMs: 10 * MIN, maxMs: 40 * MIN + 20_000 };
+  const at = (value: string, r: { minMs: number; maxMs: number } | null = range, cur = current, nowMs = now) => edgePositionOf(value, r, cur, nowMs, EPOCH_WALL_MS, JST);
 
   it('Given 範囲の中の時刻 / When 位置を求める / Then その分ちょうどの位置になる', () => {
-    expect(edgePositionOf('10:25', range, EPOCH_WALL_MS, JST)).toBe(25 * MIN);
-    expect(edgePositionOf('10:10', range, EPOCH_WALL_MS, JST)).toBe(10 * MIN);
-    expect(edgePositionOf('10:40', range, EPOCH_WALL_MS, JST)).toBe(40 * MIN);
+    expect(at('10:25')).toBe(25 * MIN);
+    expect(at('10:10')).toBe(10 * MIN);
   });
 
   it('Given 範囲の外・読めない時刻・範囲が無い / When 位置を求める / Then 合わせられない', () => {
-    expect(edgePositionOf('10:09', range, EPOCH_WALL_MS, JST)).toBeNull();
-    expect(edgePositionOf('10:41', range, EPOCH_WALL_MS, JST)).toBeNull();
-    expect(edgePositionOf('', range, EPOCH_WALL_MS, JST)).toBeNull();
-    expect(edgePositionOf('10:25', null, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(at('10:09')).toBeNull();
+    expect(at('10:41')).toBeNull();
+    expect(at('')).toBeNull();
+    expect(at('10:25', null)).toBeNull();
+  });
+
+  it('Given 上限と同じ分（秒の欄なし） / When 位置を求める / Then 秒の端数つきの上限へ寄せて受ける', () => {
+    expect(at('10:40')).toBe(40 * MIN + 20_000);
+  });
+
+  it('Given 下限と同じ分（秒の欄なし） / When 位置を求める / Then 秒の端数つきの下限へ寄せて受ける', () => {
+    expect(at('10:10', { minMs: 10 * MIN + 30_000, maxMs: 40 * MIN + 20_000 })).toBe(10 * MIN + 30_000);
+  });
+
+  it('Given 端の 1 分外 / When 位置を求める / Then 合わせられない', () => {
+    const r = { minMs: 10 * MIN + 30_000, maxMs: 40 * MIN + 20_000 };
+    expect(at('10:09', r)).toBeNull();
+    expect(at('10:41', r)).toBeNull();
+  });
+
+  it('Given 秒の欄のある入力（10:10:00） / When 下限と同じ分に入れる / Then 寄せずに範囲で判断する', () => {
+    const r = { minMs: 10 * MIN + 30_000, maxMs: 40 * MIN + 20_000 };
+    expect(at('10:10:00', r)).toBeNull();
+    expect(at('10:10:40', r)).toBe(10 * MIN + 40_000);
+    // 上限側も、秒の欄のある入力は寄せない
+    expect(at('10:40:00')).toBe(40 * MIN);
+  });
+
+  it('Given 下限が「いまから 24 時間前」で決まっている / When 下限と同じ分を入れる / Then 寄せずに拒む（その端は動く）', () => {
+    // いまは 25 時間 + 30 秒。24 時間前は 1 時間 + 30 秒（11:00:30）
+    const lookback = { minMs: HOUR + 30_000, maxMs: 3 * HOUR };
+    expect(at('11:00', lookback, 2 * HOUR, 25 * HOUR + 30_000)).toBeNull();
+    // 下限が前の区切りで決まっている（24 時間前より新しい）ときは寄せる
+    expect(at('11:00', lookback, 2 * HOUR, 25 * HOUR)).toBe(HOUR + 30_000);
+  });
+});
+
+/**
+ * @requirements #476 FR-17（日をまたぐ区切りの端を、動かす前の端に近い日の時刻で読む）
+ */
+describe('始まり・終わりを合わせる時刻は、動かす前の端に近い日で読む', () => {
+  // 最初の区切りが前日 23:50〜00:30、いまは 00:40。始まりの動かせる範囲は「いまから 24 時間前」〜終わりの 1 つ前
+  const start = 13 * HOUR + 50 * MIN;
+  const end = 14 * HOUR + 30 * MIN;
+  const now = 14 * HOUR + 40 * MIN;
+  const range = { minMs: now - DAY, maxMs: end - MIN_SEGMENT_MS };
+  const at = (value: string) => edgePositionOf(value, range, start, now, EPOCH_WALL_MS, JST);
+
+  it('Given 始まりの前日側の時刻 / When 23:40・23:55 を入れる / Then 始まりの近くのその時刻で受ける', () => {
+    expect(at('23:40')).toBe(49_200_000);
+    expect(at('23:55')).toBe(50_100_000);
+  });
+
+  it('Given 始まりの翌日側の時刻 / When 00:10 を入れる / Then 区切りの中のその時刻で受ける', () => {
+    expect(at('00:10')).toBe(14 * HOUR + 10 * MIN);
+  });
+
+  it('Given 終わりより後の時刻 / When 00:35 を入れる / Then 前日の時刻として受けず拒む（23 時間の区切りにならない）', () => {
+    expect(at('00:35')).toBeNull();
+  });
+});
+
+describe('始まり・終わりを合わせる時刻は、範囲に収まる読み方の中で最も近いものを選ぶ', () => {
+  it('Given 区切りが 10:00〜10:30・いまが 10:40（始まりの下限は前日の約 10:40） / When 始まりに 21:00 を入れる / Then 前日の 21:00 として受ける', () => {
+    // 位置 0 が 10:00。いまは 40 分。始まりの範囲は [いまの 24 時間前, 終わり − 最短]。動かす前の始まりは 0
+    const now = 40 * MIN;
+    const end = 30 * MIN;
+    const r = { minMs: now - DAY, maxMs: end - MIN_SEGMENT_MS };
+    // 21:00 は今日の 21:00（範囲の外）より、前日の 21:00（位置 11 時間 − 24 時間）が収まる
+    expect(edgePositionOf('21:00', r, 0, now, EPOCH_WALL_MS, JST)).toBe(11 * HOUR - DAY);
+  });
+
+  it('Given 同じ区切り・いま / When 始まりに 21:00・11:00 を入れる（どちらも受ける） / Then 押す前に、前日と動かした後の長さで区別できる', () => {
+    const now = 40 * MIN;
+    const end = 30 * MIN;
+    const r = { minMs: now - DAY, maxMs: end - MIN_SEGMENT_MS };
+    const p21 = edgePreviewOf('start', '21:00', r, 0, end, now, EPOCH_WALL_MS, JST);
+    expect(p21).toMatchObject({ startClock: '21:00', startYesterday: true, endClock: '10:30', endYesterday: false, lengthMin: 13 * 60 + 30 });
+    const p11 = edgePreviewOf('start', '11:00', r, 0, end, now, EPOCH_WALL_MS, JST);
+    expect(p11).toMatchObject({ startClock: '11:00', startYesterday: true, lengthMin: 23 * 60 + 30 });
+    expect(lengthHm(p11?.lengthMin ?? 0)).toBe('23:30');
+  });
+
+  it('Given 終わりを動かす / When 時刻を入れる / Then 動かした後の長さを出し、読み取れない入力では null', () => {
+    const now = 40 * MIN;
+    const r = { minMs: 10 * MIN, maxMs: now };
+    expect(edgePreviewOf('end', '10:25', r, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toMatchObject({ startClock: '10:00', endClock: '10:25', endYesterday: false, lengthMin: 25 });
+    expect(edgePreviewOf('end', '10:05', { minMs: 10 * MIN, maxMs: now }, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePreviewOf('end', '', r, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
+    expect(edgePreviewOf('end', '10:25', null, 30 * MIN, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
+  });
+
+  it('Given 収まる読み方が 1 つも無い / When 入れる / Then 拒む', () => {
+    const now = 40 * MIN;
+    const r = { minMs: now - DAY, maxMs: 30 * MIN - MIN_SEGMENT_MS };
+    // 10:35 は前日の 10:35（下限 10:40 より前）・今日の 10:35（上限より後）のどちらも外
+    expect(edgePositionOf('10:35', r, 0, now, EPOCH_WALL_MS, JST)).toBeNull();
   });
 });

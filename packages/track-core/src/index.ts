@@ -22,13 +22,15 @@ export { hasControlChars, normalizeLabel, isValidLabel } from "./label.js";
 
 export { createTrackState, start, stop, undo, autoStop, dismissOffer, clear, pin, toView } from "./track.js";
 
-export { setSegment, adjustRangeOf, adjustSegment, splitSegment, insertSegment, removeSegment } from "./edit.js";
+export { setSegment, adjustRangeOf, adjustSegment, splitSegment, insertSegment, away, removeSegment } from "./edit.js";
 export type { SegmentEdge } from "./edit.js";
 
 export { advanceNow, runningSegmentOf, durationOf, totalsOf, candidatesOf, previousLabelOf, longRunningOf } from "./projection.js";
 export type { TotalRow, Totals, Candidate } from "./projection.js";
 
-export { MARKDOWN_TEXT, formatDuration, formatClock, formatMonthDay, escapeLabel, toMarkdown } from "./markdown.js";
+export { MARKDOWN_TEXT, formatDuration, formatClock, formatDate, formatMonthDay, escapeLabel, toMarkdown } from "./markdown.js";
+
+export { CSV_COLUMNS, csvField, toCsv, csvFileName } from "./csv.js";
 
 export { TrackCommandSchema, TrackFrameSchema, TrackErrorFrameSchema, TRACK_ERROR_CODES } from "./schemas.js";
 export type { TrackCommand, TrackErrorCode } from "./schemas.js";

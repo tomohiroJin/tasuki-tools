@@ -1,0 +1,22 @@
+# 変異 3171: web-away-undo-note-wrong
+#
+# 検出を期待するテスト:
+#   - tests/track-room.test.tsx
+#
+# #476 離れていた間を休憩にした取り消しの帯に、別の操作の文が出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m3171-*.patch
+# 復元: git apply -R scripts/mutations/m3171-*.patch
+diff --git a/apps/track-web/src/components/NowPanel.tsx b/apps/track-web/src/components/NowPanel.tsx
+--- a/apps/track-web/src/components/NowPanel.tsx
++++ b/apps/track-web/src/components/NowPanel.tsx
+@@ -24,7 +24,7 @@
+ } from '../copy';
+ import { formatElapsed, isUnnamed, nameOf } from '../track-view';
+ 
+-const UNDO_NOTES: Record<UndoKind, string> = { start: UNDO_NOTE_START, stop: UNDO_NOTE_STOP, clear: UNDO_NOTE_CLEAR, away: UNDO_NOTE_AWAY };
++const UNDO_NOTES: Record<UndoKind, string> = { start: UNDO_NOTE_START, stop: UNDO_NOTE_STOP, clear: UNDO_NOTE_CLEAR, away: UNDO_NOTE_STOP };
+ 
+ interface Props {
+   view: TrackView;
