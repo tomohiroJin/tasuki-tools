@@ -15,6 +15,7 @@ import { dispatchServerMessage, type Identity } from "./dispatch.js";
 import type { NoticeSignal } from "./notice-message.js";
 import type { Room } from "@tasuki/timer-core";
 import type { TopicState } from "@tasuki/topic-core";
+import type { RoomCall } from "@tasuki/room-core";
 
 export type RoomCallback = (room: Room) => void;
 export type ErrorCallback = (code: string, message: string) => void;
@@ -40,6 +41,8 @@ export interface SyncClientOptions {
   onInvalidFrame?: (paths: string[]) => void;
   /** いまのお題の状態（#91・spec T3）。timer は読むだけ */
   onTopic?: (state: TopicState) => void;
+  /** 呼びかけの知らせ（#677）。timer は出すだけ */
+  onRoomCall?: (call: RoomCall) => void;
 }
 
 export class SyncClient {
@@ -100,6 +103,7 @@ export class SyncClient {
       onNotice: (notice) => this.options.onNotice?.(notice),
       onInvalidFrame: (paths) => this.options.onInvalidFrame?.(paths),
       onTopic: (state) => this.options.onTopic?.(state),
+      onRoomCall: (call) => this.options.onRoomCall?.(call),
     });
   }
 

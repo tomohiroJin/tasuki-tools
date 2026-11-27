@@ -17,6 +17,7 @@ import { SessionLost } from "./ui/SessionLost.js";
 import { History } from "./ui/History.js";
 import { Loading } from "./ui/Loading.js";
 import { RoomHeader } from "@tasuki/invite-ui";
+import { RoomCallNotice } from "@tasuki/web-kit/room";
 import { ROOM_HEADING, roomChoiceHref } from "./ui/room-heading.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus } from "./ui/connection-status.js";
@@ -247,6 +248,10 @@ export default function App() {
         >
           {banner.text}
         </div>
+      )}
+      {/* 呼びかけの知らせ（#677）。接続の告知と同じ帯に置く。自動では移さず、「移る」「閉じる」は部品が持つ */}
+      {sync.roomCall !== null && room != null && mode !== null && !sessionLost && (
+        <RoomCallNotice call={sync.roomCall} roomCode={room.code} onDismiss={sync.dismissRoomCall} />
       )}
       </div>
 

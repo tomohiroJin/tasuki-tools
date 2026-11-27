@@ -988,3 +988,54 @@ describe("useTimerSync: 終わり方の反映（handleRoom から state への�
     expect(result.current.record).toBeNull();
   });
 });
+
+/**
+ * @requirements #677（呼びかけの知らせ。timer の契約より先に見分け、同期の告知を立てない）
+ */
+describe("useTimerSync: 呼びかけの知らせ", () => {
+  const callFrame = (tool: string, fromName = "いお") => ({
+    type: "room.call",
+    call: { tool, fromParticipantId: "p2", fromName },
+  });
+
+  it("Given ルームに入った timer / When 呼びかけの知らせが届く / Then roomCall に入り、syncStale は立たない", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    // When
+    deliver(callFrame("poker"));
+    // Then
+    expect(result.current.roomCall).toEqual({ tool: "poker", fromParticipantId: "p2", fromName: "いお" });
+    expect(result.current.syncStale).toBe(false);
+  });
+
+  it("Given 知らせが出ている / When 新しい知らせが届く / Then 最新の 1 つに置き換わる", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver(callFrame("poker"));
+    // When
+    deliver(callFrame("topic", "うみ"));
+    // Then
+    expect(result.current.roomCall?.tool).toBe("topic");
+    expect(result.current.roomCall?.fromName).toBe("うみ");
+  });
+
+  it("Given 知らせが出ている / When 閉じる / Then roomCall が null に戻る", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver(callFrame("poker"));
+    // When
+    act(() => result.current.dismissRoomCall());
+    // Then
+    expect(result.current.roomCall).toBeNull();
+  });
+
+  it("Given 知らせが出ている / When ルームから抜けた知らせが届く / Then roomCall も畳む（抜けたルームの呼びかけを持ち越さない）", () => {
+    // Given
+    const { result, deliver } = enterRoom(fakeBanner());
+    deliver(callFrame("poker"));
+    // When
+    deliver({ type: "error", code: "LEFT_ROOM", message: "退出しました" });
+    // Then
+    expect(result.current.roomCall).toBeNull();
+  });
+});
