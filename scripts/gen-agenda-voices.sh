@@ -20,10 +20,17 @@ gen() {
   q=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$TEXT")
   curl -s -m 20 -f -X POST "$ENGINE/audio_query?text=$q&speaker=$sid" -o "$WORK/aq.json"
   curl -s -m 60 -f -X POST "$ENGINE/synthesis?speaker=$sid" -H "Content-Type: application/json" -d @"$WORK/aq.json" -o "$WORK/av.wav"
-  ffmpeg -y -i "$WORK/av.wav" -ar 44100 -b:a 96k "$OUT/$name.mp3" 2>/dev/null
-  echo "generated: $OUT/$name.mp3"
+  # 出力先へ直接書かない（途中で失敗すると、一部だけ新しい・壊れた mp3 が残る）。作業用の一時ディレクトリへ書く
+  ffmpeg -y -i "$WORK/av.wav" -ar 44100 -b:a 96k "$WORK/out/$name.mp3" 2>/dev/null
+  echo "generated: $name.mp3"
 }
+mkdir -p "$WORK/out"
 gen "$MALE_ID" timeout-male
 gen "$FEMALE_ID" timeout-female
 gen "$NISE_ID" timeout-nise
 gen "$MAI_ID" timeout-mai
+# 4 本そろってから出力先へ移す（ここまでに失敗したら既存の mp3 は無傷）
+for name in timeout-male timeout-female timeout-nise timeout-mai; do
+  mv -f "$WORK/out/$name.mp3" "$OUT/$name.mp3"
+  echo "installed: $OUT/$name.mp3"
+done

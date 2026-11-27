@@ -94,14 +94,17 @@ export function installAudioUnlock(): void {
   window.addEventListener('touchstart', unlock);
 }
 
-/** 指定 AudioContext に音列を予約する。suspended なら resume を待ってから行う */
+/** 止められる音の元（AudioBufferSourceNode・OscillatorNode）。試聴を重ねないために覚える */
+type Stoppable = { stop(when?: number): void };
+
+/** 指定 AudioContext に音列を予約する。suspended なら resume を待ってから行う。`track` に鳴らすオシレーターを足す */
 export async function scheduleTones(
   ctx: AudioContext,
   freqs: number[],
   volume: number,
-  opts: { type?: OscillatorType; gap?: number; gain?: number } = {},
+  opts: { type?: OscillatorType; gap?: number; gain?: number; track?: Stoppable[] | undefined } = {},
 ): Promise<void> {
-  const { type = 'sine', gap = 0.14, gain = 0.5 } = opts;
+  const { type = 'sine', gap = 0.14, gain = 0.5, track } = opts;
   const peak = Math.max(0.0001, gain * volume);
   try {
     // 自動で suspend された場合、resume 完了を待ってから予約しないと無音になる（timer #1）
@@ -112,6 +115,7 @@ export async function scheduleTones(
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
       osc.type = type;
+      track?.push(osc);
       osc.frequency.value = freq;
       osc.connect(g);
       g.connect(ctx.destination);
@@ -173,12 +177,19 @@ const FILE_NAMES: Partial<Record<ChimeId, string>> = {
   'voice-mai': 'timeout-mai',
 };
 
-/** 読み込んだファイルの中身（1 つの id につき fetch は 1 度。失敗は null で覚えて時打ちへ代える） */
+/** 読み込んだファイルの中身（1 つの id につき成功の fetch は 1 度。失敗は覚えず、取り直す。鳴らす瞬間に無ければ時打ちで代える） */
 const bytesLoads = new Map<ChimeId, Promise<ArrayBuffer | null>>();
-/** デコードの結果（AudioContext があるときだけ始める。失敗は null で覚える） */
+/** デコードの結果（AudioContext があるときだけ始める。失敗は覚えず、取り直す） */
 const decodeLoads = new Map<ChimeId, Promise<AudioBuffer | null>>();
 /** デコード済みの音 */
 const buffers = new Map<ChimeId, AudioBuffer>();
+
+/** 失敗（null）で終わったら覚えから外す。一時的な失敗のあと、次の preload・試聴で取り直せるようにする */
+function forgetIfFailed<T>(map: Map<ChimeId, Promise<T | null>>, id: ChimeId, load: Promise<T | null>): void {
+  void load.then((value) => {
+    if (value === null && map.get(id) === load) map.delete(id);
+  });
+}
 
 function fetchBytes(id: ChimeId): Promise<ArrayBuffer | null> {
   const name = FILE_NAMES[id];
@@ -194,8 +205,20 @@ function fetchBytes(id: ChimeId): Promise<ArrayBuffer | null> {
       }
     })();
     bytesLoads.set(id, load);
+    forgetIfFailed(bytesLoads, id, load);
   }
   return load;
+}
+
+/**
+ * デコードする。古い Safari の `webkitAudioContext.decodeAudioData` は callback 形しか受けないので、
+ * callback 形と Promise 形の両方で動かす（二重に resolve しても Promise は 1 度だけ確定する）。
+ */
+function decodeBytes(ctx: AudioContext, bytes: ArrayBuffer): Promise<AudioBuffer> {
+  return new Promise<AudioBuffer>((resolve, reject) => {
+    const result = ctx.decodeAudioData(bytes, resolve, reject) as Promise<AudioBuffer> | undefined;
+    if (result && typeof result.then === 'function') result.then(resolve, reject);
+  });
 }
 
 /**
@@ -211,7 +234,7 @@ function decodeChime(id: ChimeId): Promise<AudioBuffer | null> {
     if (bytes === null) return null;
     try {
       // decodeAudioData は渡した ArrayBuffer を使い切るので、写しを渡す
-      const buffer = await ctx.decodeAudioData(bytes.slice(0));
+      const buffer = await decodeBytes(ctx, bytes.slice(0));
       buffers.set(id, buffer);
       return buffer;
     } catch {
@@ -219,6 +242,7 @@ function decodeChime(id: ChimeId): Promise<AudioBuffer | null> {
     }
   });
   decodeLoads.set(id, load);
+  forgetIfFailed(decodeLoads, id, load);
   return load;
 }
 
@@ -237,24 +261,25 @@ export function preloadChime(id: ChimeId): void {
 }
 
 /** 選んだ音を鳴らす。ファイルの音がデコード済みでなければ時打ちで代える（D8） */
-function playNow(ctx: AudioContext, id: ChimeId): void {
+function playNow(ctx: AudioContext, id: ChimeId, track?: Stoppable[]): void {
   if (id === 'chime-up' || id === 'chime-down') {
     const freqs = id === 'chime-up' ? [660, 990] : [990, 660];
-    void scheduleTones(ctx, freqs, CHIME_VOLUME);
+    void scheduleTones(ctx, freqs, CHIME_VOLUME, { track });
     return;
   }
   const buffer = buffers.get(id);
   if (buffer !== undefined) {
-    void playBuffer(ctx, buffer);
+    void playBuffer(ctx, buffer, track);
     return;
   }
-  void scheduleTones(ctx, STRIKE_FREQS, CHIME_VOLUME, { type: 'triangle', gap: STRIKE_GAP_SEC, gain: STRIKE_GAIN });
+  void scheduleTones(ctx, STRIKE_FREQS, CHIME_VOLUME, { type: 'triangle', gap: STRIKE_GAP_SEC, gain: STRIKE_GAIN, track });
 }
 
-async function playBuffer(ctx: AudioContext, buffer: AudioBuffer): Promise<void> {
+async function playBuffer(ctx: AudioContext, buffer: AudioBuffer, track?: Stoppable[]): Promise<void> {
   try {
     if (ctx.state === 'suspended') await ctx.resume();
     const source = ctx.createBufferSource();
+    track?.push(source);
     const gain = ctx.createGain();
     source.buffer = buffer;
     gain.gain.value = CHIME_VOLUME;
@@ -285,5 +310,21 @@ export function previewChime(id: ChimeId): void {
   unlockAudio();
   const ctx = getSharedAudioContext();
   if (ctx === null) return;
-  void decodeChime(id).then(() => playNow(ctx, id));
+  // 続けて押したとき、前の試聴を止めてから鳴らす（重ねない）。時間切れの音（playChime）には手を入れない
+  const mine = ++previewSeq;
+  for (const node of previewNodes.splice(0)) {
+    try {
+      node.stop();
+    } catch {
+      /* まだ始まっていない・終わっている音の stop は無視する */
+    }
+  }
+  void decodeChime(id).then(() => {
+    // 読んでいる間に次の試聴が押されていたら、こちらは鳴らさない
+    if (mine === previewSeq) playNow(ctx, id, previewNodes);
+  });
 }
+
+/** 試聴で鳴らした音の元と、試聴の通し番号（最後の試聴だけ鳴らす） */
+const previewNodes: Stoppable[] = [];
+let previewSeq = 0;

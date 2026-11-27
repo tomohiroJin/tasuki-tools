@@ -13,7 +13,7 @@ const fetchMock = vi.fn();
 let contextCount = 0;
 /** 作られたオシレーター・バッファの再生元（周波数の並びと、鳴らしたバッファを見る） */
 let oscillators: { type: string; frequency: { value: number } }[] = [];
-let sources: { buffer: unknown }[] = [];
+let sources: { buffer: unknown; stop: ReturnType<typeof vi.fn> }[] = [];
 
 class FakeAudioContext {
   constructor() {
@@ -33,7 +33,7 @@ class FakeAudioContext {
   };
   createGain = () => ({ gain: { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() });
   createBufferSource = () => {
-    const source = { buffer: null as unknown, connect: vi.fn(), start: bufferStart };
+    const source = { buffer: null as unknown, connect: vi.fn(), start: bufferStart, stop: vi.fn() };
     sources.push(source);
     return source;
   };
@@ -337,6 +337,143 @@ describe('試しに鳴らす', () => {
     const { previewChime } = await import('../src/platform/sound');
     previewChime('chime-up');
     await flush();
+    expect(createOscillator).toHaveBeenCalledTimes(2);
+  });
+
+  it('Given 試聴の途中（ファイルの音） / When 続けて previewChime / Then 前の音を止めてから鳴らす', async () => {
+    state = 'running';
+    const { previewChime } = await import('../src/platform/sound');
+    previewChime('bell');
+    await flush();
+    expect(sources).toHaveLength(1);
+    expect(sources[0]?.stop).not.toHaveBeenCalled();
+    previewChime('bell');
+    await flush();
+    expect(sources[0]?.stop).toHaveBeenCalledTimes(1);
+    expect(sources).toHaveLength(2);
+    expect(sources[1]?.stop).not.toHaveBeenCalled();
+  });
+
+  it('Given 試聴の途中（トーン） / When 続けて previewChime / Then 前のオシレーターを止める', async () => {
+    state = 'running';
+    const { previewChime } = await import('../src/platform/sound');
+    previewChime('chime-up');
+    await flush();
+    const firstStops = oscillators.map((o) => (o as unknown as { stop: { mock: { calls: unknown[] } } }).stop.mock.calls.length);
+    previewChime('chime-up');
+    await flush();
+    const after = oscillators.slice(0, 2).map((o) => (o as unknown as { stop: { mock: { calls: unknown[] } } }).stop.mock.calls.length);
+    expect(after).toEqual(firstStops.slice(0, 2).map((n) => n + 1));
+  });
+
+  it('Given 前の音の stop が例外を投げる / When 続けて previewChime / Then 無視して次を鳴らす', async () => {
+    state = 'running';
+    const { previewChime } = await import('../src/platform/sound');
+    previewChime('bell');
+    await flush();
+    sources[0]?.stop.mockImplementation(() => {
+      throw new Error('InvalidStateError');
+    });
+    previewChime('bell');
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(2);
+  });
+
+  it('Given 試聴の途中 / When 時間切れの音（playChime） / Then 試聴の音は止めない', async () => {
+    state = 'running';
+    const { playChime, previewChime } = await import('../src/platform/sound');
+    previewChime('bell');
+    await flush();
+    playChime('bell');
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(2);
+    expect(sources[0]?.stop).not.toHaveBeenCalled();
+    expect(sources[1]?.stop).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 一時的な失敗は覚えない（#669 の /code-review）。成功だけを覚え、失敗は次の preload・試聴で取り直す。
+ *
+ * @requirements #669 D8
+ */
+describe('失敗は覚えない', () => {
+  it('Given 1 回目の fetch が例外 / When もう一度 preloadChime / Then 取り直してそのバッファが鳴る', async () => {
+    state = 'running';
+    fetchMock.mockRejectedValueOnce(new Error('network'));
+    const { playChime, preloadChime, unlockAudio } = await import('../src/platform/sound');
+    unlockAudio();
+    preloadChime('bell');
+    await flush();
+    preloadChime('bell');
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    playChime('bell');
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(1);
+    expect(createOscillator).not.toHaveBeenCalled();
+  });
+
+  it('Given 1 回目の fetch が ok でない / When 試聴する / Then 取り直して鳴らす', async () => {
+    state = 'running';
+    fetchMock.mockResolvedValueOnce({ ok: false, arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) });
+    const { previewChime } = await import('../src/platform/sound');
+    previewChime('bell');
+    await flush();
+    expect(createOscillator).toHaveBeenCalledTimes(2);
+    previewChime('bell');
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given 1 回目のデコードが失敗 / When もう一度 preloadChime / Then デコードし直してそのバッファが鳴る', async () => {
+    state = 'running';
+    decodeAudioData.mockRejectedValueOnce(new Error('bad'));
+    const { playChime, preloadChime, unlockAudio } = await import('../src/platform/sound');
+    unlockAudio();
+    preloadChime('bell');
+    await flush();
+    preloadChime('bell');
+    await flush();
+    playChime('bell');
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * 古い Safari の `webkitAudioContext.decodeAudioData` は callback 形しか受けない（#669 の /code-review）。
+ *
+ * @requirements #669 D8
+ */
+describe('decodeAudioData の callback 形', () => {
+  it('Given callback だけで返す decodeAudioData（戻り値なし） / When preloadChime して鳴らす / Then そのバッファが鳴る', async () => {
+    state = 'running';
+    decodeAudioData.mockImplementation((_bytes: ArrayBuffer, ok: (b: unknown) => void) => {
+      ok({ legacy: true });
+    });
+    const { playChime, preloadChime, unlockAudio } = await import('../src/platform/sound');
+    unlockAudio();
+    preloadChime('bell');
+    await flush();
+    playChime('bell');
+    await flush();
+    expect(bufferStart).toHaveBeenCalledTimes(1);
+    expect((sources[0]?.buffer as { legacy: boolean }).legacy).toBe(true);
+  });
+
+  it('Given callback の失敗 / When playChime / Then 時打ちで代える', async () => {
+    state = 'running';
+    decodeAudioData.mockImplementation((_bytes: ArrayBuffer, _ok: unknown, fail: (e: unknown) => void) => {
+      fail(new Error('bad'));
+    });
+    const { playChime, preloadChime, unlockAudio } = await import('../src/platform/sound');
+    unlockAudio();
+    preloadChime('bell');
+    await flush();
+    playChime('bell');
+    await flush();
+    expect(bufferStart).not.toHaveBeenCalled();
     expect(createOscillator).toHaveBeenCalledTimes(2);
   });
 });
