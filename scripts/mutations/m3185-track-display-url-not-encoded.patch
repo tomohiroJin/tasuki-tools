@@ -9,10 +9,9 @@
 #       git apply scripts/mutations/m3185-*.patch
 # 復元: git apply -R scripts/mutations/m3185-*.patch
 diff --git a/apps/track-web/src/router.ts b/apps/track-web/src/router.ts
-index dabee441..6e0db353 100644
 --- a/apps/track-web/src/router.ts
 +++ b/apps/track-web/src/router.ts
-@@ -21,7 +21,7 @@ export function parseRoute(pathname: string, search = ''): Route {
+@@ -31,7 +31,7 @@
  
  /** 映す画面の URL（ルームの画面から新しいタブで開く）。 */
  export function displayPathFor(roomCode: string): string {
@@ -20,4 +19,4 @@ index dabee441..6e0db353 100644
 +  return `${BASE}/?room=${roomCode}&view=${DISPLAY_VIEW}`;
  }
  
- /**
+ /** 「この端末の記録」への URL。ルームの画面から行くときは、戻る道のためにコードを運ぶ。 */

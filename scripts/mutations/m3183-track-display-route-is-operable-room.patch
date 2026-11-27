@@ -9,15 +9,14 @@
 #       git apply scripts/mutations/m3183-*.patch
 # 復元: git apply -R scripts/mutations/m3183-*.patch
 diff --git a/apps/track-web/src/App.tsx b/apps/track-web/src/App.tsx
-index 3ecb1cdd..2fc8ebf9 100644
 --- a/apps/track-web/src/App.tsx
 +++ b/apps/track-web/src/App.tsx
-@@ -13,7 +13,7 @@ export function App() {
+@@ -14,7 +14,7 @@
      if (route.name === 'redirect') redirectTo(route.to);
    }, [route]);
  
 -  if (route.name === 'display') return <TrackDisplay roomCode={route.roomCode} />;
 +  if (route.name === 'display') return <TrackRoom roomCode={route.roomCode} />;
    if (route.name === 'room') return <TrackRoom roomCode={route.roomCode} />;
+   if (route.name === 'saved') return <SavedRecords roomCode={route.roomCode} />;
    return <LoadingView />;
- }

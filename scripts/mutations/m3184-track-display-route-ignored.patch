@@ -9,15 +9,14 @@
 #       git apply scripts/mutations/m3184-*.patch
 # 復元: git apply -R scripts/mutations/m3184-*.patch
 diff --git a/apps/track-web/src/router.ts b/apps/track-web/src/router.ts
-index dabee441..788d2d62 100644
 --- a/apps/track-web/src/router.ts
 +++ b/apps/track-web/src/router.ts
-@@ -15,7 +15,7 @@ const DISPLAY_VIEW = 'display';
- 
- export function parseRoute(pathname: string, search = ''): Route {
+@@ -25,7 +25,7 @@
+     return { name: 'saved', roomCode: params.get('room') || null };
+   }
    const route = parseRoomRoute(BASE, pathname, search);
--  if (route.name === 'room' && new URLSearchParams(search).get('view') === DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
-+  if (route.name === 'room' && new URLSearchParams(search).get('view') !== DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
+-  if (route.name === 'room' && params.get('view') === DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
++  if (route.name === 'room' && params.get('view') !== DISPLAY_VIEW) return { name: 'display', roomCode: route.roomCode };
    return route;
  }
  
