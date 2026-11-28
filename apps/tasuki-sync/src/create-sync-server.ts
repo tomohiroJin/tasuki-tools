@@ -51,6 +51,7 @@ import { makeHandlers } from "./application/handlers.js";
 import { createLogger } from "./application/log/logger.js";
 import { createRefEncoder } from "./application/log/ref-encoder.js";
 import { PresenceManager } from "./application/presence.js";
+import { createRoomCallGate } from "./application/room-call.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { Scheduler } from "./application/schedule.js";
 import { createTimerCommandReceiver } from "./application/timer-command-receiver.js";
@@ -233,7 +234,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     rateLimitGate: handlers.rateLimitGate,
     removeFromRoom: handlers.removeFromRoom,
   };
-  const hub = assembleHub(base, timerSide, topicResources.broadcaster);
+  // 呼びかけの連打の歯止め（#677）。時刻はルームごとにメモリに持ち、下の破棄の束で消す。
+  const roomCalls = createRoomCallGate(monotonicClock);
+  const hub = assembleHub(base, timerSide, topicResources.broadcaster, roomCalls);
   const topic = assembleTopic(base, timerSide, topicResources, ai);
   const roulette = assembleRoulette(base, timerSide);
   const agenda = assembleAgenda(base, timerSide);
@@ -254,6 +257,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     store,
     timers,
     ...toolDestroy,
+    roomCalls,
     scheduler,
     presence: presenceManager,
     releaseRoom: handlers.releaseRoom,

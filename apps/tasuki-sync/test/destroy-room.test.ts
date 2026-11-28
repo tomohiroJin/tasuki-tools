@@ -28,6 +28,7 @@ import { InMemoryCheckinStore } from "../src/adapters/in-memory-checkin-store.js
 import { InMemoryTrackStore } from "../src/adapters/in-memory-track-store.js";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 import { createTrackState } from "@tasuki/track-core";
+import { createRoomCallGate } from "../src/application/room-call.js";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
 describe("createRoomDestroyer", () => {
@@ -47,6 +48,7 @@ describe("createRoomDestroyer", () => {
       "agendaDeadlines.clear:AAA",
       "checkinGrace.clearRoom:AAA",
       "trackAutoStop.clearRoom:AAA",
+      "roomCalls.clearRoom:AAA",
       "topicGenerator.cancel:AAA",
       "presence.clearRoomTimers:AAA",
       "releaseRoom:AAA",
@@ -150,6 +152,37 @@ describe("createRoomDestroyer", () => {
     expect(tracks.get("KKK")).toBe(kept);
   });
 
+  it("呼びかけの歯止めの時刻が、破棄したルームの分だけ消える（#677）", () => {
+    // Given: 2 つのルームで呼びかけを受け付けた直後（5 秒の歯止めが掛かっている）
+    const gate = createRoomCallGate({ now: () => 1_000 });
+    gate.tryAccept("LLL");
+    gate.tryAccept("MMM");
+    expect(gate.tryAccept("LLL")).toBe(false);
+    const destroy = createRoomDestroyer({
+      store: new InMemoryRoomStore(),
+      timers: new InMemoryTimerStore(),
+      rounds: new InMemoryRoundStore(),
+      topics: new InMemoryTopicStore(),
+      roulettes: new InMemoryRouletteStore(),
+      agendas: new InMemoryAgendaStore(),
+      checkins: new InMemoryCheckinStore(),
+      agendaDeadlines: { clear: () => {} },
+      checkinGrace: { clearRoom: () => {} },
+      tracks: new InMemoryTrackStore(),
+      trackAutoStop: { clearRoom: () => {} },
+      roomCalls: gate,
+      topicGenerator: { cancel: () => {} },
+      releaseRoom: () => {},
+    });
+
+    // When
+    destroy("LLL");
+
+    // Then: 破棄したルームの時刻は消え、ほかのルームの歯止めは残る
+    expect(gate.tryAccept("LLL")).toBe(true);
+    expect(gate.tryAccept("MMM")).toBe(false);
+  });
+
   it("スケジューラ・presence を持たない構成でも解放とストア削除は行う", () => {
     // Given: makeHandlers 単体（scheduler を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
@@ -175,6 +208,7 @@ describe("createRoomDestroyer", () => {
       checkinGrace: { clearRoom: () => {} },
       tracks: new InMemoryTrackStore(),
       trackAutoStop: { clearRoom: () => {} },
+      roomCalls: { clearRoom: () => {} },
       topicGenerator: { cancel: () => {} },
       releaseRoom: (c) => released.push(c),
     });

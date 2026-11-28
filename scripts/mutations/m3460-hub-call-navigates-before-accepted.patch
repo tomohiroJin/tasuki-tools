@@ -1,0 +1,12 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 294d6bff..8829ca43 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -556,6 +556,7 @@ export function useHubSync(): HubSync {
+         settleCall();
+         setCallError('接続し直しています。もう一度押してください。');
+       }
++      else navigateTo(`${toolDestination(tool)?.href ?? '/'}?room=${encodeURIComponent(codeRef.current ?? '')}`);
+     },
+     [settleCall],
+   );

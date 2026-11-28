@@ -8,6 +8,7 @@
  * - 参加の応答（`room.joined`）で、名乗った名前のまま新しい組を保存する
  * - 参加の失敗の扱い（判断は `@tasuki/sync-client` の `planForJoinError`）と、混雑のやり直し（`useJoinRetry`）
  * - 繋ぎ直したら入り直す・切れたらやり直しの予約を捨てる
+ * - 呼びかけの知らせ（`room.call`・#677）の見分け。道具ごとの `parse` より先に見分け、最新の 1 つを `call` に持つ
  *
  * **ツール固有のフレームとコマンドは持たない。** 受け取ったフレームはツールのフック（`onFrame`）へ渡す。
  * ツールのフックは、`room.joined` と `error` を {@link ToolRoomFrameHandlers} で戻す
@@ -27,6 +28,7 @@ import {
   type JoinErrorPlan,
   type SyncUrlLocation,
 } from '@tasuki/sync-client';
+import type { RoomCallView } from '../room/room-call-view.js';
 import { useJoinRetry } from './use-join-retry.js';
 
 /** 抜けた理由（`planForJoinError` の `left`）。 */
@@ -49,10 +51,15 @@ export interface ToolRoomFrameHandlers {
   clearError(): void;
 }
 
-export interface ToolRoomSyncOptions<Frame> {
+export interface ToolRoomSyncOptions<Frame, Call extends RoomCallView = RoomCallView> {
   readonly roomCode: string;
   /** 同期サーバーへの URL（ツールの宣言つき。組み立ては `@tasuki/sync-client` の `buildSyncUrl`）。 */
   readonly syncUrl: (location: SyncUrlLocation) => string;
+  /**
+   * 受けた文字列が呼びかけの知らせ（`room.call`・#677）なら、その中身を返す。そうでなければ null。
+   * 道具の `parse` より先に呼ぶ。見分けは道具の画面の純粋な層が持つ（web-kit は wire を読まない）。
+   */
+  readonly parseCall: (raw: string) => Call | null;
   /** 受けた文字列をフレームにする。契約に合わなければ null（同期が古い印を立てる）。 */
   readonly parse: (raw: string) => Frame | null;
   /** 契約に合ったフレーム。`room.joined` と `error` は `handlers` へ戻す。 */
@@ -67,7 +74,7 @@ export interface ToolRoomSyncOptions<Frame> {
   };
 }
 
-export interface ToolRoomSync {
+export interface ToolRoomSync<Call extends RoomCallView = RoomCallView> {
   readonly status: ConnectionStatus;
   readonly everConnected: boolean;
   readonly failedAttempts: number;
@@ -89,12 +96,18 @@ export interface ToolRoomSync {
   readonly error: string | null;
   /** 混雑のやり直しの知らせ。 */
   readonly retryNotice: string | null;
+  /** 受け取った呼びかけ（最新の 1 つ。#677）。新しい呼びかけは前のを置き換える。 */
+  readonly call: Call | null;
+  /** 呼びかけの知らせを閉じる。 */
+  dismissCall(): void;
   clearError(): void;
   /** コマンドを送る（送る前に操作の失敗の知らせを下ろす）。 */
   send(command: Record<string, unknown>): void;
 }
 
-export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): ToolRoomSync {
+export function useToolRoomSync<Frame, Call extends RoomCallView = RoomCallView>(
+  options: ToolRoomSyncOptions<Frame, Call>,
+): ToolRoomSync<Call> {
   const { roomCode } = options;
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [everConnected, setEverConnected] = useState(false);
@@ -107,6 +120,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   const [departed, setDeparted] = useState<ToolRoomDeparture | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [call, setCall] = useState<Call | null>(null);
 
   const retry = useJoinRetry({ waiting: options.texts.retryWaiting, exhausted: options.texts.retryExhausted });
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = retry;
@@ -123,6 +137,8 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   optionsRef.current = options;
 
   useEffect(() => {
+    // ルームが変わったら、前のルームの呼びかけの知らせは消す（新しいルームの「移る」として残さない・#677 の /code-review）
+    setCall(null);
     // 初期化子と効果の間に、別のタブが組を捨てていることがある。**ここでも玄関へ戻す印を立てる**
     // （立てずに return すると、接続も送り返しもしないまま「参加しています」で止まる）。
     // ⚠ この窓はテストで作れない（初期化子と効果の間に `localStorage` を変える手立てが無い）。
@@ -174,6 +190,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
             cancelRetry();
             clearResumeIdentity(roomCode);
             conn.dispose();
+            setCall(null);
             setGone(true);
             return;
           case 'left':
@@ -182,6 +199,8 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
             cancelRetry();
             clearResumeIdentity(roomCode);
             conn.dispose();
+            // 抜けたルームの呼びかけの「移る」を残さない（#677 の /code-review）
+            setCall(null);
             setJoined(false);
             setDeparted(plan.reason);
             return;
@@ -201,6 +220,15 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
     };
 
     const handleMessage = (raw: string): void => {
+      // 呼びかけの知らせ（#677）は道具ごとの契約より先に見分ける。道具の `parse` には渡さない
+      // （渡すと「契約に合わないフレーム」として同期の告知が出る）。最新の 1 つだけ持つ。
+      // **同期の告知は変えない**（立てもせず、下ろしもしない）。呼びかけは道具の状態のフレームではないので、
+      // 状態のフレームを捨てて出ている告知（状態は古いまま）を、呼びかけの知らせで消してはいけない。
+      const roomCall = optionsRef.current.parseCall(raw);
+      if (roomCall !== null) {
+        setCall(roomCall);
+        return;
+      }
       const frame = optionsRef.current.parse(raw);
       if (frame === null) {
         // 境界検証に落ちたフレームは画面へ渡さない（原則 IV）。**捨てたことは必ず伝える**（#212）。
@@ -248,6 +276,7 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
   }, [roomCode, rateLimited, cancelRetry, resetRetry]);
 
   const clearError = useCallback(() => setError(null), []);
+  const dismissCall = useCallback(() => setCall(null), []);
   const send = useCallback((command: Record<string, unknown>) => {
     setError(null);
     connRef.current?.send(command);
@@ -268,9 +297,11 @@ export function useToolRoomSync<Frame>(options: ToolRoomSyncOptions<Frame>): Too
       selfId,
       error,
       retryNotice: retry.notice,
+      call,
+      dismissCall,
       clearError,
       send,
     }),
-    [status, everConnected, failedAttempts, syncStale, joined, gone, needsHub, departed, roomCode, selfId, error, retry.notice, clearError, send],
+    [status, everConnected, failedAttempts, syncStale, joined, gone, needsHub, departed, roomCode, selfId, error, retry.notice, call, dismissCall, clearError, send],
   );
 }

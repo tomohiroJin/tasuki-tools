@@ -22,12 +22,12 @@
  * `canOperate`（`topic-view.ts`）で押させない。
  */
 import { useMemo, useState } from 'react';
-import type { DepartureReason } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { Category, Difficulty, Language, TopicCommand, TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseTopicWebMessage } from '../server-message';
+import { parseTopicRoomCall, parseTopicWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function topicSyncUrl(location: { protocol: string; host: string }): string {
@@ -62,6 +62,10 @@ export interface TopicSync {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
+  /** 呼びかけの知らせ（最新の 1 つ・#677）。無ければ null */
+  readonly call: RoomCall | null;
+  /** 知らせを閉じる（#677） */
+  dismissCall(): void;
   setTopic(title: string, body: string): void;
   clearTopic(): void;
   generate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty, category: Category): void;
@@ -74,6 +78,7 @@ export function useTopicSync(roomCode: string): TopicSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: topicSyncUrl,
+    parseCall: parseTopicRoomCall,
     parse: parseTopicWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {
@@ -124,6 +129,8 @@ export function useTopicSync(roomCode: string): TopicSync {
       error: room.error,
       retryNotice: room.retryNotice,
       clearError: room.clearError,
+      call: room.call,
+      dismissCall: room.dismissCall,
       ...actions,
     }),
     [room, topicState, actions],

@@ -6,7 +6,7 @@
  */
 import { useCallback, useState } from 'react';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect } from '@tasuki/web-kit/room';
+import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, RoomCallNotice } from '@tasuki/web-kit/room';
 import { CurrentTopic, type Draft } from '../components/CurrentTopic';
 import { TopicEditor, type FillRequest } from '../components/TopicEditor';
 import { TopicMaker } from '../components/TopicMaker';
@@ -56,6 +56,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
   return (
     <>
       {banner}
+      {sync.call !== null && <RoomCallNotice call={sync.call} roomCode={roomCode} onDismiss={sync.dismissCall} />}
       <main className="ui-page ui-page--wide">
         {/* 見出し・戻る・ルームコード・招待 URL は共通の部品が描く（#447 段 1）。下の段組みとの余白はこのアプリの index.css の `.ui-room-header` が持つ */}
         <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />

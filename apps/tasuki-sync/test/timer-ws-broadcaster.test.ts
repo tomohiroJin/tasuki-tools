@@ -5,7 +5,7 @@
  * 宛先は**呼び出し時点の名簿**から決まる（保管より先に配信すると 1 つ前の名簿になる）。
  */
 import { describe, expect, it } from "bun:test";
-import type { HubServerMsg, Room as MembershipRoom } from "@tasuki/room-core";
+import type { HubServerMsg, Room as MembershipRoom, RoomCallFrame } from "@tasuki/room-core";
 import type { Room, ServerMsg } from "@tasuki/timer-core";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { createTimerWsBroadcaster, type TimerWsOutbound } from "../src/adapters/timer-ws-broadcaster.js";
@@ -32,7 +32,7 @@ const ROOM: MembershipRoom = {
 function setup(protectedRooms: readonly string[] = []) {
   const store = new InMemoryRoomStore();
   store.put(ROOM);
-  const sent: { kind: string; to: string[]; msg: ServerMsg | HubServerMsg }[] = [];
+  const sent: { kind: string; to: string[]; msg: ServerMsg | HubServerMsg | RoomCallFrame }[] = [];
   const ws: TimerWsOutbound = {
     send: (connId, msg) => sent.push({ kind: "send", to: [connId], msg }),
     broadcast: (connIds, msg) => sent.push({ kind: "broadcast", to: connIds, msg }),

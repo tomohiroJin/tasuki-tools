@@ -10,7 +10,10 @@ export { connectionNotice, type ConnectionNotice } from './connection-notice.js'
 export { CUTIN_DURATION_MS, CutIn, type CutInCue, type CutInTone } from './cut-in.js';
 export { LoadingView } from './loading-view.js';
 export { ROOM_GATE_TEXT } from './room-gate-copy.js';
+export { RoomCallNotice, type RoomCallNoticeProps } from './room-call-notice.js';
+export type { RoomCallView } from './room-call-view.js';
 export { RoomGoneView } from './room-gone-view.js';
 export { RoomJoiningView, type RoomJoiningViewProps } from './room-joining-view.js';
+export { TOOL_DESTINATIONS, toolDestination, type ToolDestination, type ToolDestinationId } from './tool-destinations.js';
 export { useHubRedirect, type HubRedirectOptions } from './use-hub-redirect.js';
 export { usePrefersReducedMotion } from './use-prefers-reduced-motion.js';

@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index 8fa22c66..21132e44 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -218,7 +218,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+    * 知らせに載せる名前は名簿の表示名で、ログには何も書かない。
+    */
+   function handleCall(connId: string, cmd: Extract<HubCommand, { command: "room.call" }>): void {
+-    const room = findRoomByToolConnection(deps.store, connId, TOOL_HUB);
++    const room = findRoomByConnId(deps.store, connId);
+     if (room === undefined) {
+       fail(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
+       return;

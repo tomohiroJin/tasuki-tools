@@ -717,6 +717,9 @@ describe("玄関（ハブ）で入ったときのお題", () => {
       maxRooms: TEST_MAX_ROOMS,
       hub,
       timerBroadcaster: new SpyBroadcaster(),
+      // 呼びかけはこのテストの対象外
+      roomCalls: { tryAccept: () => true },
+      sendCall: () => {},
       topicBroadcaster: makeTopicBroadcaster({
         store,
         topics,

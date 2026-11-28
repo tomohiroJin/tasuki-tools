@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
+index 709d57e5..d482c99b 100644
+--- a/apps/poker-web/src/hooks/useSync.ts
++++ b/apps/poker-web/src/hooks/useSync.ts
+@@ -343,7 +343,7 @@ export function usePokerSync(): PokerSync & PokerRoomCall {
+       snapshot,
+       topic,
+       roomCall,
+-      dismissRoomCall: () => setRoomCall(null),
++      dismissRoomCall: () => undefined,
+       joinedThisConnection,
+       error,
+       departed,

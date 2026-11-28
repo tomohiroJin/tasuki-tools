@@ -30,6 +30,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** 呼びかけの知らせの見分け（本物は各画面の純粋な層。ここは web-kit が wire を読まない形の代役）。 */
+function parseCall(raw: string): { tool: string; fromName: string } | null {
+  try {
+    const value = JSON.parse(raw) as { type?: unknown; call?: { tool?: unknown; fromName?: unknown } };
+    if (value.type !== 'room.call' || typeof value.call?.tool !== 'string' || typeof value.call.fromName !== 'string') return null;
+    return value.call as { tool: string; fromName: string };
+  } catch {
+    return null;
+  }
+}
+
 function setup() {
   const states: number[] = [];
   const onFrame = (frame: Frame, handlers: ToolRoomFrameHandlers): void => {
@@ -50,6 +61,7 @@ function setup() {
     useToolRoomSync<Frame>({
       roomCode: 'R1',
       syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+      parseCall,
       parse: (raw) => {
         const value = JSON.parse(raw) as { type?: unknown };
         return typeof value.type === 'string' ? (value as Frame) : null;
@@ -189,5 +201,121 @@ describe('useToolRoomSync', () => {
     // Then
     expect(hook.result.current.error).toBeNull();
     expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'x.do' });
+  });
+});
+
+describe('useToolRoomSync の呼びかけの知らせ（#677）', () => {
+  const CALL = { type: 'room.call', call: { tool: 'poker', fromParticipantId: 'p2', fromName: 'あや' } };
+
+  function setupWithSpy() {
+    const parsed: string[] = [];
+    const hook = renderHook(() =>
+      useToolRoomSync<Frame>({
+        roomCode: 'R1',
+        syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+        parseCall,
+        parse: (raw) => {
+          parsed.push(raw);
+          const value = JSON.parse(raw) as { type?: unknown };
+          return typeof value.type === 'string' ? (value as Frame) : null;
+        },
+        onFrame: () => undefined,
+        texts: TEXTS,
+      }),
+    );
+    return { hook, parsed };
+  }
+
+  function open() {
+    saveResumeIdentity(RESUME);
+    const sut = setupWithSpy();
+    act(() => latestSocket().open());
+    return sut;
+  }
+
+  it('Given 入った / When 呼びかけの知らせが届く / Then call に持つ', () => {
+    const { hook } = open();
+    expect(hook.result.current.call).toBeNull();
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.call).toEqual(CALL.call);
+  });
+
+  it('Given 呼びかけを持っている / When 2 通目が届く / Then 最新の 1 つに置き換わる', () => {
+    const { hook } = open();
+    act(() => latestSocket().deliver(CALL));
+    act(() => latestSocket().deliver({ type: 'room.call', call: { tool: 'topic', fromParticipantId: 'p3', fromName: 'いお' } }));
+    expect(hook.result.current.call).toEqual({ tool: 'topic', fromParticipantId: 'p3', fromName: 'いお' });
+  });
+
+  it('Given 呼びかけを持っている / When dismissCall を呼ぶ / Then call が消える', () => {
+    const { hook } = open();
+    act(() => latestSocket().deliver(CALL));
+    act(() => hook.result.current.dismissCall());
+    expect(hook.result.current.call).toBeNull();
+  });
+
+  it('Given 呼びかけの知らせ / When 届く / Then 道具の parse には渡らない', () => {
+    const { parsed } = open();
+    act(() => latestSocket().deliver(CALL));
+    expect(parsed).toEqual([]);
+    act(() => latestSocket().deliver({ type: 'state', value: 1 }));
+    expect(parsed).toHaveLength(1);
+  });
+
+  it('Given 契約に合わないフレームで同期が古い / When 呼びかけの知らせが届く / Then 同期の告知は下ろさず、呼びかけは持つ（状態は古いまま）', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { hook } = open();
+    act(() => latestSocket().deliver({ nope: true }));
+    expect(hook.result.current.syncStale).toBe(true);
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.syncStale).toBe(true);
+    expect(hook.result.current.notice).not.toBe('none');
+    expect(hook.result.current.call).toEqual(CALL.call);
+  });
+
+  it('Given 同期が古くない / When 呼びかけの知らせが届く / Then 告知を立てない', () => {
+    const { hook } = open();
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.syncStale).toBe(false);
+  });
+
+  it.each([
+    ['ROOM_NOT_FOUND'],
+    ['LEFT_ROOM'],
+    ['REMOVED_FROM_ROOM'],
+  ] as const)('Given 呼びかけを持っている / When %s が届く / Then 呼びかけを消す（消えたルーム・抜けたルームの「移る」を残さない）', (code) => {
+    saveResumeIdentity(RESUME);
+    const { hook } = setup();
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.call).toEqual(CALL.call);
+
+    act(() => latestSocket().deliver({ type: 'error', code, message: 'x' }));
+
+    expect(hook.result.current.call).toBeNull();
+  });
+
+  it('Given 呼びかけを持っている / When 別のルームに変わる / Then 前のルームの呼びかけを消す', () => {
+    saveResumeIdentity(RESUME);
+    saveResumeIdentity({ ...RESUME, code: 'R2' });
+    const hook = renderHook(
+      ({ roomCode }: { roomCode: string }) =>
+        useToolRoomSync<Frame>({
+          roomCode,
+          syncUrl: (location) => `ws://${location.host}/ws?tool=x`,
+          parseCall,
+          parse: (raw) => JSON.parse(raw) as Frame,
+          onFrame: () => undefined,
+          texts: TEXTS,
+        }),
+      { initialProps: { roomCode: 'R1' } },
+    );
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver(CALL));
+    expect(hook.result.current.call).toEqual(CALL.call);
+
+    hook.rerender({ roomCode: 'R2' });
+
+    expect(hook.result.current.call).toBeNull();
   });
 });

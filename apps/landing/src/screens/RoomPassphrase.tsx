@@ -19,18 +19,20 @@ export interface RoomPassphraseProps {
   /** 設定の失敗の文言（無ければ null）。 */
   readonly error: string | null;
   readonly connection: 'online' | 'reconnecting';
+  /** 呼びかけか設定の応答を待っているか。待つ間は押せない（応答のエラーの持ち主を取り違えない・#677）。 */
+  readonly busy?: boolean;
   /** 設定・変更。空文字で解除。 */
   onSet(passphrase: string): void;
 }
 
-export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomPassphraseProps) {
+export function RoomPassphrase({ protectedNow, error, connection, busy = false, onSet }: RoomPassphraseProps) {
   const [value, setValue] = useState('');
   // 設定する人は少なく、説明が長い。ふだんは状態の一言だけの 1 行にたたみ、押したときだけ設定の口を開く（#673）
   const [open, setOpen] = useState(false);
   const headingId = useId();
   const bodyId = useId();
   // 状態が分かるまでは押せない。付いている合言葉を、付いていないと思って黙って上書きしないため。
-  const online = connection === 'online' && protectedNow !== null;
+  const online = connection === 'online' && protectedNow !== null && !busy;
   // 空白だけの値は解除と同じ意味になる（サーバーが前後の空白を落とす）。設定の口からは送らせない —— 解除は専用の
   // ボタンから。取り違えて外してしまわないため。
   const canSubmit = online && value.trim() !== '';

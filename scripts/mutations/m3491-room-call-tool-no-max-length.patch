@@ -1,0 +1,13 @@
+diff --git a/packages/room-core/src/wire.ts b/packages/room-core/src/wire.ts
+index 41f188c5..2b554ac0 100644
+--- a/packages/room-core/src/wire.ts
++++ b/packages/room-core/src/wire.ts
+@@ -156,7 +156,7 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
+   // 新設のコマンドなので strict から始める（#677）。
+   v.strictObject({
+     command: v.literal("room.call"),
+-    tool: v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_CALL_TOOL_LENGTH)),
++    tool: v.pipe(v.string(), v.minLength(1)),
+   }),
+ ]);
+ 

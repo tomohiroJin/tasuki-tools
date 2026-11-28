@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion } from '@tasuki/web-kit/room';
+import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion, RoomCallNotice } from '@tasuki/web-kit/room';
 import { summaryText } from '../agenda-view';
 import { RunScreen } from '../components/RunScreen';
 import { ScenarioBuilder } from '../components/ScenarioBuilder';
@@ -65,6 +65,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
       {/* 接続の告知の帯。手元の画面では本文（main）の直前（上端に貼りつく）。映している間は全面を覆う映す表示の外では
           覆われて見えないので、ここでは描かず、映す表示の中の上端に置く（`banner` で渡す・切れていることは隠さない） */}
       {!projecting && <ConnectionBanner kind={sync.notice} />}
+      {!projecting && sync.call !== null && <RoomCallNotice call={sync.call} roomCode={roomCode} onDismiss={sync.dismissCall} />}
       <main className="ui-page ui-page--wide">
         {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
         {!projecting && (

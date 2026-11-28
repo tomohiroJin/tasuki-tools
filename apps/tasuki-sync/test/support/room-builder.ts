@@ -408,6 +408,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       // scheduler は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。
       scheduler: overrides?.scheduler,
+      // 呼びかけの歯止めも timer のハンドラは持たない。破棄の配線だけ揃える（#677）。
+      roomCalls: { clearRoom: () => {} },
       presence,
       releaseRoom: handlers.releaseRoom,
     });

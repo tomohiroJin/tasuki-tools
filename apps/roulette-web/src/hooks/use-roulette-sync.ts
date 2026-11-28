@@ -27,13 +27,13 @@
  * `canOperate`（`roulette-view.ts`）で押させない。
  */
 import { useMemo, useState } from 'react';
-import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { RouletteCommand, RouletteMode, RouletteView } from '@tasuki/roulette-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseRouletteWebMessage } from '../server-message';
+import { parseRouletteRoomCall, parseRouletteWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function rouletteSyncUrl(location: { protocol: string; host: string }): string {
@@ -76,6 +76,10 @@ export interface RouletteSync {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
+  /** 呼びかけの知らせ（最新の 1 つ・#677）。無ければ null */
+  readonly call: RoomCall | null;
+  /** 知らせを閉じる（#677） */
+  dismissCall(): void;
   spin(): void;
   setIncluded(id: string, included: boolean): void;
   addGuest(name: string): void;
@@ -101,6 +105,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: rouletteSyncUrl,
+    parseCall: parseRouletteRoomCall,
     parse: parseRouletteWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {
@@ -177,6 +182,8 @@ export function useRouletteSync(roomCode: string): RouletteSync {
       error: room.error,
       retryNotice: room.retryNotice,
       clearError: room.clearError,
+      call: room.call,
+      dismissCall: room.dismissCall,
       ...actions,
     }),
     [room, rouletteSlot, roster, topic, actions],

@@ -11,9 +11,10 @@
 # #595。`use-hub-sync.ts` が `classifyHubFrame` の topic 分類を受けても、タイトルを状態へ
 # 反映しない（常に null）。分けた先の見分けは正しいまま、選択画面の「いまのお題」が出ない（配線の変異）。
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 0c3e622b..aeea3126 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -194,7 +194,7 @@ export function useHubSync(): HubSync {
+@@ -300,7 +300,7 @@ export function useHubSync(): HubSync {
          // 受信フレームの見分け（境界の検証・原則 IV）は `hub-frames.ts`。
          const frame = classifyHubFrame(raw);
          if (frame.kind === 'topic') {
@@ -21,4 +22,4 @@ diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub
 +          setTopicTitle(null);
            return;
          }
-         if (frame.kind === 'drop') return;
+         if (frame.kind === 'call') {

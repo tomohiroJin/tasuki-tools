@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { parseRoute, redirectTo } from './router';
 import { usePokerSync } from './hooks/useSync';
-import { ConnectionBanner } from '@tasuki/web-kit/room';
+import { ConnectionBanner, RoomCallNotice } from '@tasuki/web-kit/room';
 import { RoomPage } from './pages/RoomPage';
 
 function useRoute() {
@@ -57,6 +57,10 @@ export function App() {
   return (
     <>
       {banner}
+      {/* 呼びかけの知らせ（#677）。接続の告知の帯のすぐ下に置く。自動では移さず、「移る」「閉じる」は部品が持つ */}
+      {route.name === 'room' && sync.roomCall !== null && (
+        <RoomCallNotice call={sync.roomCall} roomCode={route.roomId} onDismiss={sync.dismissRoomCall} />
+      )}
       {page}
     </>
   );

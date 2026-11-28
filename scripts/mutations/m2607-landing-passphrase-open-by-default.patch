@@ -1,7 +1,9 @@
+diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
+index 7a2e51a7..264c3d20 100644
 --- a/apps/landing/src/screens/RoomPassphrase.tsx
 +++ b/apps/landing/src/screens/RoomPassphrase.tsx
-@@ -26,7 +26,7 @@
- export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomPassphraseProps) {
+@@ -28,7 +28,7 @@ export interface RoomPassphraseProps {
+ export function RoomPassphrase({ protectedNow, error, connection, busy = false, onSet }: RoomPassphraseProps) {
    const [value, setValue] = useState('');
    // 設定する人は少なく、説明が長い。ふだんは状態の一言だけの 1 行にたたみ、押したときだけ設定の口を開く（#673）
 -  const [open, setOpen] = useState(false);

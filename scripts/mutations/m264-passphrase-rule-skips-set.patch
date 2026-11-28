@@ -10,14 +10,15 @@
 # #638 で合言葉の設定が timer のコマンドから玄関（ハブ）のコマンドへ移ったので、壊す場所を
 # timer の入口の規約（`passphrase-rule.ts`）から、ハブの `room.passphrase.set` のスキーマの上限へ移した（壊し方は同じ）。
 diff --git a/packages/room-core/src/wire.ts b/packages/room-core/src/wire.ts
+index db5981e7..1fffb6b9 100644
 --- a/packages/room-core/src/wire.ts
 +++ b/packages/room-core/src/wire.ts
-@@ -138,7 +138,7 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command", [
+@@ -151,7 +151,7 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
    // 上限は参加の `room.join` と同じ 1 つの値（`./passphrase.ts`）。
    v.strictObject({
      command: v.literal("room.passphrase.set"),
 -    passphrase: v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE)),
 +    passphrase: v.string(),
    }),
- ]);
-
+   // 新設のコマンドなので strict から始める（#677）。
+   v.strictObject({

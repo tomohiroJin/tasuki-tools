@@ -1,0 +1,12 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 294d6bff..4e952537 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -389,7 +389,6 @@ export function useHubSync(): HubSync {
+         // **呼びかけの待ちも終わらせる**（#677）。弾かれたら送り直せるようにし、失敗は呼ぶ操作の近くへ出す。
+         const callWasPending = pendingCallRef.current !== null;
+         settleCall();
+-        settlePassphrase();
+         // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
+         const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
+           currentCode: codeRef.current,

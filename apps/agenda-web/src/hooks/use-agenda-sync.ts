@@ -34,13 +34,13 @@
  * **いまのステップが変わったフレーム**（失敗の前提が変わった）だけ。送った操作が失敗で返ったら待ちを解く。
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
+import type { DepartureReason, RoomCall, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import { roundsOf, type AgendaCommand, type AgendaView, type ExtendMinutes, type ScenarioInput } from '@tasuki/agenda-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { parseAgendaWebMessage } from '../server-message';
+import { parseAgendaRoomCall, parseAgendaWebMessage } from '../server-message';
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function agendaSyncUrl(location: { protocol: string; host: string }): string {
@@ -83,6 +83,10 @@ export interface AgendaSync {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
+  /** 呼びかけの知らせ（最新の 1 つ・#677）。無ければ null */
+  readonly call: RoomCall | null;
+  /** 知らせを閉じる（#677） */
+  dismissCall(): void;
   /** シナリオを置き換える（始まる前だけ） */
   setScenario(input: ScenarioInput): void;
   start(): void;
@@ -108,6 +112,7 @@ export function useAgendaSync(roomCode: string): AgendaSync {
   const room = useToolRoomSync({
     roomCode,
     syncUrl: agendaSyncUrl,
+    parseCall: parseAgendaRoomCall,
     parse: parseAgendaWebMessage,
     texts: TEXTS,
     onFrame: (msg, handlers) => {
@@ -187,6 +192,8 @@ export function useAgendaSync(roomCode: string): AgendaSync {
       error: room.error,
       retryNotice: room.retryNotice,
       clearError: room.clearError,
+      call: room.call,
+      dismissCall: room.dismissCall,
       ...actions,
     }),
     [room, agendaSlot, roster, topic, actions],

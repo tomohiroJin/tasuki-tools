@@ -1,0 +1,13 @@
+diff --git a/apps/topic-web/src/hooks/use-topic-sync.ts b/apps/topic-web/src/hooks/use-topic-sync.ts
+index 5efa296b..d5170f05 100644
+--- a/apps/topic-web/src/hooks/use-topic-sync.ts
++++ b/apps/topic-web/src/hooks/use-topic-sync.ts
+@@ -129,7 +129,7 @@ export function useTopicSync(roomCode: string): TopicSync {
+       retryNotice: room.retryNotice,
+       clearError: room.clearError,
+       call: room.call,
+-      dismissCall: room.dismissCall,
++      dismissCall: () => undefined,
+       ...actions,
+     }),
+     [room, topicState, actions],
